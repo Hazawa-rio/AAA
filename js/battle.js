@@ -87,7 +87,13 @@
 
     add(u) { this.units.push(u); return u; }
     on(fn) { this.listeners.add(fn); }
-    emit(ev) { if (!this.dead) for (const f of this.listeners) f(ev || { type: "update" }); }
+    // 畫面那邊就算出錯，也不能讓戰鬥流程卡住
+    emit(ev) {
+      if (this.dead) return;
+      for (const f of this.listeners) {
+        try { f(ev || { type: "update" }); } catch (e) { console.error(e); }
+      }
+    }
     say(t) { this.log.push(t); if (this.log.length > 100) this.log.shift(); }
     destroy() { this.dead = true; this.listeners.clear(); clearTimeout(this._reactionTimer); }
 
@@ -104,13 +110,6 @@
 
     newRound() {
       this.round++;
-      // 區域效果到期
-      const expired = this.zones.filter((z) => this.round >= z.expiresRound);
-      if (expired.length) {
-        this.zones = this.zones.filter((z) => !expired.includes(z));
-        this.say(`${expired.length} 團煙霧散去了`);
-        this.emit({ type: "zoneExpire", zones: expired });
-      }
       // 行動順序：1d20 + 速度，高的先動；同分比速度，再同分玩家先
       const die = this.cfg.initiativeDie;
       const alive = this.units.filter((u) => u.alive);
@@ -120,6 +119,13 @@
       this.idx = 0;
       this.say(`── 第 ${this.round} 回合 ──`);
       this.say("順序：" + this.order.map((u) => `${u.name}(${u.initRoll}+${u.spd})`).join("、"));
+      // 區域效果到期（順序排好之後才通知畫面）
+      const expired = this.zones.filter((z) => this.round >= z.expiresRound);
+      if (expired.length) {
+        this.zones = this.zones.filter((z) => !expired.includes(z));
+        this.say(`${expired.length} 團煙霧散去了`);
+        this.emit({ type: "zoneExpire", zones: expired });
+      }
     }
 
     nextTurn() {
@@ -159,28 +165,39 @@
     }
 
     // ---------- 玩家操作 ----------
+    // 自己的回合正常消耗；敵人的回合（包含撞擊倒數中）也能行動，但行動點消耗加倍，而且不能放大招
+    offTurn() { return this.phase === "enemy" || this.phase === "reaction"; }
+    costMult() { return this.offTurn() ? this.cfg.offTurnMultiplier : 1; }
+    canAct() { return this.player.alive && (this.phase === "player" || this.offTurn()); }
+
+    requireCanAct(actionId) {
+      if (!this.canAct()) throw new ActionError("現在不能行動");
+      if (this.offTurn() && actionId && actionId === this.char.ultimate) throw new ActionError("大招只能在自己的回合使用");
+    }
     requirePlayerTurn() {
       if (this.phase !== "player") throw new ActionError("現在不是你的回合");
     }
 
     move(x, y) {
-      this.requirePlayerTurn();
-      this._move(this.player, x, y, this.cfg.moveCost);
-      this.countAction(this.player, "move", this.cfg.moveCost);
+      this.requireCanAct("move");
+      const cost = this.cfg.moveCost * this.costMult();
+      this._move(this.player, x, y, cost);
+      this.countAction(this.player, "move", cost);
       this.afterPlayerAction();
     }
 
-    // 使用技能（含普攻）。技能的 status() 決定能不能用、花多少行動點
+    // 使用技能（含普攻）。技能的 status() 決定能不能用、基本花多少行動點
     useSkill(id, arg = {}) {
-      this.requirePlayerTurn();
+      this.requireCanAct(id);
       const u = this.player, sk = this.skill(id);
       if (!sk) throw new ActionError("沒有這個技能");
       const st = sk.status(this, u);
       if (!st.ready) throw new ActionError(st.reason || "現在不能用");
-      if (u.ap < st.cost) throw new ActionError(`行動點不足（需要 ${st.cost}）`);
+      const cost = st.cost * this.costMult();
+      if (u.ap < cost) throw new ActionError(`行動點不足（需要 ${cost}）`);
       sk.use(this, u, arg, st);     // 不合法會丟 ActionError，此時什麼都還沒扣
-      u.ap -= st.cost;
-      this.countAction(u, id, st.cost);
+      u.ap -= cost;
+      this.countAction(u, id, cost);
       this.afterPlayerAction();
     }
 
@@ -192,7 +209,8 @@
 
     afterPlayerAction() {
       if (this.checkEnd()) return;
-      if (this.player.ap <= 0 && !this.char.canActFree?.(this, this.player)) this.nextTurn();
+      // 敵人回合中的行動不會結束任何回合
+      if (this.phase === "player" && this.player.ap <= 0 && !this.char.canActFree?.(this, this.player)) this.nextTurn();
       else this.emit();
     }
 
@@ -223,30 +241,24 @@
       this.emit({ type: "move", unit: u });
     }
 
-    // 非自己回合：雙倍消耗行動點閃避
-    dodge(x, y) {
-      if (this.phase !== "reaction" || !this.threat) throw new ActionError("現在不能閃避");
-      if (this.threat.dodged) throw new ActionError("這次已經閃避過了");
-      const cost = this.cfg.moveCost * this.cfg.dodgeMultiplier;
-      this._move(this.player, x, y, cost);
-      this.countAction(this.player, "dodge", cost);
-      this.threat.dodged = true;
-      this.say(`${this.player.name} 消耗 ${cost} 點緊急閃避！`);
-      this.emit();
-      setTimeout(() => this._reactionDone && this._reactionDone(), 250);
-    }
-
-    endure() {
-      if (this.phase === "reaction" && this._reactionDone) this._reactionDone();
-    }
-
     // base = 技能基礎傷害；mult = 額外倍率（例如穿過煙霧 ×1.5）
     damage(src, dst, base, mult = 1, note = "") {
       const amount = Math.max(1, Math.round(this.cfg.damage(base, src.atk, dst.df) * mult));
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
       this.emit({ type: "damage", unit: dst, amount, boosted: mult > 1 });
-      if (!dst.alive) { this.say(`${dst.name} 倒下了`); this.emit({ type: "death", unit: dst }); }
+      if (!dst.alive) {
+        this.say(`${dst.name} 倒下了`);
+        this.emit({ type: "death", unit: dst });
+        // 死掉的敵人：它蓄力中的範圍一起移除
+        const gone = this.charges.filter((c) => c.owner === dst);
+        if (gone.length) {
+          this.charges = this.charges.filter((c) => c.owner !== dst);
+          dst.state.slamPending = false;
+          this.say(`${dst.name} 的「壓制」蓄力消失了`);
+          this.emit({ type: "chargeCancel", charges: gone });
+        }
+      }
       return amount;
     }
 
@@ -307,19 +319,21 @@
       this.threat = {
         kind: "ram", owner: u, x: u.x + Math.cos(ang) * B, y: u.y + Math.sin(ang) * B, ang,
         length: r.length, width: r.width,
-        total: r.reaction, deadline: performance.now() + r.reaction * 1000, dodged: false,
+        total: r.reaction, deadline: performance.now() + r.reaction * 1000,
       };
       this.phase = "reaction";
       this.say(`${u.name} 準備撞擊！`);
       this.emit({ type: "threat" });
 
-      await new Promise((res) => {
-        this._reactionDone = res;
-        this._reactionTimer = setTimeout(res, r.reaction * 1000);
-      });
-      clearTimeout(this._reactionTimer);
-      this._reactionDone = null;
-      if (this.dead) return;
+      await new Promise((res) => { this._reactionTimer = setTimeout(res, r.reaction * 1000); });
+      if (this.dead || this.phase === "over") return;
+      if (!u.alive) {               // 倒數中被玩家打倒：撞擊取消
+        this.threat = null;
+        this.phase = "enemy";
+        this.say(`${u.name} 的撞擊中斷了`);
+        this.emit({ type: "threatCancel" });
+        return;
+      }
 
       const t = this.threat;
       this.threat = null;
@@ -352,7 +366,8 @@
       const leapTime = this.cfg.slamLeapTime;
       this.emit({ type: "leap", unit: u, from, to: land, duration: leapTime });
       await sleep(leapTime);
-      if (this.dead) return;
+      if (this.dead || this.phase === "over") return;
+      if (!u.alive) return;         // 跳躍中被打倒（範圍已在倒下時移除）
 
       this.charges = this.charges.filter((x) => x !== c);
       u.state.slamPending = false;

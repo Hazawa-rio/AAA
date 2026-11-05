@@ -8,7 +8,7 @@ RPG.CONFIG = {
   body: 22,             // 單位碰撞半徑
   movePerSpd: 13,       // 移動半徑 = 速度 × 這個值
   moveCost: 1,          // 自己回合移動一次的行動點
-  dodgeMultiplier: 2,   // 非自己回合閃避 = 移動消耗 × 2
+  offTurnMultiplier: 2, // 非自己回合也能行動（大招除外），行動點消耗 × 2
   initiativeDie: 20,    // 每回合行動順序 = 1d20 + 速度
   aiDelay: 0.55,        // 敵人每個動作之間的停頓（秒），只影響觀感
   slamLeapTime: 0.45,   // 壓制時史萊姆跳到中心點的時間（秒）

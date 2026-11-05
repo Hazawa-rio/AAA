@@ -78,6 +78,7 @@
         for (const z of ev.consumed) fx.push({ k: "smokeOut", zone: z, t, dur: 400 });
         ev.spikes.forEach((s, i) => fx.push({ k: "spike", from: s.from, to: s.to, t: t + i * 60, dur: 520 }));
         break;
+      case "chargeCancel": for (const c of ev.charges) fx.push({ k: "chargeOut", c, t, dur: 450 }); break;
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
       case "strike":
         if (ev.shape === "circle") {
@@ -89,8 +90,9 @@
         }
         break;
     }
-    if (B.phase !== "player") mode = "move";
-    else if (mode !== "move" && !statusOf(mode).ready) mode = "move";
+    // 正在瞄準的技能變得不能用（例如輪到敵人時的大招）就取消瞄準
+    if (B.phase === "over") mode = "move";
+    else if (mode !== "move" && (!statusOf(mode).ready || !usableNow(mode))) mode = "move";
     renderUI();
   }
 
@@ -99,6 +101,10 @@
   }
 
   const myTurn = () => B && B.phase === "player";
+  const canAct = () => B && B.canAct();                       // 自己回合或敵人回合都能行動
+  const mult = () => (B ? B.costMult() : 1);                  // 非自己回合 ×2
+  const effCost = (st) => st.cost * mult();
+  const usableNow = (id) => !(B.offTurn() && id === CH.ultimate);
   const pos = (u) => disp.get(u.id) || u;
   const unitAt = (p) => B.units.find((u) => u.alive && dist(pos(u).x, pos(u).y, p.x, p.y) <= C.body + 4) || null;
   const statusOf = (id) => CH.skills[id].status(B, B.player);
@@ -117,11 +123,7 @@
     if (!B || B.phase === "over") return;
     const p = toWorld(e);
     const hit = unitAt(p);
-    if (B.phase === "reaction") {
-      if (hit) return toast("那裡有其他單位");
-      return act(() => B.dodge(p.x, p.y));
-    }
-    if (!myTurn()) return toast("還不是你的回合");
+    if (!canAct()) return toast("現在不能行動");
     const enemy = hit && hit.team === "enemy" ? hit : null;
 
     if (mode === "move") {
@@ -152,10 +154,11 @@
   // 按技能鍵：不用瞄準的直接施放，要瞄準的進入瞄準模式
   function pressSkill(id) {
     if (!id) return;
-    if (!myTurn()) return toast("還不是你的回合");
+    if (!canAct()) return toast("現在不能行動");
+    if (!usableNow(id)) return toast("大招只能在自己的回合使用");
     const st = statusOf(id);
     if (!st.ready) return toast(st.reason || "現在不能用");
-    if (B.player.ap < st.cost) return toast(`行動點不足（需要 ${st.cost}）`);
+    if (B.player.ap < effCost(st)) return toast(`行動點不足（需要 ${effCost(st)}）`);
     if (!st.aim || st.aim.type === "none") { mode = "move"; act(() => B.useSkill(id)); renderUI(); return; }
     mode = mode === id ? "move" : id;
     renderUI();
@@ -173,8 +176,7 @@
     else if (k === "escape") { mode = "move"; renderUI(); }
     else if (k === " ") {
       e.preventDefault();
-      if (B.phase === "reaction") B.endure();
-      else if (myTurn()) act(() => B.endTurn());
+      if (myTurn()) act(() => B.endTurn());
     }
   });
 
@@ -188,12 +190,11 @@
 
   const STAR = '<svg class="star CLS" viewBox="0 0 40 40"><path d="M20 3 L24 16 L37 20 L24 24 L20 37 L16 24 L3 20 L16 16 Z"/></svg>';
   function previewCost() {
-    if (B.phase === "reaction" && B.threat && !B.threat.dodged) return C.moveCost * C.dodgeMultiplier;
-    if (!myTurn()) return 0;
-    if (mode !== "move") return statusOf(mode).cost;
+    if (!canAct()) return 0;
+    if (mode !== "move") return effCost(statusOf(mode));
     if (!mouse.in) return 0;
     const h = unitAt(mouse);
-    return h && h.team === "enemy" ? statusOf(CH.basic).cost : C.moveCost;
+    return h && h.team === "enemy" ? effCost(statusOf(CH.basic)) : C.moveCost * mult();
   }
   function renderStars() {
     const u = B.player, cost = previewCost();
@@ -224,8 +225,8 @@
       const im = b.querySelector("img");
       if (sk.icon && im.getAttribute("src") !== sk.icon) im.src = sk.icon;
       b.querySelector(".nm").textContent = st.label;
-      b.querySelector(".cost").textContent = `★${st.cost}${st.note ? " · " + st.note : ""}`;
-      b.disabled = !myTurn() || !st.ready || u.ap < st.cost;
+      b.querySelector(".cost").textContent = `★${effCost(st)}${st.note ? " · " + st.note : ""}`;
+      b.disabled = !canAct() || !st.ready || !usableNow(id) || u.ap < effCost(st);
       b.classList.toggle("active", mode === id);
       b.classList.toggle("cooling", !st.ready);
       b.classList.toggle("armed", id === "load" && !!u.state.loaded);
@@ -244,14 +245,7 @@
 
     const banner = $("#banner");
     banner.className = "";
-    if (B.phase === "reaction") {
-      banner.classList.add("danger");
-      const can = u.ap >= C.moveCost * C.dodgeMultiplier && !B.threat.dodged;
-      banner.innerHTML = B.threat.dodged ? "閃避！"
-        : can ? `撞擊來了！點藍圈內閃避（${C.moveCost * C.dodgeMultiplier} ★）<button id="endureBtn">硬吃</button>`
-          : "撞擊來了！行動點不足，無法閃避";
-      $("#endureBtn")?.addEventListener("click", () => B.endure());
-    } else if (myTurn()) {
+    if (myTurn()) {
       const warn = B.charges.length ? "　⚠ 地上有壓制範圍" : "";
       let text = "你的回合：點地面移動、點敵人踢腿";
       if (mode !== "move") {
@@ -259,8 +253,9 @@
         text = `「${statusOf(mode).label}」：` + (aim === "direction" ? "點擊方向射出" : aim === "enemy" ? "點選敵人" : "點選位置") + "（右鍵 / Esc 取消）";
       } else if (u.ap === 0) text = "行動點用完了，還可以免費射箭，或按結束回合";
       banner.textContent = text + warn;
-    } else if (B.phase === "enemy") {
-      banner.textContent = `${B.current.name} 行動中…`;
+    } else if (B.offTurn()) {
+      // 敵人回合（被攻擊時也一樣），不額外跳出攻擊提示
+      banner.textContent = `${B.current?.name ?? "敵人"} 行動中…　你的行動消耗 ×${mult()}（大招除外）`;
     } else banner.classList.add("hidden");
 
     renderStars();
@@ -309,7 +304,7 @@
     ["大招 行動點", SK.burst, "ap", 0, 6, 1],
     ["大招 尖刺寬度", SK.burst, "spikeWidth", 4, 60, 2],
     ["共用", null],
-    ["閃避消耗倍率", C, "dodgeMultiplier", 1, 3, 1],
+    ["非自己回合消耗倍率", C, "offTurnMultiplier", 1, 3, 1],
     ["敵人動作間隔（秒）", C, "aiDelay", 0.1, 1.5, 0.05],
     ["音量", C, "volume", 0, 1, 0.05],
   ];
@@ -439,7 +434,7 @@
     const t = B.threat;
     if (!t) return;
     const left = Math.max(0, (t.deadline - now) / 1000);
-    label(t.dodged ? "閃避" : left.toFixed(1), t.x + Math.cos(t.ang) * t.length / 2, t.y + Math.sin(t.ang) * t.length / 2, "#c62828", 20);
+    label(left.toFixed(1), t.x + Math.cos(t.ang) * t.length / 2, t.y + Math.sin(t.ang) * t.length / 2, "#c62828", 20);
   }
 
   // ---------- 玩家的預覽 ----------
@@ -462,25 +457,25 @@
     const p = pos(u), BD = C.body;
     const hover = mouse.in ? unitAt(mouse) : null;
 
-    if ((myTurn() && mode === "move") || B.phase === "reaction") {
-      const cost = B.phase === "reaction" ? C.moveCost * C.dodgeMultiplier : C.moveCost;
-      const ok = u.ap >= cost && !(B.threat && B.threat.dodged);
+    if (canAct() && mode === "move") {
+      const cost = C.moveCost * mult();
+      const ok = u.ap >= cost;
       const r = B.moveRadius(u);
       circle(p.x, p.y, r, ok ? "#1aa3e8" : "#c9c4b9", ok ? "rgba(26,163,232,.06)" : null, 3);
       const basic = CH.skills[CH.basic];
-      if (myTurn()) circle(p.x, p.y, basic.range, "rgba(29,29,31,.25)", null, 1, [4, 5]);
+      circle(p.x, p.y, basic.range, "rgba(29,29,31,.25)", null, 1, [4, 5]);
       if (ok && mouse.in && !hover && dist(p.x, p.y, mouse.x, mouse.y) <= r) {
         ctx.globalAlpha = 0.35; roundRect(mouse.x - BD, mouse.y - BD, BD * 2, BD * 2, 8);
         ctx.strokeStyle = "#1d1d1f"; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
       }
-      if (myTurn() && hover && hover.team === "enemy") {
+      if (hover && hover.team === "enemy") {
         const inR = dist(p.x, p.y, hover.x, hover.y) <= basic.range;
         circle(pos(hover).x, pos(hover).y, BD + 6, inR ? "#e53935" : "#c9c4b9", null, 2, inR ? null : [4, 4]);
         if (!inR) label("太遠了", pos(hover).x, pos(hover).y - BD - 28);
       }
       return;
     }
-    if (!myTurn()) return;
+    if (!canAct()) return;
     const st = statusOf(mode), aim = st.aim || {};
     const sk = CH.skills[mode];
     const color = sk.ultimate ? "#e0b800" : "#f08a2c";
@@ -584,7 +579,7 @@
 
     if (u.alive && u.team === "player") {
       let ang = u.facing;
-      if ((myTurn() || B.phase === "reaction") && mouse.in) ang = Math.atan2(mouse.y - p.y, mouse.x - p.x);
+      if (canAct() && mouse.in) ang = Math.atan2(mouse.y - p.y, mouse.x - p.x);
       facingArrow(p.x, p.y, ang);
       // 上膛標示：頭上、在面向箭頭之外，畫在最上層才不會被擋
       if (u.state.loaded && LOADED_MARK.complete) {
@@ -608,6 +603,9 @@
           ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
           ctx.fillStyle = "rgba(229,57,53,.45)"; ctx.fillRect(0, -f.width / 2, f.length, f.width);
           ctx.restore(); break;
+        case "chargeOut":   // 蓄力範圍縮小淡出
+          circle(f.c.x, f.c.y, f.c.radius * (1 - k * 0.6), "#c62828", `rgba(229,57,53,${0.15 * (1 - k)})`, 3, [12, 8]);
+          break;
         case "smokeOut": {
           ctx.globalAlpha = 1;
           drawSmoke(f.zone, now, 1 - k, 1 + k * 0.4);

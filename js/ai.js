@@ -8,7 +8,7 @@
     async takeTurn(b, u) {
       const d0 = u.def;
       let guard = 0;
-      while (u.ap > 0 && !b.dead && b.phase !== "over" && guard++ < 12) {
+      while (u.ap > 0 && u.alive && !b.dead && b.phase !== "over" && guard++ < 12) {
         const p = b.player;
         const d = R.dist(u.x, u.y, p.x, p.y);
         const ramReach = d0.ram.length + b.cfg.body;   // 中心到中心的撞擊距離
