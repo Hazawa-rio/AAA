@@ -13,6 +13,7 @@ RPG.CONFIG = {
   aiDelay: 0.55,        // 敵人每個動作之間的停頓（秒），只影響觀感
   slamLeapTime: 0.45,   // 壓制時史萊姆跳到中心點的時間（秒）
   volume: 0.7,
+  bgmVolume: 0.35,
   turnSound: "sounds/turn-start.mp3",   // 輪到自己回合的提示音
 
   // 傷害公式：技能寫的「基礎 × 攻擊力%」解讀為 基礎 × (1 + 攻擊力/100)，再扣防禦，最少 1
@@ -33,12 +34,62 @@ RPG.CONFIG = {
       slam: { ap: 2, range: 340, radius: 115, base: 14, cooldown: 2 },
       sounds: { ram: "sounds/slime-ram.mp3", slam: "sounds/slime-slam.mp3", move: "sounds/slime-move.mp3" },
     },
+
+  // ===== Boss：古代遺跡的殲滅矩陣 =====
+    matrixBoss: {
+      name: "古代遺跡的殲滅矩陣", ai: "matrixBoss", boss: true,
+      hp: 200, atk: 35, df: 10, spd: 10, ap: 13,
+      r: 52,                      // 核心大小
+      armLength: 205,             // 觸手長度（核心到矩陣）
+      parts: [                    // 三個能量矩陣的方向（角度，0 = 右、90 = 下）
+        { name: "左上矩陣", angle: -155 },
+        { name: "右上矩陣", angle: -25 },
+        { name: "下方矩陣", angle: 90 },
+      ],
+      part: { kind: "matrixNode", name: "能量矩陣", hp: 85, atk: 35, df: 10, spd: 0, ap: 0, r: 28 },
+      // 核心立場：破壞 0 / 1 / 2 / 3 個矩陣時，核心受到的傷害倍率
+      coreMult: [0, 0.5, 1, 1.5],
+      incomingMult(b, core) {
+        const broken = core.parts.filter((p) => !p.alive).length;
+        return core.def.coreMult[broken];
+      },
+
+      reaction: 1.0,              // 有預告的攻擊（觸手、電流、激光）倒數秒數
+      bullet: { speed: 260, r: 6 },   // 光彈飛行速度與大小
+      // 以下傷害皆為暫定；weight = AI 選這招的機率權重
+      swipe:    { ap: 1, radius: 330, half: 35, base: 8, weight: 3 },   // 揮動觸手：扇形（半角 35°）
+      electric: { ap: 1, radius: 115, base: 7, weight: 3 },             // 矩陣周圍電流
+      shot:     { ap: 1, waves: [1, 2, 1, 2], spread: 12, interval: 0.2, base: 4, weight: 3 }, // 核心射擊 1-2-1-2
+      laser:    { ap: 2, width: 70, base: 12, weight: 2 },             // 寬激光
+      ring:     { ap: 2, count: 12, base: 4, weight: 2 },               // 所有矩陣環狀擴散光彈
+      // 大招：矩陣環狀光彈 + 核心朝三個方向（間隔 120°）射 1-2-1-2
+      ult:      { ap: 3, firstRound: 3, every: 3, count: 12, waves: [1, 2, 1, 2], spread: 12, interval: 0.22, base: 4 },
+      sounds: {
+        tentacle: "sounds/boss-tentacle.mp3",
+        electric: "sounds/boss-electric.mp3",
+        bullet: "sounds/boss-bullet.mp3",
+        laser: "sounds/boss-laser.mp3",
+      },
+    },
   },
 
-  // 測試房間：敵人種類與位置
-  wave: [
-    { kind: "slime", x: 260, y: 130 },
-    { kind: "slime", x: 500, y: 90 },
-    { kind: "slime", x: 740, y: 130 },
-  ],
+  // ===== 房間 =====
+  rooms: {
+    slimes: {
+      name: "史萊姆測試房", desc: "3 隻史萊姆",
+      playerStart: { x: 500, y: 460 },
+      wave: [
+        { kind: "slime", x: 260, y: 130 },
+        { kind: "slime", x: 500, y: 90 },
+        { kind: "slime", x: 740, y: 130 },
+      ],
+    },
+    boss: {
+      name: "古代遺跡", desc: "測試 Boss：古代遺跡的殲滅矩陣",
+      playerStart: { x: 330, y: 500 },
+      wave: [{ kind: "matrixBoss", x: 500, y: 180 }],
+      bgm: "sounds/boss-bgm.mp3",
+      help: "<b>核心有立場保護</b>：破壞 1 / 2 / 3 個能量矩陣後，核心受到 ×0.5 / ×1 / ×1.5 傷害<br><b>紅色範圍</b>＝觸手、電流、激光，倒數結束時判定<br><b>紅色光彈</b>沒有預告，看到就移動躲開",
+    },
+  },
 };

@@ -62,9 +62,26 @@
     }).join("");
   }
 
+  // ---------- 房間 ----------
+  const rooms = R.CONFIG.rooms;
+  let room = rooms[store.get("rpg.room")] ? store.get("rpg.room") : Object.keys(rooms)[0];
+  $("#rooms").innerHTML = Object.entries(rooms).map(([id, r]) => `
+    <button class="room" data-id="${id}" type="button" aria-pressed="false">
+      <b>${esc(r.name)}</b><span>${esc(r.desc)}</span>${r.bgm ? '<span class="tag">BOSS</span>' : ""}
+    </button>`).join("");
+  function pickRoom(id) {
+    room = id; store.set("rpg.room", id);
+    document.querySelectorAll(".room").forEach((el) => {
+      el.classList.toggle("sel", el.dataset.id === id);
+      el.setAttribute("aria-pressed", String(el.dataset.id === id));
+    });
+  }
+  document.querySelectorAll(".room").forEach((el) => el.addEventListener("click", () => pickRoom(el.dataset.id)));
+  pickRoom(room);
+
   $("#goBtn").addEventListener("click", () => {
     if (!selected) return;
-    location.href = `battle.html?char=${encodeURIComponent(selected.id)}`;
+    location.href = `battle.html?char=${encodeURIComponent(selected.id)}&room=${encodeURIComponent(room)}`;
   });
 
   const saved = store.get("rpg.char");

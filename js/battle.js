@@ -8,6 +8,7 @@
   R.sleep = sleep;
 
   // ---------- 幾何 ----------
+  const angDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
   const geo = {
     // 點到線段的距離
     pointSeg(px, py, ax, ay, bx, by) {
@@ -30,6 +31,14 @@
       const along = dx * c + dy * s, across = -dx * s + dy * c;
       return along >= -margin && along <= t.length + margin && Math.abs(across) <= t.width / 2 + margin;
     },
+    // 點是否在扇形內（圓心 x,y、朝 ang、半角 half、半徑 radius）
+    inSector(px, py, t, margin) {
+      const d = dist(px, py, t.x, t.y);
+      if (d > t.radius + margin) return false;
+      if (d <= margin) return true;
+      return angDiff(Math.atan2(py - t.y, px - t.x), t.ang) <= t.half + Math.asin(Math.min(1, margin / d));
+    },
+    angDiff,
   };
   R.geo = geo;
 
@@ -38,13 +47,14 @@
 
   let nextId = 1;
   class Unit {
-    constructor(team, kind, def, stats, x, y) {
+    constructor(team, kind, def, stats, x, y, r) {
       this.id = "u" + nextId++;
       this.team = team;
       this.kind = kind;
       this.def = def;              // 角色或敵人的設定（技能數值即時讀這裡）
       this.name = def.name;
       this.x = x; this.y = y;
+      this.r = r;                  // 碰撞半徑（Boss 核心比較大）
       this.maxHp = this.hp = stats.hp;
       this.atk = stats.atk; this.df = stats.df; this.spd = stats.spd;
       this.maxAp = this.ap = stats.ap;
@@ -54,35 +64,58 @@
       this._cdSet = new Set();     // 這次行動剛設定的冷卻，不要馬上扣
       this.actions = 0;            // 累計行動次數
       this.charge = 0;             // 大招充能（行動次數）
-      this.initRoll = 0;           // 本回合 d20 擲出的點數
+      this.initRoll = 0;           // d20 擲出的點數
+      this.part = false;           // 是否為 Boss 的部位（不參與回合）
+      this.parent = null;
+      this.parts = [];
     }
     get alive() { return this.hp > 0; }
     get initiative() { return this.initRoll + this.spd; }
   }
 
   class Battle {
-    constructor(cfg, charId) {
+    constructor(cfg, charId, roomId) {
       this.cfg = cfg;
+      this.room = cfg.rooms[roomId] || Object.values(cfg.rooms)[0];
       this.units = [];
       const ch = R.CHARACTERS[charId] || Object.values(R.CHARACTERS)[0];
       this.char = ch;
-      this.player = this.add(new Unit("player", ch.id, ch, ch.stats, cfg.arena.w / 2, cfg.arena.h - 100));
+      const ps = this.room.playerStart;
+      this.player = this.add(new Unit("player", ch.id, ch, ch.stats, ps.x, ps.y, cfg.body));
       ch.init?.(this, this.player);
-      for (const sp of cfg.wave) {
-        const d = cfg.enemies[sp.kind];
-        this.add(new Unit("enemy", sp.kind, d, d, sp.x, sp.y));
-      }
+      for (const sp of this.room.wave) this.spawnEnemy(sp);
+
       this.round = 0;
       this.order = [];
       this.idx = -1;
-      this.phase = "idle";        // player / enemy / reaction / over
+      this.phase = "idle";        // player / enemy / over
       this.result = null;
-      this.charges = [];          // 敵人蓄力中的範圍攻擊（壓制）
+      this.charges = [];          // 蓄力到下次回合才發動的攻擊（史萊姆壓制）
       this.zones = [];            // 場上的區域效果（煙霧…）
-      this.threat = null;         // 正在倒數、可以閃避的攻擊（撞擊）
+      this.threats = [];          // 正在倒數的預告攻擊（長方形 / 扇形 / 圓形）
+      this.projectiles = [];      // 飛行中的光彈
       this.log = [];
       this.listeners = new Set();
       this.dead = false;
+      this._timers = new Set();
+    }
+
+    spawnEnemy(sp) {
+      const d = this.cfg.enemies[sp.kind];
+      const u = this.add(new Unit("enemy", sp.kind, d, d, sp.x, sp.y, d.r || this.cfg.body));
+      // Boss 的部位（例如能量矩陣）：可以被攻擊，但不參與行動順序
+      for (const pd of d.parts || []) {
+        const a = (pd.angle * Math.PI) / 180;
+        const p = this.add(new Unit("enemy", d.part.kind || "part", d.part, d.part,
+          sp.x + Math.cos(a) * d.armLength, sp.y + Math.sin(a) * d.armLength, d.part.r || this.cfg.body));
+        p.name = pd.name;
+        p.part = true;
+        p.parent = u;
+        p.angle = a;
+        u.parts.push(p);
+      }
+      R.AI[d.ai]?.init?.(this, u);
+      return u;
     }
 
     add(u) { this.units.push(u); return u; }
@@ -94,15 +127,30 @@
         try { f(ev || { type: "update" }); } catch (e) { console.error(e); }
       }
     }
-    say(t) { this.log.push(t); if (this.log.length > 100) this.log.shift(); }
-    destroy() { this.dead = true; this.listeners.clear(); clearTimeout(this._reactionTimer); }
+    say(t) { this.log.push(t); if (this.log.length > 120) this.log.shift(); }
+    destroy() {
+      this.dead = true;
+      this.listeners.clear();
+      for (const t of this._timers) clearTimeout(t);
+      clearInterval(this._projTimer);
+      this.projectiles = [];
+    }
+    wait(s) {
+      return new Promise((res) => {
+        const id = setTimeout(() => { this._timers.delete(id); res(); }, s * 1000);
+        this._timers.add(id);
+      });
+    }
 
     get current() { return this.order[this.idx]; }
     enemies() { return this.units.filter((u) => u.team === "enemy" && u.alive); }
+    mainEnemies() { return this.enemies().filter((u) => !u.part); }
     moveRadius(u) { return u.spd * this.cfg.movePerSpd; }
     blocked(u, x, y) {
-      return this.units.some((o) => o !== u && o.alive && dist(o.x, o.y, x, y) < this.cfg.body * 2);
+      return this.units.some((o) => o !== u && o.alive && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
     }
+    // 近戰距離：從邊緣算，大型目標不用貼到中心
+    reach(a, t) { return dist(a.x, a.y, t.x, t.y) - (t.r - this.cfg.body); }
     skill(id) { return this.char.skills[id]; }
 
     // ---------- 回合流程 ----------
@@ -114,7 +162,7 @@
       if (this.round === 1) {
         // 行動順序只在第一回合決定：1d20 + 速度，高的先動；同分比速度，再同分玩家先
         const die = this.cfg.initiativeDie;
-        const alive = this.units.filter((u) => u.alive);
+        const alive = this.units.filter((u) => u.alive && !u.part);
         for (const u of alive) u.initRoll = 1 + Math.floor(Math.random() * die);
         this.order = alive.sort((a, b) => b.initiative - a.initiative || b.spd - a.spd ||
           (a.team === "player" ? -1 : b.team === "player" ? 1 : 0));
@@ -124,13 +172,6 @@
         this.order = this.order.filter((u) => u.alive);
       }
       this.idx = 0;
-      // 區域效果到期（順序排好之後才通知畫面）
-      const expired = this.zones.filter((z) => this.round >= z.expiresRound);
-      if (expired.length) {
-        this.zones = this.zones.filter((z) => !expired.includes(z));
-        this.say(`${expired.length} 團煙霧散去了`);
-        this.emit({ type: "zoneExpire", zones: expired });
-      }
     }
 
     nextTurn() {
@@ -144,6 +185,7 @@
       const u = this.current;
       u.ap = u.maxAp;
       this.say(`輪到 ${u.name}`);
+      this.tickZones(u);
       if (u.team === "player") {
         this.phase = "player";
         this.emit({ type: "turn", unit: u });
@@ -154,24 +196,40 @@
       }
     }
 
+    // 區域效果以「放置者自己的回合」計算，放下的那一回合不算
+    // 例：第 1 回合放下、持續 3 回合 → 第 2、3、4 回合都還在，第 5 回合輪到放置者時消散
+    tickZones(owner) {
+      const expired = [];
+      for (const z of this.zones) {
+        if (z.owner !== owner) continue;
+        if (z.turnsLeft <= 0) expired.push(z);
+        else z.turnsLeft--;
+      }
+      if (!expired.length) return;
+      this.zones = this.zones.filter((z) => !expired.includes(z));
+      this.say(`${expired.length} 團煙霧散去了`);
+      this.emit({ type: "zoneExpire", zones: expired });
+    }
+
     checkEnd() {
       if (this.phase === "over") return true;
       let result = null;
       if (!this.player.alive) result = "lose";
-      else if (!this.enemies().length) result = "win";
+      else if (!this.mainEnemies().length) result = "win";
       if (!result) return false;
       this.phase = "over";
       this.result = result;
-      this.threat = null;
+      this.threats = [];
       this.charges = [];
+      this.projectiles = [];
       this.say(result === "win" ? "勝利！" : "被打倒了……");
       this.emit({ type: "over" });
       return true;
     }
 
     // ---------- 玩家操作 ----------
-    // 自己的回合正常消耗；敵人的回合（包含撞擊倒數中）也能行動，但行動點消耗加倍，而且不能放大招
-    offTurn() { return this.phase === "enemy" || this.phase === "reaction"; }
+    // 自己的回合正常消耗；敵人的回合也能行動，但行動點消耗加倍，而且不能放大招
+    offTurn() { return this.phase === "enemy"; }
     costMult() { return this.offTurn() ? this.cfg.offTurnMultiplier : 1; }
     canAct() { return this.player.alive && (this.phase === "player" || this.offTurn()); }
 
@@ -248,40 +306,57 @@
 
     // base = 技能基礎傷害；mult = 額外倍率（例如穿過煙霧 ×1.5）
     damage(src, dst, base, mult = 1, note = "") {
-      const amount = Math.max(1, Math.round(this.cfg.damage(base, src.atk, dst.df) * mult));
+      if (!dst.alive) return 0;
+      // 受傷倍率（例如殲滅矩陣的核心立場：依破壞的矩陣數量 0 / 0.5 / 1 / 1.5 倍）
+      const k = dst.def.incomingMult ? dst.def.incomingMult(this, dst) : 1;
+      if (k === 0) {
+        this.say(`立場擋下了攻擊！先破壞能量矩陣`);
+        this.emit({ type: "blocked", unit: dst });
+        return 0;
+      }
+      if (k !== 1) note += `（立場 ×${k}）`;
+      const amount = Math.max(1, Math.round(this.cfg.damage(base, src.atk, dst.df) * mult * k));
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
-      this.emit({ type: "damage", unit: dst, amount, boosted: mult > 1 });
-      if (!dst.alive) {
-        this.say(`${dst.name} 倒下了`);
-        this.emit({ type: "death", unit: dst });
-        // 死掉的敵人：它蓄力中的範圍一起移除
-        const gone = this.charges.filter((c) => c.owner === dst);
-        if (gone.length) {
-          this.charges = this.charges.filter((c) => c.owner !== dst);
-          dst.state.slamPending = false;
-          this.say(`${dst.name} 的「壓制」蓄力消失了`);
-          this.emit({ type: "chargeCancel", charges: gone });
-        }
-      }
+      this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1 });
+      if (!dst.alive) this.onDeath(dst);
       return amount;
+    }
+
+    onDeath(u) {
+      if (u.part) {
+        const left = u.parent.parts.filter((p) => p.alive).length;
+        this.say(`${u.name} 被破壞了！${left ? `核心立場減弱（還剩 ${left} 個矩陣）` : "核心立場完全瓦解！"}`);
+      } else this.say(`${u.name} 倒下了`);
+      this.emit({ type: "death", unit: u });
+      // Boss 本體倒下：部位一起停止
+      for (const p of u.parts) if (p.alive) { p.hp = 0; this.emit({ type: "death", unit: p }); }
+      // 死掉的敵人：它蓄力中的範圍一起移除
+      const gone = this.charges.filter((c) => c.owner === u);
+      if (gone.length) {
+        this.charges = this.charges.filter((c) => c.owner !== u);
+        u.state.slamPending = false;
+        this.say(`${u.name} 的「壓制」蓄力消失了`);
+        this.emit({ type: "chargeCancel", charges: gone });
+      }
     }
 
     // ---------- 敵人回合 ----------
     async runEnemyTurn(u) {
       for (const c of this.charges.filter((c) => c.owner === u)) {
-        await sleep(this.cfg.aiDelay);
+        await this.wait(this.cfg.aiDelay);
         if (this.dead) return;
         await this.resolveCharge(c);
         if (this.dead) return;
         if (this.checkEnd()) return;
       }
-      await sleep(this.cfg.aiDelay);
+      await this.wait(this.cfg.aiDelay);
       if (this.dead) return;
       await R.AI[u.def.ai].takeTurn(this, u);
+      await this.waitProjectiles();
       if (this.dead || this.phase === "over") return;
-      await sleep(this.cfg.aiDelay * 0.6);
-      if (this.dead) return;
+      await this.wait(this.cfg.aiDelay * 0.6);
+      if (this.dead || this.phase === "over") return;
       this.nextTurn();
     }
 
@@ -291,6 +366,79 @@
       if (u.state.slamCd > 0) u.state.slamCd--;
     }
 
+    // ---------- 預告攻擊 ----------
+    // shape：rect（x,y,ang,length,width）/ sector（x,y,ang,half,radius）/ circle（x,y,radius）
+    // 先顯示範圍、等 reaction 秒，再判定玩家有沒有在範圍內
+    async telegraph(owner, t, { base, sound, label, missText, mult = 1 } = {}) {
+      t.owner = owner;
+      t.total = t.reaction;
+      t.deadline = performance.now() + t.reaction * 1000;
+      this.threats.push(t);
+      this.emit({ type: "threat", threat: t });
+      await this.wait(t.reaction);
+      this.threats = this.threats.filter((x) => x !== t);
+      if (this.dead || this.phase === "over") return false;
+      if (!owner.alive || (t.source && !t.source.alive)) {   // 倒數中被打倒：攻擊中斷
+        this.say(`${label || owner.name + " 的攻擊"}中斷了`);
+        this.emit({ type: "threatCancel", threat: t });
+        return false;
+      }
+      this.emit({ type: "strike", ...t, sound });
+      const p = this.player;
+      if (p.alive && this.hitTest(t, p)) this.damage(owner, p, base, mult);
+      else { this.say(missText || `${label || "攻擊"}落空了！`); this.emit({ type: "miss", x: p.x, y: p.y }); }
+      this.checkEnd();
+      return true;
+    }
+
+    hitTest(t, u) {
+      const m = u.r * 0.5;
+      if (t.shape === "rect") return geo.inRect(u.x, u.y, t, m);
+      if (t.shape === "sector") return geo.inSector(u.x, u.y, t, m);
+      return dist(u.x, u.y, t.x, t.y) <= t.radius + m;
+    }
+
+    // ---------- 光彈（沒有預告，會在場上飛，可以移動躲開） ----------
+    spawnBullet(owner, x, y, ang, opt) {
+      this.projectiles.push({
+        id: "p" + nextId++, owner, x, y, ang,
+        vx: Math.cos(ang) * opt.speed, vy: Math.sin(ang) * opt.speed,
+        r: opt.r, base: opt.base,
+      });
+      if (!this._projTimer) {
+        let last = performance.now();
+        this._projTimer = setInterval(() => {
+          const now = performance.now();
+          this.stepProjectiles(Math.min(0.05, (now - last) / 1000));
+          last = now;
+        }, 16);
+      }
+    }
+
+    stepProjectiles(dt) {
+      if (this.dead || this.phase === "over") this.projectiles = [];
+      const A = this.cfg.arena, p = this.player, hitR = p.r * 0.7;
+      const keep = [];
+      for (const b of this.projectiles) {
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        if (b.x < -30 || b.y < -30 || b.x > A.w + 30 || b.y > A.h + 30) continue;
+        if (p.alive && dist(b.x, b.y, p.x, p.y) <= b.r + hitR) {
+          this.emit({ type: "bulletHit", x: b.x, y: b.y });
+          this.damage(b.owner, p, b.base);
+          continue;
+        }
+        keep.push(b);
+      }
+      this.projectiles = keep;
+      if (!keep.length) { clearInterval(this._projTimer); this._projTimer = null; }
+      this.checkEnd();
+    }
+
+    async waitProjectiles() {
+      while (this.projectiles.length && !this.dead && this.phase !== "over") await this.wait(0.05);
+    }
+
+    // ---------- 史萊姆用的動作 ----------
     enemyMoveToward(u, target, stopAt) {
       const cost = u.def.moveCost;
       if (u.ap < cost) return false;
@@ -321,33 +469,11 @@
       this.enemySpend(u, r.ap);
       const ang = Math.atan2(target.y - u.y, target.x - u.x);
       u.facing = ang;
-      this.threat = {
-        kind: "ram", owner: u, x: u.x + Math.cos(ang) * B, y: u.y + Math.sin(ang) * B, ang,
-        length: r.length, width: r.width,
-        total: r.reaction, deadline: performance.now() + r.reaction * 1000,
-      };
-      this.phase = "reaction";
       this.say(`${u.name} 準備撞擊！`);
-      this.emit({ type: "threat" });
-
-      await new Promise((res) => { this._reactionTimer = setTimeout(res, r.reaction * 1000); });
-      if (this.dead || this.phase === "over") return;
-      if (!u.alive) {               // 倒數中被玩家打倒：撞擊取消
-        this.threat = null;
-        this.phase = "enemy";
-        this.say(`${u.name} 的撞擊中斷了`);
-        this.emit({ type: "threatCancel" });
-        return;
-      }
-
-      const t = this.threat;
-      this.threat = null;
-      this.phase = "enemy";
-      this.emit({ type: "strike", shape: "rect", ...t });
-      const p = this.player;
-      if (p.alive && geo.inRect(p.x, p.y, t, B * 0.5)) this.damage(u, p, r.base);
-      else { this.say(`${u.name} 的撞擊落空了！`); this.emit({ type: "miss", x: p.x, y: p.y }); }
-      this.checkEnd();
+      await this.telegraph(u, {
+        shape: "rect", x: u.x + Math.cos(ang) * B, y: u.y + Math.sin(ang) * B, ang,
+        length: r.length, width: r.width, reaction: r.reaction, lunge: true,
+      }, { base: r.base, sound: u.def.sounds?.ram, label: `${u.name} 的撞擊` });
     }
 
     // 壓制：宣告範圍，等到這個敵人下次的回合開始才發動
@@ -370,7 +496,7 @@
       const land = this.landingSpot(u, c.x, c.y, from);
       const leapTime = this.cfg.slamLeapTime;
       this.emit({ type: "leap", unit: u, from, to: land, duration: leapTime });
-      await sleep(leapTime);
+      await this.wait(leapTime);
       if (this.dead || this.phase === "over") return;
       if (!u.alive) return;         // 跳躍中被打倒（範圍已在倒下時移除）
 
@@ -380,7 +506,7 @@
       u.x = land.x; u.y = land.y;
       u.facing = Math.atan2(land.y - from.y, land.x - from.x) || u.facing;
       this.say(`${u.name} 的「壓制」落下！`);
-      this.emit({ type: "strike", shape: "circle", unit: u, x: c.x, y: c.y, radius: c.radius });
+      this.emit({ type: "strike", shape: "circle", owner: u, x: c.x, y: c.y, radius: c.radius, sound: u.def.sounds?.slam });
       const p = this.player;
       if (p.alive && dist(p.x, p.y, c.x, c.y) <= c.radius + this.cfg.body * 0.5) this.damage(u, p, c.base);
       else { this.say("壓制落空了！"); this.emit({ type: "miss", x: c.x, y: c.y }); }
