@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>選擇角色</title>
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/style.css?v=202611060423">
+<link rel="stylesheet" href="css/home.css?v=202611060423">
 </head>
 <body>
 <div id="home">
   <header class="home-head">
     <h1>選擇角色</h1>
-    <p class="muted">選好角色後進入測試房間（3 隻史萊姆）</p>
+    <p class="muted">選好角色和房間後開始戰鬥</p>
   </header>
 
   <section id="cards" aria-label="角色"></section>
@@ -31,14 +31,19 @@
     </div>
   </section>
 
+  <section>
+    <h3 class="sec-title">選擇房間</h3>
+    <div id="rooms"></div>
+  </section>
+
   <div class="join">
-    <p class="muted">行動順序每回合由 1d20 ＋ 速度 決定</p>
-    <button type="button" id="goBtn" class="primary">進入測試房間</button>
+    <p class="muted">行動順序在第一回合由 1d20 ＋ 速度 決定，之後沿用</p>
+    <button type="button" id="goBtn" class="primary">進入房間</button>
   </div>
 </div>
-<script src="js/config.js"></script>
-<script src="js/battle.js"></script>
-<script src="js/characters/firsler.js"></script>
-<script src="js/home.js"></script>
+<script src="js/config.js?v=202611060423"></script>
+<script src="js/battle.js?v=202611060423"></script>
+<script src="js/characters/firsler.js?v=202611060423"></script>
+<script src="js/home.js?v=202611060423"></script>
 </body>
 </html>

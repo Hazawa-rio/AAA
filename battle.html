@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>戰鬥測試</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=202611060423">
 </head>
 <body>
 <div id="app">
   <header id="topbar">
-    <div id="roominfo"><a href="./" class="back">← 選角</a> · <b>測試房間</b></div>
+    <div id="roominfo"><a href="./" class="back">← 選角</a> · <b id="roomName">測試房間</b></div>
     <div id="order"></div>
     <div id="roundInfo"></div>
     <button id="muteBtn" class="ghost" type="button"></button>
@@ -42,7 +42,7 @@
         <h2>操作</h2>
         <p>點地面：移動（1 點）· 點敵人：普攻<br>Q / W / E：技能，再點目標 · Esc 取消<br>Space：結束回合</p>
         <p><b>敵人的回合也能行動</b>（大招除外），行動點消耗 ×2，沒用完的點數可以留著躲攻擊或反擊</p>
-        <p><b>紅色方框</b>＝撞擊，倒數結束時打中框內<br><b>紅色虛線圓</b>＝壓制，下次輪到那隻史萊姆時落下</p>
+        <p id="roomHelp"><b>紅色方框</b>＝撞擊，倒數結束時打中框內<br><b>紅色虛線圓</b>＝壓制，下次輪到那隻史萊姆時落下</p>
       </section>
     </aside>
   </main>
@@ -69,10 +69,10 @@
     <button id="restartBtn" class="ghost">重新開始戰鬥</button>
   </details>
 </div>
-<script src="js/config.js"></script>
-<script src="js/battle.js"></script>
-<script src="js/characters/firsler.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/battle-ui.js"></script>
+<script src="js/config.js?v=202611060423"></script>
+<script src="js/battle.js?v=202611060423"></script>
+<script src="js/characters/firsler.js?v=202611060423"></script>
+<script src="js/ai.js?v=202611060423"></script>
+<script src="js/battle-ui.js?v=202611060423"></script>
 </body>
 </html>
