@@ -33,7 +33,7 @@
     skills: {
       // ---------- 普攻 ----------
       kick: {
-        name: "踢腿", slot: "普攻",
+        name: "踢腿", slot: "普攻", sound: "sounds/firsler-kick.mp3",
         ap: 1, base: 10, range: 70,
         desc: "近距離，造成 10 × 攻擊力% 傷害",
         status(b, u) {
@@ -46,13 +46,14 @@
           u.facing = Math.atan2(t.y - u.y, t.x - u.x);
           b.say(`${u.name} 使用「踢腿」`);
           b.emit({ type: "kick", unit: u, target: t });
+          b.emit({ type: "sfx", sound: this.sound });
           b.damage(u, t, this.base);
         },
       },
 
       // ---------- Q 上膛 ----------
       load: {
-        name: "上膛", slot: "Q", key: "q", icon: "assets/icons/firsler-load.png", sound: "sounds/firsler-load.mp3",
+        name: "上膛", slot: "Q", key: "q", sound: "sounds/firsler-load.mp3",
         ap: 1,
         base: 16, range: 420, smokeMult: 1.5,
         cooldown: 2,                        // 暫定：射箭後的冷卻（行動次數）
@@ -100,10 +101,10 @@
 
       // ---------- E 煙霧吐出 ----------
       smoke: {
-        name: "煙霧吐出", slot: "E", key: "e", icon: "assets/icons/firsler-smoke.png", sound: "sounds/firsler-smoke.mp3",
+        name: "煙霧吐出", slot: "E", key: "e", sound: "sounds/firsler-smoke.mp3",
         ap: 1, range: 160, radius: 60,      // 暫定：施放距離、煙霧大小
-        duration: 2, max: 3, cooldown: 4,
-        desc: "在身邊放一團煙霧，2 回合後消失，最多 3 團。冷卻 4 次行動",
+        duration: 3, max: 3, cooldown: 4,
+        desc: "在身邊放一團煙霧，持續 3 回合，最多 3 團。冷卻 4 次行動",
         status(b, u) {
           const cd = u.cd.smoke || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
@@ -130,11 +131,11 @@
 
       // ---------- W 大招 煙霧爆發 ----------
       burst: {
-        name: "煙霧爆發", slot: "W", key: "w", icon: "assets/icons/firsler-burst.png", sound: "sounds/firsler-burst.mp3",
+        name: "煙霧爆發", slot: "W", key: "w", sound: "sounds/firsler-burst.mp3",
         ultimate: true,
         ap: 2,                              // 暫定：原本沒有指定行動點消耗
         charge: 7, range: 520, base: 15, spikeWidth: 18,
-        desc: "需要累積 7 次行動且場上有煙霧。所有煙霧化成尖刺射向指定點，穿透敵人，沿路造成 15 × 攻擊力%",
+        desc: "需要累積 7 次行動且場上有煙霧。所有煙霧化成尖刺射向指定點，穿透敵人。每命中一根尖刺造成 15 × 攻擊力%，被幾根打中就乘幾倍",
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
           if (!smokes(b).length) return { ready: false, cost: this.ap, label: this.name, note: "沒有煙霧", reason: "場上至少要有一團煙霧" };
@@ -155,7 +156,11 @@
           b.say(`${u.name} 發動「煙霧爆發」！${list.length} 根煙霧尖刺射出`);
           b.emit({ type: "spikes", spikes, consumed: list });
           b.emit({ type: "sfx", sound: this.sound });
-          for (const s of spikes) for (const e of s.hits) if (e.alive) b.damage(u, e, this.base);
+          // 每個敵人依命中的尖刺數量結算一次：單根傷害 × 根數
+          const count = new Map();
+          for (const s of spikes) for (const e of s.hits) count.set(e, (count.get(e) || 0) + 1);
+          if (!count.size) b.say("……尖刺沒有命中任何敵人");
+          for (const [e, n] of count) if (e.alive) b.damage(u, e, this.base, n, `（命中 ${n} 根尖刺）`);
         },
       },
     },
