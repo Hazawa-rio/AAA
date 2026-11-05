@@ -3,73 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>戰鬥測試</title>
+<title>選擇角色</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/home.css">
 </head>
 <body>
-<div id="app">
-  <header id="topbar">
-    <div id="roominfo"><b>戰鬥測試</b> · 單機</div>
-    <div id="order"></div>
-    <div id="roundInfo"></div>
-    <button id="muteBtn" class="ghost" type="button"></button>
+<div id="home">
+  <header class="home-head">
+    <h1>選擇角色</h1>
+    <p class="muted">選好角色後進入測試房間（3 隻史萊姆）</p>
   </header>
 
-  <main id="stage">
-    <div id="canvasWrap">
-      <canvas id="arena" width="1000" height="560"></canvas>
-      <div id="banner" class="hidden"></div>
-      <div id="toast" class="hidden"></div>
-      <div id="result" class="overlay hidden">
-        <div class="panel">
-          <h1 id="resultTitle"></h1>
-          <button id="againBtn" class="primary">再來一場</button>
-        </div>
+  <section id="cards" aria-label="角色"></section>
+
+  <section id="detail" class="hidden">
+    <div class="detail-main">
+      <div class="detail-title">
+        <span id="dIcon" class="icon big"></span>
+        <div><h2 id="dName"></h2><p id="dSub" class="muted"></p></div>
       </div>
+      <p id="dDesc"></p>
+      <div id="dStats" class="stats"></div>
     </div>
-
-    <aside id="side">
-      <section>
-        <h2>目標資訊</h2>
-        <div id="inspect" class="muted">把滑鼠移到單位上</div>
-      </section>
-      <section class="grow">
-        <h2>戰鬥紀錄</h2>
-        <ol id="log"></ol>
-      </section>
-      <section class="help">
-        <h2>操作</h2>
-        <p>點地面：移動（1 點）· 點敵人：普攻（1 點）<br>Q / E / R：技能，再點目標 · Esc 取消<br>Space：結束回合</p>
-        <p><b>紅色方框</b>＝撞擊，倒數結束前點藍圈內可花 2 點閃避<br><b>紅色虛線圓</b>＝壓制，下次輪到史萊姆時落下，趁自己回合走出去</p>
-      </section>
-    </aside>
-  </main>
-
-  <footer id="hud">
-    <div id="stars"></div>
-    <div id="skills">
-      <button class="skill small" data-slot="q"><span class="key">Q</span><span class="nm"></span><span class="cost"></span></button>
-      <span class="link"></span>
-      <button class="skill big" data-slot="r"><span class="key">R</span><span class="nm"></span><span class="cost"></span></button>
-      <span class="link"></span>
-      <button class="skill small" data-slot="e"><span class="key">E</span><span class="nm"></span><span class="cost"></span></button>
+    <div class="detail-skills">
+      <h3>技能</h3>
+      <ul id="dSkills"></ul>
     </div>
-    <div id="vitals">
-      <div class="bar hp"><i></i><span></span></div>
-      <div class="bar mp"><i></i><span></span></div>
-      <button id="endBtn">結束回合</button>
-    </div>
-  </footer>
+  </section>
 
-  <details id="tuner">
-    <summary>測試數值調整 <span class="muted">（改了立刻生效，重新整理會還原；要保存請改 js/config.js）</span></summary>
-    <div id="tunerBody"></div>
-    <button id="restartBtn" class="ghost">重新開始戰鬥</button>
-  </details>
+  <div class="join">
+    <p class="muted">行動順序每回合由 1d20 ＋ 速度 決定</p>
+    <button type="button" id="goBtn" class="primary">進入測試房間</button>
+  </div>
 </div>
 <script src="js/config.js"></script>
 <script src="js/battle.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/main.js"></script>
+<script src="js/characters/firsler.js"></script>
+<script src="js/home.js"></script>
 </body>
 </html>
