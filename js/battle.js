@@ -110,15 +110,20 @@
 
     newRound() {
       this.round++;
-      // 行動順序：1d20 + 速度，高的先動；同分比速度，再同分玩家先
-      const die = this.cfg.initiativeDie;
-      const alive = this.units.filter((u) => u.alive);
-      for (const u of alive) u.initRoll = 1 + Math.floor(Math.random() * die);
-      this.order = alive.sort((a, b) => b.initiative - a.initiative || b.spd - a.spd ||
-        (a.team === "player" ? -1 : b.team === "player" ? 1 : 0));
-      this.idx = 0;
       this.say(`── 第 ${this.round} 回合 ──`);
-      this.say("順序：" + this.order.map((u) => `${u.name}(${u.initRoll}+${u.spd})`).join("、"));
+      if (this.round === 1) {
+        // 行動順序只在第一回合決定：1d20 + 速度，高的先動；同分比速度，再同分玩家先
+        const die = this.cfg.initiativeDie;
+        const alive = this.units.filter((u) => u.alive);
+        for (const u of alive) u.initRoll = 1 + Math.floor(Math.random() * die);
+        this.order = alive.sort((a, b) => b.initiative - a.initiative || b.spd - a.spd ||
+          (a.team === "player" ? -1 : b.team === "player" ? 1 : 0));
+        this.say("順序：" + this.order.map((u) => `${u.name}(${u.initRoll}+${u.spd})`).join("、"));
+      } else {
+        // 之後沿用第一回合的順序，只移除倒下的單位
+        this.order = this.order.filter((u) => u.alive);
+      }
+      this.idx = 0;
       // 區域效果到期（順序排好之後才通知畫面）
       const expired = this.zones.filter((z) => this.round >= z.expiresRound);
       if (expired.length) {

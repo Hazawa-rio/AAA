@@ -9,10 +9,11 @@ RPG.CONFIG = {
   movePerSpd: 13,       // 移動半徑 = 速度 × 這個值
   moveCost: 1,          // 自己回合移動一次的行動點
   offTurnMultiplier: 2, // 非自己回合也能行動（大招除外），行動點消耗 × 2
-  initiativeDie: 20,    // 每回合行動順序 = 1d20 + 速度
+  initiativeDie: 20,    // 行動順序 = 1d20 + 速度，只在第一回合擲一次，之後沿用
   aiDelay: 0.55,        // 敵人每個動作之間的停頓（秒），只影響觀感
   slamLeapTime: 0.45,   // 壓制時史萊姆跳到中心點的時間（秒）
   volume: 0.7,
+  turnSound: "sounds/turn-start.mp3",   // 輪到自己回合的提示音
 
   // 傷害公式：技能寫的「基礎 × 攻擊力%」解讀為 基礎 × (1 + 攻擊力/100)，再扣防禦，最少 1
   // 要換公式只改這裡

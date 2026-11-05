@@ -21,14 +21,6 @@
   const fx = [];
   const zoneSeen = new Map();   // 煙霧第一次出現的時間（做浮現動畫）
 
-  // ---------- 圖片 ----------
-  const images = {};
-  function img(src) {
-    if (!images[src]) { images[src] = new Image(); images[src].src = src; }
-    return images[src];
-  }
-  const LOADED_MARK = img("assets/icons/loaded-mark.png");
-
   // ---------- 音效 ----------
   let muted = store.get("rpg.muted") === "1";
   const audioCache = new Map();
@@ -45,6 +37,7 @@
   }
   for (const e of Object.values(C.enemies)) for (const s of Object.values(e.sounds || {})) audio(s);
   for (const s of Object.values(CH.skills)) if (s.sound) audio(s.sound);
+  if (C.turnSound) audio(C.turnSound);
   function renderMute() {
     $("#muteBtn").textContent = muted ? "🔇 音效關" : "🔊 音效開";
     $("#muteBtn").setAttribute("aria-pressed", String(!muted));
@@ -69,6 +62,7 @@
         fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 30, text: `-${ev.amount}`, color: ev.boosted ? "#c2477a" : "#e53935", t });
         break;
       case "miss": fx.push({ k: "num", x: ev.x, y: ev.y - 34, text: "MISS", color: "#1aa3e8", t }); break;
+      case "turn": if (ev.unit === B.player) playSound(C.turnSound); break;
       case "kick": fx.push({ k: "ring", x: ev.target.x, y: ev.target.y, r: 30, color: "#1d1d1f", t, dur: 350 }); break;
       case "sfx": playSound(ev.sound); break;
       case "move": if (ev.unit.team === "enemy") playSound(ev.unit.def.sounds?.move); break;
@@ -222,8 +216,6 @@
     for (const b of slotButtons) {
       const id = CH.hud[b.dataset.pos], sk = CH.skills[id], st = statusOf(id);
       b.querySelector(".key").textContent = sk.slot;
-      const im = b.querySelector("img");
-      if (sk.icon && im.getAttribute("src") !== sk.icon) im.src = sk.icon;
       b.querySelector(".nm").textContent = st.label;
       b.querySelector(".cost").textContent = `★${effCost(st)}${st.note ? " · " + st.note : ""}`;
       b.disabled = !canAct() || !st.ready || !usableNow(id) || u.ap < effCost(st);
@@ -355,6 +347,15 @@
     ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(ang - 0.5) * 10, ey - Math.sin(ang - 0.5) * 10);
     ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(ang + 0.5) * 10, ey - Math.sin(ang + 0.5) * 10);
     ctx.stroke();
+  }
+
+  // 標靶：紅白同心圓
+  function drawTarget(x, y, r) {
+    circle(x, y, r + 2.5, null, "rgba(255,253,248,.95)");
+    circle(x, y, r, "#d32f2f", "#d32f2f", 0);
+    circle(x, y, r * 0.68, null, "#fff");
+    circle(x, y, r * 0.38, null, "#d32f2f");
+    circle(x, y, r * 0.12, null, "#fff");
   }
 
   function drawGrid() {
@@ -494,12 +495,16 @@
       if (!mouse.in) return;
       const g = clampToRange(mouse, aim.range);
       if (mode === CH.ultimate) {
-        // 大招預覽：每團煙霧連到目標點，標出會被尖刺打到的敵人
-        const w = sk.spikeWidth;
+        // 大招預覽：每團煙霧連到目標點，標出每個敵人會被幾根尖刺打到
+        const w = sk.spikeWidth, count = new Map();
         for (const z of smokes()) {
           line(z.x, z.y, g.x, g.y, "rgba(194,71,122,.55)", w, null);
           for (const e of B.enemies())
-            if (R.geo.pointSeg(e.x, e.y, z.x, z.y, g.x, g.y) <= BD + w / 2) circle(pos(e).x, pos(e).y, BD + 6, "#c2477a", null, 3);
+            if (R.geo.pointSeg(e.x, e.y, z.x, z.y, g.x, g.y) <= BD + w / 2) count.set(e, (count.get(e) || 0) + 1);
+        }
+        for (const [e, n] of count) {
+          circle(pos(e).x, pos(e).y, BD + 6, "#c2477a", null, 3);
+          label(`×${n}`, pos(e).x + BD + 14, pos(e).y - BD, "#c2477a", 15);
         }
         circle(g.x, g.y, 10, "#c2477a", "rgba(194,71,122,.3)", 2);
       } else if (mode === "smoke") {
@@ -581,12 +586,8 @@
       let ang = u.facing;
       if (canAct() && mouse.in) ang = Math.atan2(mouse.y - p.y, mouse.x - p.x);
       facingArrow(p.x, p.y, ang);
-      // 上膛標示：頭上、在面向箭頭之外，畫在最上層才不會被擋
-      if (u.state.loaded && LOADED_MARK.complete) {
-        const s = 32 + Math.sin(now / 250) * 2;
-        circle(p.x, p.y - 54 - s / 2 + 2, s / 2 + 3, null, "rgba(255,253,248,.9)");
-        ctx.drawImage(LOADED_MARK, p.x - s / 2, p.y - 54 - s, s, s);
-      }
+      // 上膛標示：頭上的標靶，畫在最上層才不會被擋
+      if (u.state.loaded) drawTarget(p.x, p.y - 72, 14 + Math.sin(now / 250) * 1.2);
     }
   }
 

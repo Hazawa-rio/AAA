@@ -50,7 +50,7 @@
     const order = [c.basic, c.hud.left, c.hud.center, c.hud.right];
     $("#dSkills").innerHTML = order.map((id) => {
       const s = c.skills[id];
-      const icon = s.icon ? `<img src="${s.icon}" alt="">` : `<span class="slot basic">普攻</span>`;
+      const icon = `<span class="slot">${s.slot}</span>`;
       const tags = [`★${s.ap}`];
       if (s.cooldown) tags.push(`冷卻 ${s.cooldown} 次行動`);
       if (s.charge) tags.push(`充能 ${s.charge} 次行動`);
