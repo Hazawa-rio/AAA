@@ -258,7 +258,15 @@
       if (!st.ready) throw new ActionError(st.reason || "現在不能用");
       const cost = st.cost * this.costMult();
       if (u.ap < cost) throw new ActionError(`行動點不足（需要 ${cost}）`);
-      sk.use(this, u, arg, st);     // 不合法會丟 ActionError，此時什麼都還沒扣
+      // 有智力的敵人看得出攻擊會打到自己，會在結算前花行動點閃避
+      if (sk.predict) {
+        const hits = sk.predict(this, u, arg, st);           // 不合法會丟 ActionError，此時什麼都還沒扣
+        if (hits.length) this.enemyReact(hits, {
+          src: u, skill: id,
+          repredict: () => { try { return sk.predict(this, u, arg, st); } catch { return []; } },
+        });
+      }
+      sk.use(this, u, arg, st);
       u.ap -= cost;
       this.countAction(u, id, cost);
       this.afterPlayerAction();
@@ -341,6 +349,27 @@
       }
     }
 
+    // ---------- 敵人在玩家回合的反應 ----------
+    enemyReact(hits, info) {
+      for (const e of this.mainEnemies()) R.AI[e.def.ai]?.react?.(this, e, hits, info);
+    }
+
+    // ---------- 多部位單位（Boss）整體移動 ----------
+    group(u) { return [u, ...u.parts]; }   // 本體和所有部位（被破壞的矩陣也還掛在觸手上）
+    canShiftGroup(u, dx, dy) {
+      const A = this.cfg.arena, g = this.group(u);
+      for (const m of g) {
+        const x = m.x + dx, y = m.y + dy;
+        if (x < m.r || y < m.r || x > A.w - m.r || y > A.h - m.r) return false;
+        for (const o of this.units) {
+          if (!o.alive || g.includes(o)) continue;
+          if (dist(o.x, o.y, x, y) < o.r + m.r) return false;
+        }
+      }
+      return true;
+    }
+    shiftGroup(u, dx, dy) { for (const m of this.group(u)) { m.x += dx; m.y += dy; } }
+
     // ---------- 敵人回合 ----------
     async runEnemyTurn(u) {
       for (const c of this.charges.filter((c) => c.owner === u)) {
@@ -354,6 +383,7 @@
       if (this.dead) return;
       await R.AI[u.def.ai].takeTurn(this, u);
       await this.waitProjectiles();
+      if (u.alive && u.ap > 0 && u.def.reserveAp) this.say(`${u.name} 保留了 ${u.ap} 點行動點`);
       if (this.dead || this.phase === "over") return;
       await this.wait(this.cfg.aiDelay * 0.6);
       if (this.dead || this.phase === "over") return;

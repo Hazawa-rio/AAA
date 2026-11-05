@@ -96,6 +96,12 @@
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
       case "strike":
         playSound(ev.sound);
+        if (ev.kind === "tentacle" && ev.arm) {
+          // 從靠近原本方向的那一側開始掃
+          const a1 = ev.ang - ev.half, a2 = ev.ang + ev.half, rest = ev.arm.angle;
+          const [from, to] = R.geo.angDiff(rest, a1) <= R.geo.angDiff(rest, a2) ? [a1, a2] : [a2, a1];
+          fx.push({ k: "swing", arm: ev.arm, from, to, t, dur: 700 });
+        }
         if (ev.kind === "laser") fx.push({ k: "laser", ...ev, t, dur: 500 });
         else if (ev.kind === "electric") fx.push({ k: "electric", ...ev, t, dur: 500 });
         else if (ev.shape === "sector") fx.push({ k: "sector", ...ev, t, dur: 450 });
@@ -109,6 +115,9 @@
         break;
       case "bulletHit": fx.push({ k: "ring", x: ev.x, y: ev.y, r: 14, color: "#e8262c", t, dur: 250 }); break;
       case "pulse": for (const m of ev.units) fx.push({ k: "ring", x: m.x, y: m.y, r: 60, color: "#e8262c", t, dur: 400 }); break;
+      case "enemyDodge":
+        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - ev.unit.r - 24, text: "閃避！", color: "#3d7fe0", t, dur: 900 });
+        break;
       case "bossUlt": fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 260, color: "#e8262c", t, dur: 700 }); break;
       case "death":
         if (ev.unit.part) fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 70, color: "#7a7a7a", t, dur: 700 });
@@ -328,7 +337,8 @@
     ["預告反應時間（秒）", MB, "reaction", 0.3, 3, 0.1],
     ["光彈速度", MB.bullet, "speed", 80, 600, 10],
     ["觸手 基礎傷害", MB.swipe, "base", 1, 40, 1],
-    ["觸手 扇形半徑", MB.swipe, "radius", 150, 500, 10],
+    ["觸手 揮動角度（半角°）", MB.swipe, "half", 10, 90, 5],
+    ["保留閃避行動點", MB, "reserveAp", 0, 8, 1],
     ["電流 基礎傷害", MB.electric, "base", 1, 40, 1],
     ["電流 半徑", MB.electric, "radius", 50, 250, 5],
     ["核心射擊 每發傷害", MB.shot, "base", 1, 20, 1],
@@ -563,28 +573,45 @@
     }
     ctx.closePath();
   }
+  // 觸手目前的角度：平常是固定方向，揮動時 原位 → 扇形一側 → 掃到另一側 → 回原位
+  function armAngle(p, now) {
+    const f = fx.find((x) => x.k === "swing" && x.arm === p);
+    if (!f) return p.angle;
+    const k = Math.max(0, Math.min(1, (now - f.t) / f.dur));
+    const lerpA = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
+    const ease = (t) => t * t * (3 - 2 * t);
+    if (k < 0.2) return lerpA(p.angle, f.from, ease(k / 0.2));
+    if (k < 0.55) return lerpA(f.from, f.to, ease((k - 0.2) / 0.35));
+    return lerpA(f.to, p.angle, ease((k - 0.55) / 0.45));
+  }
   function drawBoss(core, now) {
     const c = pos(core), D = core.def;
     const isCur = B.current === core && B.phase !== "over";
     ctx.globalAlpha = core.alive ? 1 : 0.3;
 
-    // 觸手：一串灰色圓，從核心連到矩陣，會輕輕擺動
+    // 觸手：從核心邊緣的根部長出一串灰色圓，末端接著能量矩陣
+    // 揮動觸手時整條觸手（連同矩陣）以根部為軸轉動
+    const L = D.armLength - core.r;                 // 根部到矩陣中心
+    const armPos = new Map();
     for (const p of core.parts) {
-      const a = p.angle, n = 4, start = core.r + 18, end = D.armLength - p.r - 10;
-      const nx = -Math.sin(a), ny = Math.cos(a);
-      ctx.globalAlpha = core.alive ? (p.alive ? 1 : 0.4) : 0.3;
+      const a = armAngle(p, now);
+      const ox = c.x + Math.cos(p.angle) * core.r, oy = c.y + Math.sin(p.angle) * core.r;
+      const mx = ox + Math.cos(a) * L, my = oy + Math.sin(a) * L;
+      armPos.set(p, { x: mx, y: my, a, ox, oy });
+      const nx = -Math.sin(a), ny = Math.cos(a), n = 5;
+      ctx.globalAlpha = core.alive ? (p.alive ? 1 : 0.5) : 0.3;
       for (let i = 0; i < n; i++) {
-        const t = (i + 0.5) / n, d = start + (end - start) * t;
-        const wob = Math.sin(now / 520 + i * 0.9 + a * 2) * 5 * (p.alive ? 1 : 0.2);
-        const r = 13 + 6 * Math.abs(Math.sin(i * 1.7 + a * 3));
-        circle(c.x + Math.cos(a) * d + nx * wob, c.y + Math.sin(a) * d + ny * wob, r, null, "#c4c4c4");
+        const t = (i + 0.5) / n, d = (L - p.r * 0.4) * t;
+        const wob = Math.sin(now / 520 + i * 0.9 + p.angle * 2) * 4 * Math.sin(t * Math.PI) * (p.alive ? 1 : 0.3);
+        const r = 13 + 5 * Math.abs(Math.sin(i * 1.7 + p.angle * 3));
+        circle(ox + Math.cos(a) * d + nx * wob, oy + Math.sin(a) * d + ny * wob, r, null, "#c4c4c4");
       }
     }
     ctx.globalAlpha = core.alive ? 1 : 0.3;
 
-    // 能量矩陣：灰色菱形 + 紅色能量球
+    // 能量矩陣：灰色菱形 + 紅色能量球（位置跟著觸手）
     for (const p of core.parts) {
-      const m = pos(p), s = p.r * 1.2;
+      const m = armPos.get(p), s = p.r * 1.2;
       ctx.save();
       ctx.globalAlpha = core.alive ? (p.alive ? 1 : 0.45) : 0.3;
       ctx.translate(m.x, m.y); ctx.rotate(Math.PI / 4);

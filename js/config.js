@@ -39,6 +39,9 @@ RPG.CONFIG = {
     matrixBoss: {
       name: "古代遺跡的殲滅矩陣", ai: "matrixBoss", boss: true,
       hp: 200, atk: 35, df: 10, spd: 10, ap: 13,
+      moveCost: 1,                // 整體移動一次的行動點（移動半徑 = 速度 × 13）
+      reserveAp: 4,               // 每回合保留給閃避的行動點（在玩家回合閃避一次花 2 點）
+      preferDist: 210,            // 想跟玩家保持的距離（核心中心到玩家）
       r: 52,                      // 核心大小
       armLength: 205,             // 觸手長度（核心到矩陣）
       parts: [                    // 三個能量矩陣的方向（角度，0 = 右、90 = 下）
@@ -57,7 +60,7 @@ RPG.CONFIG = {
       reaction: 1.0,              // 有預告的攻擊（觸手、電流、激光）倒數秒數
       bullet: { speed: 260, r: 6 },   // 光彈飛行速度與大小
       // 以下傷害皆為暫定；weight = AI 選這招的機率權重
-      swipe:    { ap: 1, radius: 330, half: 35, base: 8, weight: 3 },   // 揮動觸手：扇形（半角 35°）
+      swipe:    { ap: 1, half: 40, extra: 15, base: 8, weight: 3 },   // 揮動觸手：以觸手根部為圓心的扇形（半角 40°，半徑 = 觸手長 + extra）
       electric: { ap: 1, radius: 115, base: 7, weight: 3 },             // 矩陣周圍電流
       shot:     { ap: 1, waves: [1, 2, 1, 2], spread: 12, interval: 0.2, base: 4, weight: 3 }, // 核心射擊 1-2-1-2
       laser:    { ap: 2, width: 70, base: 12, weight: 2 },             // 寬激光
