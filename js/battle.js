@@ -69,7 +69,7 @@
       this.parent = null;
       this.parts = [];
     }
-    get alive() { return this.hp > 0; }
+    get alive() { return this.hp > 0 || !!this.keepAlive; }   // keepAlive：教學 NPC 這種不會倒下的單位
     get initiative() { return this.initRoll + this.spd; }
   }
 
@@ -148,7 +148,8 @@
     mainEnemies() { return this.enemies().filter((u) => !u.part); }
     demons() { return this.units.filter((u) => u.demon && u.alive); }
     // 某個玩家角色能攻擊的目標：心魔只有召喚它的角色打得到
-    targetsFor(u) { return [...this.enemies(), ...this.demons().filter((d) => d.owner === u)]; }
+    npcs() { return this.units.filter((u) => u.npc && u.alive); }
+    targetsFor(u) { return [...this.enemies(), ...this.demons().filter((d) => d.owner === u), ...this.npcs()]; }
     moveRadius(u) { return u.spd * this.cfg.movePerSpd; }
     blocked(u, x, y) {
       return this.units.some((o) => o !== u && o.alive && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
@@ -163,12 +164,13 @@
     newRound() {
       this.round++;
       this.say(`── 第 ${this.round} 回合 ──`);
-      if (this.round === 1) {
+      if (this.round === 1 && !this.fixedOrder) {
         // 行動順序只在第一回合決定：1d20 + 速度，高的先動；同分比速度，再同分玩家先
         const die = this.cfg.initiativeDie;
         const alive = this.units.filter((u) => u.alive && !u.part && !u.demon);
         for (const u of alive) u.initRoll = 1 + Math.floor(Math.random() * die);
-        this.order = alive.sort((a, b) => b.initiative - a.initiative || b.spd - a.spd ||
+        this.order = alive.sort((a, b) => (b.def.alwaysFirst ? 1 : 0) - (a.def.alwaysFirst ? 1 : 0) ||
+          b.initiative - a.initiative || b.spd - a.spd ||
           (a.team === "player" ? -1 : b.team === "player" ? 1 : 0));
         this.say("順序：" + this.order.map((u) => `${u.name}(${u.initRoll}+${u.spd})`).join("、"));
       } else {
@@ -219,7 +221,7 @@
       if (this.phase === "over") return true;
       let result = null;
       if (!this.player.alive) result = "lose";
-      else if (!this.mainEnemies().length) result = "win";
+      else if (!this.scripted && !this.mainEnemies().length) result = "win";   // 劇本房間（教學）由劇本決定結束
       if (!result) return false;
       this.phase = "over";
       this.result = result;
@@ -239,6 +241,7 @@
 
     requireCanAct(actionId) {
       if (!this.canAct()) throw new ActionError("現在不能行動");
+      if (this.allowed && !this.allowed.has(actionId)) throw new ActionError("教學中還不能使用");
       if (this.offTurn() && actionId && actionId === this.char.ultimate) throw new ActionError("大招只能在自己的回合使用");
     }
     requirePlayerTurn() {
@@ -247,7 +250,7 @@
 
     move(x, y) {
       this.requireCanAct("move");
-      const cost = this.cfg.moveCost * this.costMult();
+      const cost = this.freeAP ? 0 : this.cfg.moveCost * this.costMult();   // freeAP：教學中不消耗行動點
       this._move(this.player, x, y, cost);
       this.countAction(this.player, "move", cost);
       this.afterPlayerAction();
@@ -260,8 +263,9 @@
       if (!sk) throw new ActionError("沒有這個技能");
       const st = sk.status(this, u);
       if (!st.ready) throw new ActionError(st.reason || "現在不能用");
-      const cost = st.cost * this.costMult();
+      const cost = this.freeAP ? 0 : st.cost * this.costMult();
       if (u.ap < cost) throw new ActionError(`行動點不足（需要 ${cost}）`);
+      this.currentSkill = id;           // 讓 NPC 知道被哪一招打到
       // 有智力的敵人看得出攻擊會打到自己，會在結算前花行動點閃避
       if (sk.predict) {
         const hits = sk.predict(this, u, arg, st);           // 不合法會丟 ActionError，此時什麼都還沒扣
@@ -272,7 +276,7 @@
           repredict: () => { try { return sk.predict(this, u, arg, st); } catch { return []; } },
         });
       }
-      sk.use(this, u, arg, st);
+      try { sk.use(this, u, arg, st); } finally { this.currentSkill = null; }
       u.ap -= cost;
       this.countAction(u, id, cost);
       this.afterPlayerAction();
@@ -280,22 +284,25 @@
 
     endTurn() {
       this.requirePlayerTurn();
+      if (this.scripted && !this.inFight) throw new ActionError("教學中不用結束回合");
       this.say(`${this.player.name} 結束回合（保留 ${this.player.ap} 點）`);
       this.nextTurn();
     }
 
     afterPlayerAction() {
       if (this.checkEnd()) return;
+      if (this.scripted && !this.inFight) { this.emit(); this.tutorial?.afterAction?.(); return; }
       // 敵人回合中的行動不會結束任何回合
       if (this.phase === "player" && this.player.ap <= 0 && !this.char.canActFree?.(this, this.player)) this.nextTurn();
       else this.emit();
     }
 
-    // 每做一次「有消耗行動點」的行動：冷卻 -1、大招充能 +1
-    // 不花行動點的行動（例如上膛後免費射箭）不算
+    // 自己回合內每做一次「有消耗行動點」的行動：冷卻 -1、大招充能 +1
+    // 不算的：不花行動點的行動（例如上膛後免費射箭）、非自己回合的應急行動
+    // （教學中不消耗行動點的階段照樣會算，不然冷卻永遠不會好）
     countAction(u, actionId, apSpent) {
       u.actions++;
-      if (!(apSpent > 0)) { u._cdSet.clear(); return; }
+      if (this.offTurn() || !(apSpent > 0 || this.freeAP)) { u._cdSet.clear(); return; }
       for (const k of Object.keys(u.cd)) if (u.cd[k] > 0 && !u._cdSet.has(k)) u.cd[k]--;
       u._cdSet.clear();
       const ult = u.def.ultimate;
@@ -322,6 +329,8 @@
     damage(src, dst, base, mult = 1, note = "") {
       this.lastEvade = false;
       if (!dst.alive) return 0;
+      // 教學 NPC：不受傷，只會講話
+      if (dst.npc) { this.tutorial?.onNpcHit?.(this.currentSkill, src); return 0; }
       // 被動閃避（例如弗爾斯勒「隱於霧中」：隱蔽時 50% 打空）
       const evade = dst.def.passive?.evade?.(this, dst) || 0;
       if (evade > 0 && Math.random() < evade) {
@@ -342,6 +351,7 @@
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
       this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1 });
+      if (dst.hp <= 0 && dst.def.noDeath) { this.tutorial?.onNpcDefeated?.(dst); return amount; }   // 血條打光但不會倒下
       if (!dst.alive) this.onDeath(dst);
       return amount;
     }
@@ -426,16 +436,23 @@
 
     // ---------- 敵人回合 ----------
     async runEnemyTurn(u) {
+      // 輪到怪物：先播警告音效、停頓一下，讓玩家看清楚是誰要動
+      this.emit({ type: "enemyWarn", unit: u, sound: this.cfg.enemyTurnSound, duration: this.cfg.enemyTurnDelay });
+      await this.wait(this.cfg.enemyTurnDelay);
+      if (this.dead) return;
+      let first = true;
       for (const c of this.charges.filter((c) => c.owner === u)) {
-        await this.wait(this.cfg.aiDelay);
+        if (!first) await this.wait(this.cfg.aiDelay);
+        first = false;
         if (this.dead) return;
         await this.resolveCharge(c);
         if (this.dead) return;
         if (this.checkEnd()) return;
       }
-      await this.wait(this.cfg.aiDelay);
+      if (!first) await this.wait(this.cfg.aiDelay);
       if (this.dead) return;
       await R.AI[u.def.ai].takeTurn(this, u);
+      if (this.scripted && !this.inFight) return;     // 教學戰鬥已經結束
       await this.waitProjectiles();
       if (u.alive && u.ap > 0 && u.def.reserveAp) this.say(`${u.name} 保留了 ${u.ap} 點行動點`);
       if (this.dead || this.phase === "over") return;
@@ -453,7 +470,8 @@
     // ---------- 預告攻擊 ----------
     // shape：rect（x,y,ang,length,width）/ sector（x,y,ang,half,radius）/ circle（x,y,radius）
     // 先顯示範圍、等 reaction 秒，再判定玩家有沒有在範圍內
-    async telegraph(owner, t, { base, sound, label, missText, mult = 1, onHit } = {}) {
+    // 回傳 "hit" / "miss"，被中斷時回傳 false。noDamage：只判定不扣血（教學示範用）
+    async telegraph(owner, t, { base, sound, label, missText, mult = 1, onHit, noDamage } = {}) {
       t.owner = owner;
       t.total = t.reaction;
       t.deadline = performance.now() + t.reaction * 1000;
@@ -461,7 +479,7 @@
       this.emit({ type: "threat", threat: t });
       await this.wait(t.reaction);
       this.threats = this.threats.filter((x) => x !== t);
-      if (this.dead || this.phase === "over") return false;
+      if (this.dead || this.phase === "over" || t.cancelled) return false;
       if (!owner.alive || (t.source && !t.source.alive)) {   // 倒數中被打倒：攻擊中斷
         this.say(`${label || owner.name + " 的攻擊"}中斷了`);
         this.emit({ type: "threatCancel", threat: t });
@@ -469,13 +487,18 @@
       }
       this.emit({ type: "strike", ...t, sound });
       const p = this.player;
+      let result = "miss";
       if (p.alive && this.hitTest(t, p)) {
-        const amount = this.damage(owner, p, base, mult);
-        if (amount > 0 && p.alive) onHit?.(p);     // 被打中才有的附加效果（擊退、扣行動點…）
+        if (noDamage) { result = "hit"; this.emit({ type: "miss", x: p.x, y: p.y, text: "被打中了" }); }
+        else {
+          const amount = this.damage(owner, p, base, mult);
+          if (amount > 0) result = "hit";
+          if (amount > 0 && p.alive) onHit?.(p);     // 被打中才有的附加效果（擊退、扣行動點…）
+        }
       }
       else { this.say(missText || `${label || "攻擊"}落空了！`); this.emit({ type: "miss", x: p.x, y: p.y }); }
       this.checkEnd();
-      return true;
+      return result;
     }
 
     hitTest(t, u) {

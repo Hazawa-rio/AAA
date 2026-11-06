@@ -11,11 +11,12 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
 
-  const charId = new URLSearchParams(location.search).get("char") || store.get("rpg.char") || Object.keys(R.CHARACTERS)[0];
-  const CH = R.CHARACTERS[charId] || Object.values(R.CHARACTERS)[0];
   const roomParam = new URLSearchParams(location.search).get("room") || store.get("rpg.room");
   const ROOM = C.rooms[roomParam] ? roomParam : Object.keys(C.rooms)[0];
   const ROOMDEF = C.rooms[ROOM];
+  // 有些房間固定角色（新手引導固定用教學版伊爾舒）
+  const charId = ROOMDEF.forceChar || new URLSearchParams(location.search).get("char") || store.get("rpg.char") || Object.keys(R.CHARACTERS)[0];
+  const CH = R.CHARACTERS[charId] || Object.values(R.CHARACTERS)[0];
 
   let B = null;            // 目前的戰鬥
   let mode = "move";       // move 或技能 id
@@ -47,6 +48,7 @@
   }
   if (CH.passive?.sound) audio(CH.passive.sound);
   if (C.turnSound) audio(C.turnSound);
+  if (C.enemyTurnSound) audio(C.enemyTurnSound);
   function renderMute() {
     $("#muteBtn").textContent = muted ? "🔇 音效關" : "🔊 音效開";
     $("#muteBtn").setAttribute("aria-pressed", String(!muted));
@@ -76,9 +78,12 @@
     if (B) B.destroy();
     disp.clear(); fx.length = 0; zoneSeen.clear(); hold.clear(); mode = "move";
     $("#ultBanner").classList.add("hidden");
+    closeDialog();
+    bubbles.length = 0;
     B = new R.Battle(C, CH.id, ROOM);
     B.on(onEvent);
-    B.start();
+    if (ROOMDEF.script === "tutorial") R.Tutorial.attach(B, { dialog, bubble });
+    else B.start();
     renderUI();
   }
 
@@ -104,6 +109,10 @@
       case "knockback": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 40, text: "擊退", color: "#e53935", t }); break;
       case "apDrain": fx.push({ k: "num", x: ev.unit.x + 26, y: ev.unit.y - 20, text: `-${ev.amount} ★`, color: "#1aa3e8", t, dur: 900 }); break;
       case "turn": if (ev.unit === B.player) playSound(C.turnSound); break;
+      case "enemyWarn":   // 怪物回合開始：警告音效 + 頭上的驚嘆號
+        playSound(ev.sound);
+        fx.push({ k: "warn", unit: ev.unit, t, dur: ev.duration * 1000 + 150 });
+        break;
       case "kick": fx.push({ k: "ring", x: ev.target.x, y: ev.target.y, r: 30, color: "#1d1d1f", t, dur: 350 }); break;
       case "sfx":
         if (ev.delay) setTimeout(() => playSound(ev.sound), ev.delay * 1000);   // 配合連斬的節奏
@@ -126,6 +135,10 @@
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
       case "strike":
         playSound(ev.sound);
+        if (ev.kind === "scythe") {
+          const side = ev.sweep || 1;
+          fx.push({ k: "scythe", unit: ev.owner, from: ev.ang - side * (ev.half + 0.35), to: ev.ang + side * ev.half, side, t, dur: 650 });
+        }
         if (ev.kind === "tentacle" && ev.arm) {
           // 從靠近原本方向的那一側開始掃
           const a1 = ev.ang - ev.half, a2 = ev.ang + ev.half, rest = ev.arm.angle;
@@ -172,8 +185,9 @@
   const myTurn = () => B && B.phase === "player";
   const canAct = () => B && B.canAct();                       // 自己回合或敵人回合都能行動
   const mult = () => (B ? B.costMult() : 1);                  // 非自己回合 ×2
-  const effCost = (st) => st.cost * mult();
-  const usableNow = (id) => !(B.offTurn() && id === CH.ultimate);
+  const effCost = (st) => (B.freeAP ? 0 : st.cost * mult());
+  const allowedNow = (id) => !B.allowed || B.allowed.has(id);
+  const usableNow = (id) => !(B.offTurn() && id === CH.ultimate) && allowedNow(id);
   const pos = (u) => disp.get(u.id) || u;
   // 部位（矩陣）優先，才不會被大大的核心擋住
   const unitAt = (p) => B.units.filter((u) => u.alive && dist(pos(u).x, pos(u).y, p.x, p.y) <= u.r + 4)
@@ -191,6 +205,7 @@
   canvas.addEventListener("contextmenu", (e) => { e.preventDefault(); mode = "move"; renderUI(); });
 
   canvas.addEventListener("click", (e) => {
+    if (dlg.active) return advanceDialog();
     if (!B || B.phase === "over") return;
     const p = toWorld(e);
     const hit = unitAt(p);
@@ -226,6 +241,7 @@
   function pressSkill(id) {
     if (!id) return;
     if (!canAct()) return toast("現在不能行動");
+    if (!allowedNow(id)) return toast("教學中還不能使用");
     if (!usableNow(id)) return toast("大招只能在自己的回合使用");
     const st = statusOf(id);
     if (!st.ready) return toast(st.reason || "現在不能用");
@@ -247,6 +263,11 @@
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT") return;
     const k = e.key.toLowerCase();
+    if (dlg.active) {   // 對話中：空白鍵 / Enter 推進，其他按鍵不動作
+      if (k === " " || k === "enter") { e.preventDefault(); advanceDialog(); }
+      return;
+    }
+    if (k === "e" && B?.tutorial?.pressE()) return;   // 教學：在 NPC 旁按 E
     const sk = Object.entries(CH.skills).find(([, s]) => s.key === k);
     if (sk) pressSkill(sk[0]);
     else if (k === "escape") { mode = "move"; renderUI(); }
@@ -273,6 +294,77 @@
     ultFadeTimer = setTimeout(() => el.classList.add("hidden"), 900);
   }
 
+  // ---------- 對話框（打字效果；顯示完再點一下才到下一句） ----------
+  const dlg = { active: false, lines: [], i: 0, shown: 0, timer: null, resolve: null };
+  function dialog(lines, speaker = "羽澤璃央") {
+    return new Promise((resolve) => {
+      closeDialog();
+      Object.assign(dlg, { active: true, lines, i: 0, shown: 0, resolve });
+      $("#dialogName").textContent = speaker;
+      $("#dialog").classList.remove("hidden");
+      typeLine();
+      renderUI();
+    });
+  }
+  function typeLine() {
+    clearInterval(dlg.timer);
+    dlg.shown = 0;
+    const text = dlg.lines[dlg.i];
+    $("#dialogNext").classList.add("hidden");
+    dlg.timer = setInterval(() => {
+      dlg.shown = Math.min(text.length, dlg.shown + 1);
+      $("#dialogText").textContent = text.slice(0, dlg.shown);
+      if (dlg.shown >= text.length) { clearInterval(dlg.timer); $("#dialogNext").classList.remove("hidden"); }
+    }, 32);
+  }
+  function advanceDialog() {
+    if (!dlg.active) return;
+    const text = dlg.lines[dlg.i];
+    if (dlg.shown < text.length) {        // 還在打字：直接顯示整句
+      clearInterval(dlg.timer);
+      dlg.shown = text.length;
+      $("#dialogText").textContent = text;
+      $("#dialogNext").classList.remove("hidden");
+      return;
+    }
+    dlg.i++;
+    if (dlg.i < dlg.lines.length) return typeLine();
+    const done = dlg.resolve;
+    closeDialog();
+    renderUI();
+    done?.();
+  }
+  function closeDialog() {
+    clearInterval(dlg.timer);
+    dlg.active = false; dlg.resolve = null;
+    $("#dialog").classList.add("hidden");
+  }
+  $("#dialog").addEventListener("click", advanceDialog);
+
+  // 頭上的對話泡泡
+  const bubbles = [];
+  function bubble(unit, text) {
+    for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].unit === unit) bubbles.splice(i, 1);
+    bubbles.push({ unit, text, t: performance.now(), dur: 2400 });
+  }
+  function drawBubbles(now) {
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i], k = (now - b.t) / b.dur;
+      if (k >= 1) { bubbles.splice(i, 1); continue; }
+      const p = pos(b.unit);
+      ctx.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1;
+      ctx.font = "bold 14px sans-serif";
+      const w = ctx.measureText(b.text).width + 22, h = 30, x = p.x - w / 2, y = p.y - b.unit.r - 58;
+      roundRect(x, y, w, h, 8);
+      ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#f4a6c7"; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x - 7, y + h); ctx.lineTo(p.x, y + h + 9); ctx.lineTo(p.x + 7, y + h); ctx.closePath();
+      ctx.fillStyle = "#fff"; ctx.fill();
+      ctx.fillStyle = "#1d1d1f"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(b.text, p.x, y + h / 2 + 1);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // ---------- DOM 介面 ----------
   let toastTimer;
   function toast(msg) {
@@ -281,7 +373,6 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 1600);
   }
 
-  const STAR = '<svg class="star CLS" viewBox="0 0 40 40"><path d="M20 3 L24 16 L37 20 L24 24 L20 37 L16 24 L3 20 L16 16 Z"/></svg>';
   function previewCost() {
     if (!canAct()) return 0;
     if (mode !== "move") return effCost(statusOf(mode));
@@ -289,15 +380,18 @@
     const h = unitAt(mouse);
     return h && h.team === "enemy" ? effCost(statusOf(CH.basic)) : C.moveCost * mult();
   }
-  function renderStars() {
-    const u = B.player, cost = previewCost();
-    let html = "";
-    for (let i = 0; i < u.maxAp; i++) {
-      const on = i < u.ap;
-      const spend = on && cost > 0 && cost <= u.ap && i >= u.ap - cost;
-      html += STAR.replace("CLS", spend ? "spend" : on ? "on" : "off");
+  // 頭上的行動點：藍色小菱形，要花掉的那幾點變紅；教學中不消耗時顯示 ∞
+  function drawApPips(u, x, y) {
+    if (B.freeAP) { label("∞", x, y, "#1aa3e8", 14); return; }
+    const cost = previewCost(), n = u.maxAp, gap = 11;
+    for (let i = 0; i < n; i++) {
+      const on = i < u.ap, spend = on && cost > 0 && cost <= u.ap && i >= u.ap - cost;
+      const px = x - ((n - 1) * gap) / 2 + i * gap, s = 4.6;
+      ctx.beginPath();
+      ctx.moveTo(px, y - s); ctx.lineTo(px + s, y); ctx.lineTo(px, y + s); ctx.lineTo(px - s, y); ctx.closePath();
+      ctx.fillStyle = spend ? "#e53935" : on ? "#1aa3e8" : "#fffdf8"; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = spend ? "#e53935" : on ? "#1577b0" : "#c9c4b9"; ctx.stroke();
     }
-    $("#stars").innerHTML = html;
   }
 
   function renderUI() {
@@ -305,11 +399,14 @@
     const u = B.player;
     $("#result").classList.toggle("hidden", B.phase !== "over");
     $("#resultTitle").textContent = B.result === "win" ? "勝利！" : "被打倒了…";
-    $("#roundInfo").textContent = `第 ${B.round} 回合`;
+    const prefight = B.scripted && !B.inFight;      // 教學的說明階段：沒有回合
+    $("#roundInfo").textContent = prefight ? "" : `第 ${B.round} 回合`;
 
-    $("#order").innerHTML = B.order.map((x, i) => {
+    $("#order").innerHTML = prefight ? "" : B.order.map((x, i) => {
       const cls = ["chip", x.team, i === B.idx ? "now" : "", x.alive ? "" : "dead", i < B.idx ? "done" : ""].join(" ");
-      return `<div class="${cls}" title="1d20 擲出 ${x.initRoll} ＋ 速度 ${x.spd}"><span class="dot"></span>${esc(x.name)}<span class="spd">🎲${x.initRoll}+${x.spd}=${x.initiative}</span></div>`;
+      const roll = x.def.alwaysFirst ? "必定先手" : `🎲${x.initRoll}+${x.spd}=${x.initiative}`;
+      const tip = x.def.alwaysFirst ? "必定先手" : `1d20 擲出 ${x.initRoll} ＋ 速度 ${x.spd}`;
+      return `<div class="${cls}" title="${tip}"><span class="dot"></span>${esc(x.name)}<span class="spd">${roll}</span></div>`;
     }).join("");
 
     for (const b of slotButtons) {
@@ -317,13 +414,14 @@
       b.querySelector(".key").textContent = sk.slot;
       b.querySelector(".nm").textContent = st.label;
       b.querySelector(".cost").textContent = `★${effCost(st)}${st.note ? " · " + st.note : ""}`;
-      b.disabled = !canAct() || !st.ready || !usableNow(id) || u.ap < effCost(st);
+      b.disabled = !canAct() || !st.ready || !usableNow(id) || u.ap < effCost(st) || dlg.active;
+      b.classList.toggle("locked", !allowedNow(id));
       b.classList.toggle("active", mode === id);
       b.classList.toggle("cooling", !st.ready);
       b.classList.toggle("armed", id === "load" && !!u.state.loaded);
       b.title = `${sk.name}：${sk.desc}`;
     }
-    $("#endBtn").disabled = !myTurn();
+    $("#endBtn").disabled = !myTurn() || (B.scripted && !B.inFight) || dlg.active;
     setBar(".bar.hp", u.hp, u.maxHp, `HP ${u.hp} / ${u.maxHp}`);
     if (CH.passive) {
       const ps = CH.passive.status(B, u);
@@ -343,7 +441,12 @@
 
     const banner = $("#banner");
     banner.className = "";
-    if (myTurn()) {
+    const obj = B.tutorial?.objective?.();
+    if (dlg.active) banner.classList.add("hidden");
+    else if (obj && !(B.inFight && B.tutorial?.stage === "fight")) {
+      banner.classList.add("tutorial");
+      banner.textContent = obj;
+    } else if (myTurn()) {
       const warn = B.charges.length ? "　⚠ 地上有壓制範圍" : B.projectiles.length ? "　⚠ 光彈還在飛" : "";
       let text = `你的回合：點地面移動、點敵人${CH.skills[CH.basic].name}`;
       if (mode !== "move") {
@@ -356,7 +459,6 @@
       banner.textContent = `${B.current?.name ?? "敵人"} 行動中…　你的行動消耗 ×${mult()}（大招除外）`;
     } else banner.classList.add("hidden");
 
-    renderStars();
     if (hovered) inspect(hovered);
   }
 
@@ -370,6 +472,12 @@
     hovered = u;
     const box = $("#inspect");
     if (!u || !B) { box.innerHTML = '<span class="muted">把滑鼠移到單位上</span>'; return; }
+    if (u.kind === "mentor") {
+      const rows = u.npc ? [["身分", "教學 NPC"], ["說明", "打她不會受傷，只會吐槽"]]
+        : [["生命", `${u.hp} / ${u.maxHp}`], ["攻擊", u.atk], ["防禦", u.df], ["行動點", `${u.ap} / ${u.maxAp}`], ["招式", "移動、鐮刀揮砍"]];
+      box.innerHTML = `<div class="nm">${esc(u.name)}</div><table>${rows.map(([a, b]) => `<tr><td class="muted">${a}</td><td>${b}</td></tr>`).join("")}</table>`;
+      return;
+    }
     if (u.demon) {
       box.innerHTML = `<div class="nm">心魔</div><table><tr><td class="muted">生命</td><td>1（一擊就倒）</td></tr>
         <tr><td class="muted">說明</td><td>只有${esc(u.owner.name)}能攻擊</td></tr></table>`;
@@ -433,13 +541,14 @@
     ["壓制 基礎傷害", SL.slam, "base", 1, 50, 1],
     ["壓制 冷卻（次行動）", SL.slam, "cooldown", 0, 6, 1],
   );
-  TUNE.push([CH.name, null]);
+  if (CH.tune?.length) TUNE.push([CH.name, null]);
   for (const [lab, key, field, min, max, step] of CH.tune || [])
     TUNE.push([lab, key === "passive" ? CH.passive : SK[key], field, min, max, step]);
   TUNE.push(
     ["共用", null],
     ["非自己回合消耗倍率", C, "offTurnMultiplier", 1, 3, 1],
     ["敵人動作間隔（秒）", C, "aiDelay", 0.1, 1.5, 0.05],
+    ["怪物回合開始停頓（秒）", C, "enemyTurnDelay", 0, 3, 0.1],
     ["音量", C, "volume", 0, 1, 0.05],
   );
   $("#tunerBody").innerHTML = TUNE.map(([label, obj, , min, max, step], i) => obj === null
@@ -911,8 +1020,73 @@
     ctx.fillText("心魔", p.x, p.y + r + 10);
   }
 
+  // 教學 NPC 羽澤璃央：粉色圓角方塊、中間「澤」字，手上拿著鐮刀
+  // 鐮刀的姿勢：平常立在身體右邊；預告攻擊時舉到扇形一側蓄力；揮下時掃過整個扇形再收回
+  const SCYTHE_REST = -Math.PI / 2;
+  function scythePose(u, now) {
+    const lerpA = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
+    const ease = (t) => t * t * (3 - 2 * t);
+    const sw = fx.find((f) => f.k === "scythe" && f.unit === u);
+    if (sw) {
+      const k = Math.max(0, Math.min(1, (now - sw.t) / sw.dur));
+      if (k < 0.45) return { phi: lerpA(sw.from, sw.to, ease(k / 0.45)), off: 0, side: sw.side, trail: true, k };
+      const r = ease((k - 0.45) / 0.55);
+      return { phi: lerpA(sw.to, SCYTHE_REST, r), off: r, side: sw.side };
+    }
+    const t = B.threats.find((x) => x.owner === u && x.kind === "scythe");
+    if (t) {
+      // 蓄力：慢慢往後舉，快揮下時微微顫動
+      const left = Math.max(0, (t.deadline - now) / 1000), k = 1 - left / t.total;
+      const side = t.sweep || 1;
+      const back = t.ang - side * (t.half + 0.35);
+      const shake = k > 0.6 ? Math.sin(now / 30) * 0.04 * k : 0;
+      return { phi: lerpA(SCYTHE_REST, back, ease(Math.min(1, k * 2.5))) + shake, off: Math.max(0, 1 - k * 3), side };
+    }
+    return { phi: SCYTHE_REST, off: 1, side: 1 };
+  }
+  function drawScythe(u, p, now) {
+    const BD = C.body, pose = scythePose(u, now);
+    const dx = Math.cos(pose.phi), dy = Math.sin(pose.phi);
+    const nx = -dy * pose.side, ny = dx * pose.side;           // 刀刃朝揮動的方向
+    // 平常握在身體右邊，攻擊時移到正中間轉動
+    const ox = p.x + (BD + 10) * pose.off, oy = p.y + 6 * pose.off;
+    const a0 = { x: ox - dx * 22, y: oy - dy * 22 }, tip = { x: ox + dx * 52, y: oy + dy * 52 };
+    if (pose.trail) {   // 揮動殘影
+      const sw = fx.find((f) => f.k === "scythe" && f.unit === u);
+      ctx.lineWidth = 16; ctx.lineCap = "round"; ctx.strokeStyle = `rgba(224,96,154,${0.35 * (1 - pose.k)})`;
+      const lo = Math.min(sw.from, pose.phi), hi = Math.max(sw.from, pose.phi);
+      ctx.beginPath(); ctx.arc(ox, oy, 60, lo, hi); ctx.stroke();
+    }
+    line(a0.x, a0.y, tip.x, tip.y, "#1d1d1f", 3);
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x - dx * 17 + nx * 30, tip.y - dy * 17 + ny * 30);
+    ctx.lineTo(tip.x - dx * 17, tip.y - dy * 17);
+    ctx.closePath();
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "#1d1d1f"; ctx.stroke();
+  }
+  function drawMentor(u, now) {
+    const p = pos(u), BD = C.body;
+    const isCur = B.current === u && B.inFight;
+    if (isCur) { roundRect(p.x - BD - 6, p.y - BD - 6, BD * 2 + 12, BD * 2 + 12, 11); ctx.strokeStyle = "rgba(244,166,199,.5)"; ctx.lineWidth = 3; ctx.stroke(); }
+    roundRect(p.x - BD, p.y - BD, BD * 2, BD * 2, 9);
+    ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = "#f4a6c7"; ctx.stroke();
+    ctx.fillStyle = "#d0588f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("澤", p.x, p.y + 1);
+    drawScythe(u, p, now);
+    ctx.fillStyle = "#1d1d1f"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillText(u.name, p.x, p.y + BD + 13);
+    if (!u.npc) {     // 戰鬥中才有血條
+      const bw = 52, bx = p.x - bw / 2, by = p.y + BD + 5;
+      ctx.fillStyle = "#ece8df"; ctx.fillRect(bx, by, bw, 5);
+      ctx.fillStyle = "#e0609a"; ctx.fillRect(bx, by, bw * (u.hp / u.maxHp), 5);
+    }
+    if (B.tutorial?.nearNpc?.()) label("按 E 繼續", p.x, p.y - BD - 40 + Math.sin(now / 300) * 2, "#c2477a", 13);
+  }
+
   function drawUnit(u, now) {
     if (u.demon) return drawDemon(u, now);
+    if (u.kind === "mentor") return drawMentor(u, now);
     if (u.part) return;
     if (u.def.boss) return drawBoss(u, now);
     const off = lungeOffset(u, now);
@@ -976,7 +1150,9 @@
       if (hidden) label("隱蔽", p.x + BD + 18, p.y - BD, "#c2477a", 11);
       // 陰霾層數：頭上一排深紫色小點
       const g = u.state.gloom || 0;
-      for (let i = 0; i < g; i++) circle(p.x - (g - 1) * 4.5 + i * 9, p.y - BD - 12, 3.5, null, "#4b3f8f");
+      for (let i = 0; i < g; i++) circle(p.x - (g - 1) * 4.5 + i * 9, p.y - BD - 11, 3.5, null, "#4b3f8f");
+      // 行動點：畫在面向箭頭之後，才不會被箭頭蓋住
+      drawApPips(u, p.x, p.y - BD - (g ? 24 : 12));
     }
   }
 
@@ -1029,6 +1205,13 @@
               ctx.beginPath(); ctx.arc(o.x, o.y, f.radius * (1 + k * 0.25), f.ang - f.half, f.ang + f.half); ctx.stroke();
             }
           }
+          break;
+        }
+        case "warn": {
+          ctx.globalAlpha = 1;
+          const w = pos(f.unit), pop = Math.min(1, k * 6), y = w.y - f.unit.r - 46 - (1 - pop) * 8;
+          circle(w.x, y, 13 * pop, "#c62828", "#fff", 2.5);
+          label("!", w.x, y + 1, "#c62828", 18);
           break;
         }
         case "explode":
@@ -1094,7 +1277,6 @@
     }
   }
 
-  let starKey = "";
   function frame(now) {
     ctx.save();
     if (now < shakeUntil) ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
@@ -1118,7 +1300,7 @@
       drawFx(now);
       drawThreatLabel(now);
       const key = `${mode}|${mouse.in}|${B.phase}|${B.player.ap}|${mouse.in && unitAt(mouse)?.id}`;
-      if (key !== starKey) { starKey = key; renderStars(); }
+      drawBubbles(now);
     }
     ctx.restore();
     requestAnimationFrame(frame);

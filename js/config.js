@@ -3,7 +3,7 @@
 window.RPG = window.RPG || {};
 
 RPG.CONFIG = {
-  arena: { w: 1000, h: 560 },
+  arena: { w: 1280, h: 720 },
   grid: 40,             // 場地一格的大小
   body: 22,             // 單位碰撞半徑
   movePerSpd: 13,       // 移動半徑 = 速度 × 這個值
@@ -15,6 +15,8 @@ RPG.CONFIG = {
   volume: 0.7,
   bgmVolume: 0.35,
   turnSound: "sounds/turn-start.mp3",   // 輪到自己回合的提示音
+  enemyTurnSound: "sounds/enemy-turn.mp3", // 輪到怪物時的警告音效
+  enemyTurnDelay: 0.8,                   // 輪到怪物時先停頓幾秒才動手
 
   // 傷害公式：技能寫的「基礎 × 攻擊力%」解讀為 基礎 × (1 + 攻擊力/100)，再扣防禦，最少 1
   // 要換公式只改這裡
@@ -81,19 +83,28 @@ RPG.CONFIG = {
 
   // ===== 房間 =====
   rooms: {
+    tutorial: {
+      name: "新手引導", desc: "羽澤璃央的戰鬥系統教學（固定使用伊爾舒）",
+      script: "tutorial",              // 由 js/tutorial.js 的劇本控制
+      forceChar: "ilshu_tutorial",     // 固定角色，不受選角影響
+      playerStart: { x: 640, y: 470 },
+      npcStart: { x: 640, y: 380 },
+      wave: [],
+      help: "跟著羽澤璃央的說明操作<br>對話框：點一下顯示全部，再點一下繼續（也可以按空白鍵）",
+    },
     slimes: {
       name: "史萊姆測試房", desc: "3 隻史萊姆",
-      playerStart: { x: 500, y: 460 },
+      playerStart: { x: 640, y: 600 },
       wave: [
-        { kind: "slime", x: 260, y: 130 },
-        { kind: "slime", x: 500, y: 90 },
-        { kind: "slime", x: 740, y: 130 },
+        { kind: "slime", x: 330, y: 170 },
+        { kind: "slime", x: 640, y: 120 },
+        { kind: "slime", x: 950, y: 170 },
       ],
     },
     boss: {
       name: "古代遺跡", desc: "測試 Boss：古代遺跡的殲滅矩陣",
-      playerStart: { x: 330, y: 500 },
-      wave: [{ kind: "matrixBoss", x: 500, y: 180 }],
+      playerStart: { x: 420, y: 640 },
+      wave: [{ kind: "matrixBoss", x: 640, y: 230 }],
       bgm: "sounds/boss-bgm.mp3",
       help: "<b>核心有立場保護</b>：破壞 1 / 2 / 3 個能量矩陣後，核心受到 ×0.5 / ×1 / ×1.5 傷害<br><b>紅色範圍</b>＝觸手、電流、激光，倒數結束時判定<br><b>紅色光彈</b>沒有預告，看到就移動躲開",
     },

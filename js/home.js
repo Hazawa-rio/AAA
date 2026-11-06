@@ -11,7 +11,7 @@
   // 屬性條的滿格值（只影響畫面比例）
   const STATS = [["hp", "生命", 150, "var(--hp)"], ["atk", "攻擊", 30, "#d9822b"], ["df", "防禦", 15, "#8a8478"],
     ["spd", "速度", 20, "var(--blue)"], ["ap", "行動點", 8, "#1aa3e8"]];
-  const chars = Object.values(R.CHARACTERS);
+  const chars = Object.values(R.CHARACTERS).filter((c) => !c.hidden);   // 教學專用角色不顯示
   let selected = null;
 
   $("#cards").innerHTML = chars.map((c) => `
@@ -76,6 +76,10 @@
     </button>`).join("");
   function pickRoom(id) {
     room = id; store.set("rpg.room", id);
+    // 固定角色的房間：角色選擇暫時不作用
+    const forced = rooms[id].forceChar;
+    document.body.classList.toggle("char-forced", !!forced);
+    $("#forcedNote").classList.toggle("hidden", !forced);
     document.querySelectorAll(".room").forEach((el) => {
       el.classList.toggle("sel", el.dataset.id === id);
       el.setAttribute("aria-pressed", String(el.dataset.id === id));
@@ -86,7 +90,8 @@
 
   $("#goBtn").addEventListener("click", () => {
     if (!selected) return;
-    location.href = `battle.html?char=${encodeURIComponent(selected.id)}&room=${encodeURIComponent(room)}`;
+    const c = rooms[room].forceChar || selected.id;
+    location.href = `battle.html?char=${encodeURIComponent(c)}&room=${encodeURIComponent(room)}`;
   });
 
   const saved = store.get("rpg.char");
