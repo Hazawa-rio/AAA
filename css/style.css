@@ -11,7 +11,8 @@
   --red: #e53935;
   --hp: #e0524a;
   --mp: #3d7fe0;
-  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  /* 字型固定用網路字型 Noto Sans TC，各瀏覽器看起來才會一樣（載入失敗才退回系統字型） */
+  --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); }
@@ -102,12 +103,7 @@ button { font-family: inherit; cursor: pointer; }
 #endBtn { border: 2px solid var(--ink); background: var(--paper); border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 700; }
 #endBtn:disabled { opacity: .35; cursor: not-allowed; }
 
-@media (max-width: 900px) {
-  #stage { flex-direction: column; }
-  #side { width: auto; }
-  #hud { grid-template-columns: 1fr; justify-items: center; }
-  #vitals { flex-wrap: wrap; justify-content: center; }
-}
+
 
 /* 戰鬥頁補充 */
 .back { color: var(--ink); text-decoration: none; font-weight: 600; }
@@ -153,7 +149,6 @@ button { font-family: inherit; cursor: pointer; }
 #ultBanner.out { animation: ultOut .9s ease-in both; }
 @keyframes ultIn { from { opacity: 0; transform: translateY(-50%) scaleX(.6); } to { opacity: 1; transform: translateY(-50%) scaleX(1); } }
 @keyframes ultOut { from { opacity: 1; } to { opacity: 0; } }
-@media (max-width: 900px) { #ultBanner { font-size: 20px; } }
 
 /* 角色被動 */
 .passive { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3px 10px; min-width: 92px;
@@ -177,4 +172,19 @@ button { font-family: inherit; cursor: pointer; }
 #dialogText { margin: 6px 0 0; font-size: 17px; line-height: 1.75; min-height: 3.5em; color: var(--ink); }
 #dialogNext { position: absolute; right: 16px; bottom: 8px; font-size: 12px; color: #c2477a; animation: blink 1s infinite; }
 @keyframes blink { 50% { opacity: .3; } }
-@media (max-width: 900px) { #dialogText { font-size: 15px; } }
+
+/* ===== 戰鬥頁：固定 1600px 寬的設計尺寸，再依視窗等比例縮放 =====
+   不管是哪個瀏覽器、有沒有側邊欄、縮放比例多少，版面比例都一樣 */
+body.battle-page { overflow-x: hidden; }
+body.battle-page #fit { margin: 0 auto; }
+body.battle-page #app { width: 1600px; max-width: none; margin: 0; transform-origin: top left; }
+body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.mute-ico { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+
+/* 錯誤與版本檢查提示 */
+#fatal { position: absolute; left: 16px; right: 16px; top: 56px; background: #c62828; color: #fff; padding: 10px 14px;
+  border-radius: 8px; font-size: 14px; line-height: 1.6; z-index: 5; }
+#versionWarn { position: fixed; left: 0; right: 0; top: 0; z-index: 99; background: #c62828; color: #fff; padding: 10px 16px;
+  font: 14px/1.6 "Noto Sans TC", sans-serif; }
+#versionWarn b { font-weight: 800; }
+/* build */ :root { --build-css-style-css: "20261106185838"; }
