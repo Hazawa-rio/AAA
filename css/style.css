@@ -19,7 +19,7 @@ button { font-family: inherit; cursor: pointer; }
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
 
-#app { max-width: 1320px; margin: 0 auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+#app { max-width: 1640px; margin: 0 auto; padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 
 /* 上方：房間與行動順序 */
 #topbar { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--muted); }
@@ -161,3 +161,20 @@ button { font-family: inherit; cursor: pointer; }
 .passive b { color: var(--ink); font-size: 11px; }
 .passive.on { border-color: #8a7cc4; background: #f6f3ff; color: #4b3f8f; }
 .passive:empty { display: none; }
+
+/* 行動點移到角色頭上：HUD 左邊放被動 */
+.hud-left { display: flex; align-items: center; gap: 10px; }
+.ap-hint { font-size: 11px; }
+.skill.locked { filter: grayscale(1); opacity: .3; }
+
+/* 教學：目標提示、對話框 */
+#banner.tutorial { background: #c2477a; }
+#dialog { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(760px, calc(100% - 32px));
+  background: rgba(255,253,248,.97); border: 2.5px solid #f4a6c7; border-radius: 14px; padding: 14px 20px 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.12); cursor: pointer; user-select: none; }
+#dialogName { position: absolute; top: -14px; left: 18px; background: #f4a6c7; color: #fff; font-weight: 800; font-size: 13px;
+  padding: 3px 12px; border-radius: 999px; letter-spacing: .05em; }
+#dialogText { margin: 6px 0 0; font-size: 17px; line-height: 1.75; min-height: 3.5em; color: var(--ink); }
+#dialogNext { position: absolute; right: 16px; bottom: 8px; font-size: 12px; color: #c2477a; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+@media (max-width: 900px) { #dialogText { font-size: 15px; } }
