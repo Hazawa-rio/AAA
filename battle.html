@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>戰鬥測試</title>
-<link rel="stylesheet" href="css/style.css?v=202611060444">
+<link rel="stylesheet" href="css/style.css?v=202611060732">
 </head>
 <body>
 <div id="app">
@@ -20,6 +20,7 @@
       <canvas id="arena" width="1000" height="560"></canvas>
       <div id="banner" class="hidden"></div>
       <div id="toast" class="hidden"></div>
+      <div id="ultBanner" class="hidden" role="status"></div>
       <div id="result" class="overlay hidden">
         <div class="panel">
           <h1 id="resultTitle"></h1>
@@ -40,7 +41,7 @@
       </section>
       <section class="help">
         <h2>操作</h2>
-        <p>點地面：移動（1 點）· 點敵人：普攻<br>Q / W / E：技能，再點目標 · Esc 取消<br>Space：結束回合</p>
+        <p>點地面：移動（1 點）· 點敵人：普攻 · 滑過技能按鈕可預覽<br>Q / W / E：技能，再點目標 · Esc 取消<br>Space：結束回合</p>
         <p><b>敵人的回合也能行動</b>（大招除外），行動點消耗 ×2，沒用完的點數可以留著躲攻擊或反擊</p>
         <p id="roomHelp"><b>紅色方框</b>＝撞擊，倒數結束時打中框內<br><b>紅色虛線圓</b>＝壓制，下次輪到那隻史萊姆時落下</p>
       </section>
@@ -57,6 +58,7 @@
       <button class="skill small" data-pos="right"><span class="key"></span><span class="nm"></span><span class="cost"></span><span class="cdmask"></span></button>
     </div>
     <div id="vitals">
+      <div id="passive" class="passive"></div>
       <div class="bar hp"><i></i><span></span></div>
       <div class="bar charge"><i></i><span></span></div>
       <button id="endBtn">結束回合</button>
@@ -69,10 +71,11 @@
     <button id="restartBtn" class="ghost">重新開始戰鬥</button>
   </details>
 </div>
-<script src="js/config.js?v=202611060444"></script>
-<script src="js/battle.js?v=202611060444"></script>
-<script src="js/characters/firsler.js?v=202611060444"></script>
-<script src="js/ai.js?v=202611060444"></script>
-<script src="js/battle-ui.js?v=202611060444"></script>
+<script src="js/config.js?v=202611060732"></script>
+<script src="js/battle.js?v=202611060732"></script>
+<script src="js/characters/firsler.js?v=202611060732"></script>
+<script src="js/characters/ilshu.js?v=202611060732"></script>
+<script src="js/ai.js?v=202611060732"></script>
+<script src="js/battle-ui.js?v=202611060732"></script>
 </body>
 </html>
