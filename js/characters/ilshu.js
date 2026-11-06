@@ -1,6 +1,6 @@
 // 角色：伊爾舒
 // 被動「直面心魔」：場上會有一隻只有伊爾舒打得到的心魔（1 血、不會自己動）。
-// 打倒心魔獲得一層陰霾（最多 10 層），然後在地圖上隨機的位置再出現一隻。
+// 打倒心魔獲得一層陰霾（最多 5 層），然後在地圖上隨機的位置再出現一隻。
 // 數值都是暫定，可以在戰鬥頁的數值面板調整。
 (function () {
   const R = window.RPG;
@@ -34,10 +34,15 @@
 
     passive: {
       name: "直面心魔",
-      desc: "場上會出現一隻 1 血、不會移動、只有伊爾舒能攻擊的心魔。擊殺心魔獲得一層陰霾（最多 10 層），並在地圖上隨機再出現一隻",
-      maxGloom: 10,
+      desc: "場上會出現一隻 1 血、不會移動、只有伊爾舒能攻擊的心魔。擊殺心魔獲得一層陰霾（最多 5 層），並在地圖上隨機再出現一隻",
+      maxGloom: 5,
       sound: "sounds/ilshu-demon.mp3",              // 心魔被擊殺、被引爆
       status(b, u) { return { text: `陰霾 ${u.state.gloom} / ${this.maxGloom}`, on: u.state.gloom > 0, gloom: u.state.gloom }; },
+      spawnAt(b, u, x, y) {   // 指定位置生成心魔（教學用）
+        const d = b.spawnSpecial("enemy", "demon", DEMON, x, y, { demon: true, owner: u });
+        b.emit({ type: "demonSpawn", unit: d });
+        return d;
+      },
       onDemonDeath(b, u, demon) {
         b.emit({ type: "sfx", sound: this.sound });
         if (!demon.noGloom) {
@@ -45,6 +50,7 @@
           b.say(`心魔被擊破，${u.name} 獲得一層陰霾（${u.state.gloom} / ${this.maxGloom}）`);
           b.emit({ type: "gloom", unit: u, gloom: u.state.gloom });
         }
+        if (b.tutorial?.onDemonDeath?.(u, demon)) return;   // 教學劇本自己決定下一隻出現在哪
         spawnDemon(b, u);
         b.say("新的心魔出現了");
       },
@@ -57,7 +63,7 @@
     },
 
     tune: [
-      ["陰霾 上限", "passive", "maxGloom", 1, 20, 1],
+      ["陰霾 上限", "passive", "maxGloom", 1, 10, 1],
       ["突刺 基礎傷害", "thrust", "base", 1, 40, 1],
       ["突刺 距離", "thrust", "range", 60, 300, 10],
       ["突刺 每層陰霾增傷", "thrust", "gloomBonus", 0, 0.3, 0.01],
@@ -127,7 +133,7 @@
           const free = (s) => !b.units.some((o) => o !== d && o !== u && o.alive && R.dist(o.x, o.y, d.x + ux * s, d.y + uy * s) < o.r + d.r);
           while (len > 0 && !free(len)) len -= 4;
           const to = { x: d.x + ux * len, y: d.y + uy * len };
-          const hits = b.enemies().filter((e) => R.geo.pointSeg(e.x, e.y, d.x, d.y, to.x, to.y) <= e.r + d.r);
+          const hits = b.targetsFor(u).filter((e) => !e.demon && R.geo.pointSeg(e.x, e.y, d.x, d.y, to.x, to.y) <= e.r + d.r);
           return { d, from: { x: d.x, y: d.y }, to, hits };
         },
         predict(b, u) { return this.path(b, u).hits; },
@@ -153,7 +159,7 @@
           if (!demonOf(b, u)) return { ready: false, cost: this.ap, label: this.name, note: "沒有心魔", reason: "場上沒有心魔" };
           return { ready: true, cost: this.ap, label: this.name, aim: { type: "none" } };
         },
-        hits(b, u, d) { return b.enemies().filter((e) => R.dist(e.x, e.y, d.x, d.y) <= this.radius + e.r); },
+        hits(b, u, d) { return b.targetsFor(u).filter((e) => !e.demon && R.dist(e.x, e.y, d.x, d.y) <= this.radius + e.r); },
         predict(b, u) { const d = demonOf(b, u); return d ? this.hits(b, u, d) : []; },
         origins(b, u) { const d = demonOf(b, u); return d ? [{ x: d.x, y: d.y }] : []; },
         use(b, u) {
@@ -207,7 +213,7 @@
           if (!hits.length) b.say("……第二斬沒有命中");
 
           // 陰霾滿層：消耗所有陰霾，打出第三斬（以消耗前的層數增傷）
-          const max = C.passive.maxGloom;
+          const max = u.def.passive.maxGloom;
           if (u.state.gloom >= max) {
             const m3 = gloomMult(u, this.gloomBonus);
             b.say(`${u.name} 吞下所有陰霾，揮出第三斬！`);
