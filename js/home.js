@@ -1,3 +1,4 @@
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/home.js": "20261106185838" });
 // 選角頁
 (function () {
   const R = window.RPG;

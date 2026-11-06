@@ -1,3 +1,4 @@
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tutorial.js": "20261106185838" });
 // 新手引導房的劇本：NPC 羽澤璃央一步一步教戰鬥系統
 // 由 battle-ui.js 在房間設定 script: "tutorial" 時呼叫 RPG.Tutorial.attach(battle, ui)
 //   ui.dialog(lines) → Promise（玩家點完所有對話後 resolve）
@@ -17,6 +18,7 @@
     sounds: { swing: "sounds/boss-tentacle.mp3" },
   };
   R.TUTORIAL_NPC = NPC;
+  const DEMON = { name: "心魔", hp: 1, atk: 0, df: 0, spd: 0, ap: 0, r: 18 };
 
   const LINES = {
     intro: "你好啊，歡迎來到占位符AAA的戰鬥系統教學，因為我現在只做了戰鬥系統所以只有戰鬥系統的教學",
@@ -144,7 +146,13 @@
       const s = b.randomFreeSpot(r, 30);
       if (s) this.spawn(s.x, s.y);
     }
-    spawn(x, y) { return this.P.def.passive.spawnAt(this.b, this.P, x, y); }
+    // 生成心魔：教學自己處理，不依賴角色檔的版本
+    spawn(x, y) {
+      const b = this.b, P = this.P;
+      const d = b.spawnSpecial("enemy", "demon", DEMON, x, y, { demon: true, owner: P });
+      b.emit({ type: "demonSpawn", unit: d });
+      return d;
+    }
 
     // 在玩家附近找空位：dist 是離玩家的距離
     spawnNear(dist, angles) {
@@ -325,7 +333,11 @@
   R.Tutorial = {
     attach(b, ui) {
       const t = new Tutorial(b, ui);
-      t.run();
+      // 劇本出錯時直接顯示在畫面上，不要默默卡住
+      t.run().catch((e) => {
+        console.error(e);
+        ui.error?.(`教學發生錯誤：${e.message}。請確認所有檔案都已更新到同一個版本後重新整理。`);
+      });
       return t;
     },
   };

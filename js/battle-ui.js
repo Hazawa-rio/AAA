@@ -1,3 +1,4 @@
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261106185838" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -50,7 +51,11 @@
   if (C.turnSound) audio(C.turnSound);
   if (C.enemyTurnSound) audio(C.enemyTurnSound);
   function renderMute() {
-    $("#muteBtn").textContent = muted ? "🔇 音效關" : "🔊 音效開";
+    // 不用 emoji：各瀏覽器的 emoji 字型不同，改用 SVG 喇叭圖示
+    const ico = `<svg class="mute-ico" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/>${muted
+      ? '<path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.6" fill="none"/>'
+      : '<path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9" stroke="currentColor" stroke-width="1.4" fill="none"/>'}</svg>`;
+    $("#muteBtn").innerHTML = ico + (muted ? "音效關" : "音效開");
     $("#muteBtn").setAttribute("aria-pressed", String(!muted));
   }
   $("#muteBtn").addEventListener("click", () => {
@@ -82,7 +87,7 @@
     bubbles.length = 0;
     B = new R.Battle(C, CH.id, ROOM);
     B.on(onEvent);
-    if (ROOMDEF.script === "tutorial") R.Tutorial.attach(B, { dialog, bubble });
+    if (ROOMDEF.script === "tutorial") R.Tutorial.attach(B, { dialog, bubble, error: showError });
     else B.start();
     renderUI();
   }
@@ -353,7 +358,7 @@
       if (k >= 1) { bubbles.splice(i, 1); continue; }
       const p = pos(b.unit);
       ctx.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1;
-      ctx.font = "bold 14px sans-serif";
+      ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
       const w = ctx.measureText(b.text).width + 22, h = 30, x = p.x - w / 2, y = p.y - b.unit.r - 58;
       roundRect(x, y, w, h, 8);
       ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#f4a6c7"; ctx.stroke();
@@ -363,6 +368,13 @@
       ctx.fillText(b.text, p.x, y + h / 2 + 1);
       ctx.globalAlpha = 1;
     }
+  }
+
+  // 嚴重錯誤：紅色橫條一直顯示
+  function showError(msg) {
+    const el = $("#fatal");
+    el.textContent = msg;
+    el.classList.remove("hidden");
   }
 
   // ---------- DOM 介面 ----------
@@ -404,7 +416,7 @@
 
     $("#order").innerHTML = prefight ? "" : B.order.map((x, i) => {
       const cls = ["chip", x.team, i === B.idx ? "now" : "", x.alive ? "" : "dead", i < B.idx ? "done" : ""].join(" ");
-      const roll = x.def.alwaysFirst ? "必定先手" : `🎲${x.initRoll}+${x.spd}=${x.initiative}`;
+      const roll = x.def.alwaysFirst ? "必定先手" : `d20 ${x.initRoll}+${x.spd}=${x.initiative}`;
       const tip = x.def.alwaysFirst ? "必定先手" : `1d20 擲出 ${x.initRoll} ＋ 速度 ${x.spd}`;
       return `<div class="${cls}" title="${tip}"><span class="dot"></span>${esc(x.name)}<span class="spd">${roll}</span></div>`;
     }).join("");
@@ -447,7 +459,7 @@
       banner.classList.add("tutorial");
       banner.textContent = obj;
     } else if (myTurn()) {
-      const warn = B.charges.length ? "　⚠ 地上有壓制範圍" : B.projectiles.length ? "　⚠ 光彈還在飛" : "";
+      const warn = B.charges.length ? "　注意：地上有壓制範圍" : B.projectiles.length ? "　注意：光彈還在飛" : "";
       let text = `你的回合：點地面移動、點敵人${CH.skills[CH.basic].name}`;
       if (mode !== "move") {
         const aim = statusOf(mode).aim?.type;
@@ -582,7 +594,7 @@
     ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
   function label(text, x, y, color = "#1d1d1f", size = 13) {
-    ctx.font = `bold ${size}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `bold ${size}px 'Noto Sans TC', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.lineWidth = 4; ctx.strokeStyle = "#fffdf8"; ctx.strokeText(text, x, y);
     ctx.fillStyle = color; ctx.fillText(text, x, y);
   }
@@ -810,7 +822,7 @@
         ctx.fillStyle = "#ece8df"; ctx.fillRect(bx, by, bw, 5);
         ctx.fillStyle = "#e8262c"; ctx.fillRect(bx, by, bw * (p.hp / p.maxHp), 5);
       }
-      ctx.fillStyle = "#6b665d"; ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillStyle = "#6b665d"; ctx.font = "11px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
       ctx.fillText(p.alive ? p.name : `${p.name}（已破壞）`, m.x, m.y + p.r + 18);
     }
     ctx.globalAlpha = core.alive ? 1 : 0.3;
@@ -1016,7 +1028,7 @@
     ctx.beginPath(); ctx.ellipse(-r * 0.32, -r * 0.05, 3, 4.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.ellipse(r * 0.32, -r * 0.05, 3, 4.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
-    ctx.fillStyle = "#4b3f8f"; ctx.font = "11px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#4b3f8f"; ctx.font = "11px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     ctx.fillText("心魔", p.x, p.y + r + 10);
   }
 
@@ -1071,10 +1083,10 @@
     if (isCur) { roundRect(p.x - BD - 6, p.y - BD - 6, BD * 2 + 12, BD * 2 + 12, 11); ctx.strokeStyle = "rgba(244,166,199,.5)"; ctx.lineWidth = 3; ctx.stroke(); }
     roundRect(p.x - BD, p.y - BD, BD * 2, BD * 2, 9);
     ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = "#f4a6c7"; ctx.stroke();
-    ctx.fillStyle = "#d0588f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#d0588f"; ctx.font = "bold 16px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("澤", p.x, p.y + 1);
     drawScythe(u, p, now);
-    ctx.fillStyle = "#1d1d1f"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#1d1d1f"; ctx.font = "12px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     ctx.fillText(u.name, p.x, p.y + BD + 13);
     if (!u.npc) {     // 戰鬥中才有血條
       const bw = 52, bx = p.x - bw / 2, by = p.y + BD + 5;
@@ -1116,7 +1128,7 @@
     if (u.team === "player") {
       roundRect(p.x - BD, p.y - BD, BD * 2, BD * 2, 8);
       ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = CH.color || "#1d1d1f"; ctx.stroke();
-      ctx.fillStyle = CH.color || "#1d1d1f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = CH.color || "#1d1d1f"; ctx.font = "bold 16px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(CH.name[0], p.x, p.y + 1);
 
     } else {
@@ -1132,7 +1144,7 @@
       if (u.alive && u.state.slamCd > 0) label(`壓制 CD ${u.state.slamCd}`, p.x + BD + 34, p.y - BD + 2, "#8a8478", 11);
     }
 
-    ctx.fillStyle = "#1d1d1f"; ctx.font = "12px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.fillStyle = "#1d1d1f"; ctx.font = "12px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
     ctx.fillText(u.name, p.x, p.y + BD + 13);
     if (u.alive) {
       const bw = 46, bx = p.x - bw / 2, by = p.y + BD + 5;
@@ -1305,6 +1317,24 @@
     ctx.restore();
     requestAnimationFrame(frame);
   }
+
+  // ---------- 整頁等比例縮放 ----------
+  // 版面固定以 1600px 寬設計，依視窗大小縮放到剛好放得下遊戲區（場地 + 下方技能列）
+  // 這樣不同瀏覽器、側邊欄、瀏覽器縮放比例下看起來都一樣
+  function fit() {
+    const app = $("#app"), wrap = $("#fit");
+    app.style.transform = "none";
+    const designW = app.offsetWidth;
+    const mainH = $("#hud").offsetTop + $("#hud").offsetHeight + 12;   // 不含下方的數值面板
+    const s = Math.min(window.innerWidth / designW, window.innerHeight / mainH);
+    app.style.transform = `scale(${s})`;
+    wrap.style.width = `${designW * s}px`;
+    wrap.style.height = `${app.offsetHeight * s}px`;
+  }
+  window.addEventListener("resize", fit);
+  $("#tuner").addEventListener("toggle", fit);
+  fit();
+  document.fonts?.ready.then(fit);
 
   R.getBattle = () => B;   // 除錯用：在 Console 輸入 RPG.getBattle()
   document.title = `${ROOMDEF.name} · 戰鬥測試`;

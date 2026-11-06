@@ -1,3 +1,4 @@
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261106185838" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -254,7 +255,7 @@
     async ultimate(b, u) {
       const U = u.def.ult;
       b.enemySpend(u, U.ap);
-      b.say(`⚠ ${u.name} 開始火力掃蕩！`);
+      b.say(`【警告】${u.name} 開始火力掃蕩！`);
       b.emit({ type: "bossUlt", unit: u, text: `${u.name}開始火力掃蕩` });
       const ms = u.parts.filter((m) => m.alive);
       for (const m of ms) this.ringFrom(b, u, m, U.count, U.base);
