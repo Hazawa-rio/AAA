@@ -18,7 +18,7 @@
     <button class="card" data-id="${c.id}" style="--c:${c.color}" type="button" aria-pressed="false">
       <span class="icon" style="--c:${c.color}">${esc(c.name[0])}</span>
       <b>${esc(c.name)}</b>
-      <span class="role">測試角色</span>
+      <span class="role">${c.passive ? "被動：" + esc(c.passive.name) : "測試角色"}</span>
       <span class="mini">
         <span>生命 <b>${c.stats.hp}</b></span><span>攻擊 <b>${c.stats.atk}</b></span>
         <span>防禦 <b>${c.stats.df}</b></span><span>速度 <b>${c.stats.spd}</b></span>
@@ -48,7 +48,12 @@
 
     // 普攻、Q、W、E 的順序
     const order = [c.basic, c.hud.left, c.hud.center, c.hud.right];
-    $("#dSkills").innerHTML = order.map((id) => {
+    const passive = c.passive ? `<li class="passive-row">
+        <span class="sk-icon"><span class="slot">被動</span></span>
+        <div><div class="sn">${esc(c.passive.name)}</div><div class="sd">${esc(c.passive.desc)}</div></div>
+        <div class="sc"></div>
+      </li>` : "";
+    $("#dSkills").innerHTML = passive + order.map((id) => {
       const s = c.skills[id];
       const icon = `<span class="slot">${s.slot}</span>`;
       const tags = [`★${s.ap}`];

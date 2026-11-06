@@ -41,6 +41,9 @@ RPG.CONFIG = {
       hp: 200, atk: 35, df: 10, spd: 10, ap: 13,
       moveCost: 1,                // 整體移動一次的行動點（移動半徑 = 速度 × 13）
       reserveAp: 4,               // 每回合保留給閃避的行動點（在玩家回合閃避一次花 2 點）
+      // 閃避機率：攻擊來源距離 ≤ near 時是 minChance，≥ far 時是 maxChance，中間線性變化
+      // 每成功閃一次，下一次的機率再 × fatigue（到 Boss 自己的回合重置）
+      dodge: { near: 60, far: 450, minChance: 0.1, maxChance: 0.7, fatigue: 0.6 },
       preferDist: 210,            // 想跟玩家保持的距離（核心中心到玩家）
       r: 52,                      // 核心大小
       armLength: 205,             // 觸手長度（核心到矩陣）
@@ -60,8 +63,8 @@ RPG.CONFIG = {
       reaction: 1.0,              // 有預告的攻擊（觸手、電流、激光）倒數秒數
       bullet: { speed: 260, r: 6 },   // 光彈飛行速度與大小
       // 以下傷害皆為暫定；weight = AI 選這招的機率權重
-      swipe:    { ap: 1, half: 40, extra: 15, base: 8, weight: 3 },   // 揮動觸手：以觸手根部為圓心的扇形（半角 40°，半徑 = 觸手長 + extra）
-      electric: { ap: 1, radius: 115, base: 7, weight: 3 },             // 矩陣周圍電流
+      swipe:    { ap: 1, half: 40, extra: 15, base: 8, weight: 3, knockback: 90 },   // 命中會擊退 knockback 距離   // 揮動觸手：以觸手根部為圓心的扇形（半角 40°，半徑 = 觸手長 + extra）
+      electric: { ap: 1, radius: 115, base: 7, weight: 3, apDrain: 1 }, // 矩陣周圍電流，命中扣行動點（沒有就不扣）
       shot:     { ap: 1, waves: [1, 2, 1, 2], spread: 12, interval: 0.2, base: 4, weight: 3 }, // 核心射擊 1-2-1-2
       laser:    { ap: 2, width: 70, base: 12, weight: 2 },             // 寬激光
       ring:     { ap: 2, count: 12, base: 4, weight: 2 },               // 所有矩陣環狀擴散光彈

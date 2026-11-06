@@ -82,7 +82,6 @@
       this.char = ch;
       const ps = this.room.playerStart;
       this.player = this.add(new Unit("player", ch.id, ch, ch.stats, ps.x, ps.y, cfg.body));
-      ch.init?.(this, this.player);
       for (const sp of this.room.wave) this.spawnEnemy(sp);
 
       this.round = 0;
@@ -98,6 +97,7 @@
       this.listeners = new Set();
       this.dead = false;
       this._timers = new Set();
+      ch.init?.(this, this.player);           // 敵人都放好之後才初始化角色（心魔要找空位）
     }
 
     spawnEnemy(sp) {
@@ -143,8 +143,12 @@
     }
 
     get current() { return this.order[this.idx]; }
-    enemies() { return this.units.filter((u) => u.team === "enemy" && u.alive); }
+    // 一般敵人（不含心魔這種特殊目標）
+    enemies() { return this.units.filter((u) => u.team === "enemy" && u.alive && !u.demon); }
     mainEnemies() { return this.enemies().filter((u) => !u.part); }
+    demons() { return this.units.filter((u) => u.demon && u.alive); }
+    // 某個玩家角色能攻擊的目標：心魔只有召喚它的角色打得到
+    targetsFor(u) { return [...this.enemies(), ...this.demons().filter((d) => d.owner === u)]; }
     moveRadius(u) { return u.spd * this.cfg.movePerSpd; }
     blocked(u, x, y) {
       return this.units.some((o) => o !== u && o.alive && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
@@ -162,7 +166,7 @@
       if (this.round === 1) {
         // 行動順序只在第一回合決定：1d20 + 速度，高的先動；同分比速度，再同分玩家先
         const die = this.cfg.initiativeDie;
-        const alive = this.units.filter((u) => u.alive && !u.part);
+        const alive = this.units.filter((u) => u.alive && !u.part && !u.demon);
         for (const u of alive) u.initRoll = 1 + Math.floor(Math.random() * die);
         this.order = alive.sort((a, b) => b.initiative - a.initiative || b.spd - a.spd ||
           (a.team === "player" ? -1 : b.team === "player" ? 1 : 0));
@@ -263,6 +267,8 @@
         const hits = sk.predict(this, u, arg, st);           // 不合法會丟 ActionError，此時什麼都還沒扣
         if (hits.length) this.enemyReact(hits, {
           src: u, skill: id,
+          origins: sk.origins ? sk.origins(this, u, arg) : [{ x: u.x, y: u.y }],   // 攻擊從哪裡飛過來
+          speed: sk.projectileSpeed || 0,                                          // 飛行速度（近戰為 0）
           repredict: () => { try { return sk.predict(this, u, arg, st); } catch { return []; } },
         });
       }
@@ -314,7 +320,16 @@
 
     // base = 技能基礎傷害；mult = 額外倍率（例如穿過煙霧 ×1.5）
     damage(src, dst, base, mult = 1, note = "") {
+      this.lastEvade = false;
       if (!dst.alive) return 0;
+      // 被動閃避（例如弗爾斯勒「隱於霧中」：隱蔽時 50% 打空）
+      const evade = dst.def.passive?.evade?.(this, dst) || 0;
+      if (evade > 0 && Math.random() < evade) {
+        this.lastEvade = true;
+        this.say(`${dst.name} ${dst.def.passive.evadeText || "閃過了攻擊"}`);
+        this.emit({ type: "miss", x: dst.x, y: dst.y, text: dst.def.passive.evadeLabel || "MISS" });
+        return 0;
+      }
       // 受傷倍率（例如殲滅矩陣的核心立場：依破壞的矩陣數量 0 / 0.5 / 1 / 1.5 倍）
       const k = dst.def.incomingMult ? dst.def.incomingMult(this, dst) : 1;
       if (k === 0) {
@@ -332,6 +347,12 @@
     }
 
     onDeath(u) {
+      if (u.demon) {
+        this.units = this.units.filter((x) => x !== u);
+        this.emit({ type: "demonDeath", unit: u });
+        u.owner.def.passive?.onDemonDeath?.(this, u.owner, u);
+        return;
+      }
       if (u.part) {
         const left = u.parent.parts.filter((p) => p.alive).length;
         this.say(`${u.name} 被破壞了！${left ? `核心立場減弱（還剩 ${left} 個矩陣）` : "核心立場完全瓦解！"}`);
@@ -347,6 +368,39 @@
         this.say(`${u.name} 的「壓制」蓄力消失了`);
         this.emit({ type: "chargeCancel", charges: gone });
       }
+    }
+
+    // 把單位從 (ox,oy) 往外推 distance，撞牆或撞到其他單位就停在能停的地方
+    knockback(u, ox, oy, distance) {
+      const A = this.cfg.arena;
+      const ang = Math.atan2(u.y - oy, u.x - ox);
+      for (let d = distance; d >= 5; d -= 5) {
+        const x = Math.min(Math.max(u.x + Math.cos(ang) * d, u.r), A.w - u.r);
+        const y = Math.min(Math.max(u.y + Math.sin(ang) * d, u.r), A.h - u.r);
+        if (this.blocked(u, x, y)) continue;
+        u.x = x; u.y = y;
+        this.emit({ type: "knockback", unit: u });
+        return true;
+      }
+      return false;
+    }
+
+    // 隨機找一個空位（離其他單位、牆邊都有一點距離）
+    randomFreeSpot(r, margin = 30) {
+      const A = this.cfg.arena;
+      for (let i = 0; i < 200; i++) {
+        const x = r + margin + Math.random() * (A.w - 2 * (r + margin));
+        const y = r + margin + Math.random() * (A.h - 2 * (r + margin));
+        if (!this.units.some((o) => o.alive && dist(o.x, o.y, x, y) < o.r + r + margin)) return { x, y };
+      }
+      return null;
+    }
+
+    // 生成心魔這類特殊單位（不參與回合、不算勝利條件）
+    spawnSpecial(team, kind, def, x, y, extra) {
+      const u = this.add(new Unit(team, kind, def, def, x, y, def.r || this.cfg.body));
+      Object.assign(u, extra);
+      return u;
     }
 
     // ---------- 敵人在玩家回合的反應 ----------
@@ -399,7 +453,7 @@
     // ---------- 預告攻擊 ----------
     // shape：rect（x,y,ang,length,width）/ sector（x,y,ang,half,radius）/ circle（x,y,radius）
     // 先顯示範圍、等 reaction 秒，再判定玩家有沒有在範圍內
-    async telegraph(owner, t, { base, sound, label, missText, mult = 1 } = {}) {
+    async telegraph(owner, t, { base, sound, label, missText, mult = 1, onHit } = {}) {
       t.owner = owner;
       t.total = t.reaction;
       t.deadline = performance.now() + t.reaction * 1000;
@@ -415,7 +469,10 @@
       }
       this.emit({ type: "strike", ...t, sound });
       const p = this.player;
-      if (p.alive && this.hitTest(t, p)) this.damage(owner, p, base, mult);
+      if (p.alive && this.hitTest(t, p)) {
+        const amount = this.damage(owner, p, base, mult);
+        if (amount > 0 && p.alive) onHit?.(p);     // 被打中才有的附加效果（擊退、扣行動點…）
+      }
       else { this.say(missText || `${label || "攻擊"}落空了！`); this.emit({ type: "miss", x: p.x, y: p.y }); }
       this.checkEnd();
       return true;
@@ -452,9 +509,10 @@
       for (const b of this.projectiles) {
         b.x += b.vx * dt; b.y += b.vy * dt;
         if (b.x < -30 || b.y < -30 || b.x > A.w + 30 || b.y > A.h + 30) continue;
-        if (p.alive && dist(b.x, b.y, p.x, p.y) <= b.r + hitR) {
-          this.emit({ type: "bulletHit", x: b.x, y: b.y });
+        if (p.alive && !b.passed && dist(b.x, b.y, p.x, p.y) <= b.r + hitR) {
           this.damage(b.owner, p, b.base);
+          if (this.lastEvade) { b.passed = true; keep.push(b); continue; }   // 打空：光彈穿過去
+          this.emit({ type: "bulletHit", x: b.x, y: b.y });
           continue;
         }
         keep.push(b);

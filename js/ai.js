@@ -46,6 +46,7 @@
       const D = u.def;
       const ok = () => u.alive && !b.dead && b.phase !== "over";
       const matrices = () => u.parts.filter((p) => p.alive);
+      u.state.dodges = 0;                           // 這一輪成功閃避的次數（越閃越累）
       const budget = () => u.ap - D.reserveAp;      // 保留給閃避的點數不動用
       let moves = 0;
 
@@ -114,6 +115,16 @@
       if (mine.every((h) => h === u) && u.def.incomingMult(b, u) === 0) return;
       const cost = u.def.moveCost * b.cfg.offTurnMultiplier;
       if (u.ap < cost) return;
+
+      // 不是每次都閃：攻擊從越遠的地方飛來，越來得及反應；近身攻擊很難閃。連續閃避會越來越難
+      const V = u.def.dodge;
+      const near = Math.min(...mine.flatMap((h) => info.origins.map((o) => Math.max(0, R.dist(o.x, o.y, h.x, h.y) - h.r))));
+      const k = Math.max(0, Math.min(1, (near - V.near) / (V.far - V.near)));
+      const chance = (V.minChance + (V.maxChance - V.minChance) * k) * Math.pow(V.fatigue, u.state.dodges || 0);
+      if (Math.random() >= chance) return;
+
+      // 攻擊快到的時候才動（畫面上看起來是在攻擊靠近時閃開）
+      const delay = info.speed ? Math.min(0.8, (near / info.speed) * 0.65) : 0.05;
       const src = info.src, ang0 = Math.atan2(u.y - src.y, u.x - src.x), R0 = b.moveRadius(u);
       const still = () => info.repredict().filter((h) => h === u || h.parent === u).length;
       for (const off of [Math.PI / 2, -Math.PI / 2, Math.PI / 3, -Math.PI / 3, (2 * Math.PI) / 3, (-2 * Math.PI) / 3, 0]) {
@@ -123,9 +134,10 @@
           b.shiftGroup(u, dx, dy);
           if (still() === 0) {
             u.ap -= cost;
+            u.state.dodges = (u.state.dodges || 0) + 1;
             b.say(`${u.name} 消耗 ${cost} 點行動點閃避了攻擊！`);
             b.emit({ type: "move", unit: u });
-            b.emit({ type: "enemyDodge", unit: u });
+            b.emit({ type: "enemyDodge", unit: u, group: b.group(u), delay });
             return;
           }
           b.shiftGroup(u, -dx, -dy);
@@ -159,7 +171,10 @@
       const ang = Math.atan2(p.y - o.y, p.x - o.x), half = (S.half * Math.PI) / 180;
       b.say(`${u.name} 揚起了${arm.name.replace("矩陣", "")}的觸手！`);
       await b.telegraph(u, { shape: "sector", x: o.x, y: o.y, ang, half, radius: this.swipeRadius(u), reaction: u.def.reaction, kind: "tentacle", arm },
-        { base: S.base, sound: u.def.sounds.tentacle, label: "觸手橫掃" });
+        {
+          base: S.base, sound: u.def.sounds.tentacle, label: "觸手橫掃",
+          onHit: (pl) => { if (b.knockback(pl, o.x, o.y, S.knockback)) b.say(`${pl.name} 被觸手擊退了`); },
+        });
     },
 
     // 從核心邊緣朝某方向的起點
@@ -175,7 +190,15 @@
       b.enemySpend(u, E.ap);
       b.say(`${m.name} 開始蓄積電流！`);
       await b.telegraph(u, { shape: "circle", x: m.x, y: m.y, radius: E.radius, reaction: u.def.reaction, kind: "electric", source: m },
-        { base: E.base, sound: u.def.sounds.electric, label: `${m.name} 的電流` });
+        {
+          base: E.base, sound: u.def.sounds.electric, label: `${m.name} 的電流`,
+          onHit: (pl) => {
+            if (pl.ap <= 0) return;
+            pl.ap = Math.max(0, pl.ap - E.apDrain);
+            b.say(`${pl.name} 被電流麻痺，失去 ${E.apDrain} 點行動點`);
+            b.emit({ type: "apDrain", unit: pl, amount: E.apDrain });
+          },
+        });
     },
 
     async laser(b, u) {
@@ -231,14 +254,16 @@
     async ultimate(b, u) {
       const U = u.def.ult;
       b.enemySpend(u, U.ap);
-      b.say(`⚠ ${u.name} 發動「殲滅矩陣」！`);
-      b.emit({ type: "bossUlt", unit: u });
+      b.say(`⚠ ${u.name} 開始火力掃蕩！`);
+      b.emit({ type: "bossUlt", unit: u, text: `${u.name}開始火力掃蕩` });
       const ms = u.parts.filter((m) => m.alive);
       for (const m of ms) this.ringFrom(b, u, m, U.count, U.base);
       b.emit({ type: "pulse", units: ms });
       const a0 = this.aim(u, b.player);
       const dirs = [a0, a0 + (Math.PI * 2) / 3, a0 - (Math.PI * 2) / 3];
       await this.volley(b, u, dirs, U.waves, U.spread * 2, U.interval, U.base);
+      await b.waitProjectiles();                  // 光彈全部飛完才算大招結束
+      b.emit({ type: "bossUltEnd", unit: u });
     },
   };
 })();
