@@ -114,11 +114,22 @@ sounds/                  音效
 
 在瀏覽器 Console 輸入 `RPG.getBattle()` 可以看到目前戰鬥的完整狀態。
 
+## 版面一致性
+
+- 字型統一使用網路字型 Noto Sans TC（Google Fonts），畫布上的文字也是同一套；載入失敗才退回系統字型
+- 介面不使用 emoji（各瀏覽器的 emoji 字型不同）
+- 戰鬥頁以固定 1600px 寬設計，再依視窗大小整頁等比例縮放，所以不同瀏覽器、側邊欄、縮放比例下版面都一樣，只有大小不同
+
+## 版本檢查
+
+每個 js / css 檔都蓋有版本號（`python tools/stamp_version.py` 會一次全部更新）。網頁打開時會比對，只要有檔案不是同一版——上傳時漏掉、瀏覽器快取到舊檔、檔案不見——畫面最上方就會出現紅色提示，列出是哪幾個檔案。看到提示就重新上傳那些檔案，或按 Ctrl+F5。
+
 ## 放上 GitHub Pages
 
 1. **`index.html` 要在 repo 的最外層**（打開 repo 首頁就要直接看到 `index.html`、`js/`、`css/`、`sounds/`）。
 2. repo 的 **Settings → Pages → Build and deployment**：Source 選 **Deploy from a branch**，Branch 選 **main**、資料夾 **/ (root)**，按 Save。
 3. 等 1～2 分鐘，網址是 `https://你的帳號.github.io/repo名稱/`。之後每次推送都會自動更新。
+4. **每次更新都要把壓縮檔裡的所有檔案一起上傳覆蓋**，只傳部分檔案很容易漏掉，版本檢查會跳出提示。
 
 `.nojekyll` 這個空檔案是讓 GitHub 不要用 Jekyll 處理網站，保留就好。
 
