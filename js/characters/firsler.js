@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261107215455" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
@@ -63,6 +63,17 @@
       status(b, u) { return this.active(b, u) ? { text: "隱蔽中", on: true } : { text: "未隱蔽", on: false }; },
     },
 
+    // 個性台詞：不會每次都跳（chance 是出現機率）
+    barks: {
+      shoot: { chance: 0.35, lines: ["哈哈，這下如何？"] },
+      split: { chance: 0.7, lines: ["買一送一再送一！"] },
+      pierce: { chance: 0.7, lines: ["哇阿，這一發可不得了阿。"] },
+      smoke: { chance: 0.35, lines: ["哈阿（吐煙）"] },
+      heal: { chance: 0.3, lines: ["感覺不錯。"] },
+      ult: { chance: 0.7, lines: ["看老娘這招！"] },
+      finale: { chance: 0.85, lines: ["老娘這就送你們上西天！"] },
+    },
+
     // ===== 技能強化樹 =====
     // E、Q 各能強化兩次：第一次強化技能本身，第二次強化附加效果；W 一次。每次二選一
     upgrades: {
@@ -70,7 +81,7 @@
         skill: "load",
         tiers: [
           [
-            { id: "split", name: "分裂箭矢", desc: "箭矢穿過煙霧後，分裂成三支箭矢（每支都有煙霧加成）" },
+            { id: "split", name: "分裂箭矢", desc: "箭矢穿過煙霧後，分裂成三支箭矢（每支都有煙霧加成）。同時命中同一個目標時合成一擊，每多中一支傷害再 +25%" },
             { id: "pierce", name: "穿雲之箭", desc: "箭矢穿過煙霧後獲得穿透，路線上的敵人全部命中，傷害提高到 ×2（特效更華麗）" },
           ],
           [
@@ -109,6 +120,7 @@
       ["箭 射程", "load", "range", 150, 800, 10],
       ["上膛 冷卻（次行動）", "load", "cooldown", 0, 8, 1],
       ["分裂箭矢 分裂角度（°）", "load", "splitDeg", 3, 45, 1],
+      ["分裂箭矢 每多中一支加成", "load", "splitStack", 0, 1, 0.05],
       ["穿雲之箭 傷害倍率", "load", "pierceMult", 1, 4, 0.1],
       ["游擊作戰 速度倍率", "load", "guerrillaMult", 1, 3, 0.1],
       ["遠處狙擊 射程倍率", "load", "snipeMult", 1, 3, 0.1],
@@ -132,6 +144,18 @@
       return u.state.loaded && !movedSinceLoad(u);
     },
 
+    // 局內調整成長後：煙霧數量超過新上限時，最舊的消失
+    onGrowth(b, u) {
+      const max = this.skills.smoke.maxFor(u);
+      let list = smokes(b);
+      while (list.length > max) {
+        const old = list[0];
+        b.zones = b.zones.filter((z) => z !== old);
+        b.emit({ type: "zoneExpire", zones: [old] });
+        list = smokes(b);
+      }
+    },
+
     // 每次行動後（自己回合或應急行動都算）
     onAction(b, u, actionId) {
       // 游擊作戰：射箭後的「下一個」行動速度 ×1.5
@@ -143,7 +167,7 @@
         u.state.speedBoost = 0;
       }
       // 煙霾填補：在煙霧裡行動回血
-      if (upg(u).e1 === "mend" && inSmoke(b, u.x, u.y)) b.heal(u, this.skills.smoke.mendHeal, "（煙霾填補）");
+      if (upg(u).e1 === "mend" && inSmoke(b, u.x, u.y) && b.heal(u, this.skills.smoke.mendHeal, "（煙霾填補）") > 0) b.bark(u, "heal");
     },
 
     // 敵人每次行動時
@@ -196,6 +220,7 @@
         cooldown: 2,                        // 暫定：射箭後的冷卻（行動次數）
         // 強化數值（暫定）
         splitDeg: 15, pierceMult: 2, guerrillaMult: 1.5, snipeMult: 1.5,
+        splitStack: 0.25,                   // 分裂箭：同一個目標每多中一支，總傷害再 +25%
         desc: "花 1 點上膛。上膛後沒移動可以免費射箭，移動過要 1 點。箭 16 × 攻擊力%，穿過煙霧 ×1.5（不疊加）。射箭後冷卻",
         status(b, u) {
           if (u.state.loaded) {
@@ -261,6 +286,19 @@
           }
           return { arrows, dx, dy, range };
         },
+        // 分裂箭同時命中同一個目標：合成一次傷害，支數越多倍率越高
+        mergeHits(arrows) {
+          const out = [], split = new Map();
+          for (const a of arrows) for (const h of a.hits) {
+            if (!a.split) { out.push(h); continue; }
+            split.set(h.unit, (split.get(h.unit) || 0) + 1);
+          }
+          for (const [unit, n] of split) {
+            const mult = this.smokeMult * n * (1 + this.splitStack * (n - 1));
+            out.push({ unit, mult, n, note: n > 1 ? `（分裂箭 ${n} 支同時命中 ×${mult.toFixed(2)}）` : "（分裂箭・煙霧 ×1.5）" });
+          }
+          return out;
+        },
         predict(b, u, arg) {
           if (!u.state.loaded) return [];
           return [...new Set(this.path(b, u, arg).arrows.flatMap((a) => a.hits.map((h) => h.unit)))];
@@ -282,8 +320,9 @@
           b.say(`${u.name} 射出箭矢${kind}`);
           b.emit({ type: "arrow", arrows, speed: this.projectileSpeed });
           b.emit({ type: "sfx", sound: this.sound });     // Q 的音效只在射箭時播放
+          b.bark(u, arrows.some((a) => a.pierce) ? "pierce" : arrows.some((a) => a.split) ? "split" : "shoot");
           let any = false;
-          for (const a of arrows) for (const h of a.hits) if (h.unit.alive) { any = true; b.damage(u, h.unit, this.base, h.mult, h.note); }
+          for (const h of this.mergeHits(arrows)) if (h.unit.alive) { any = true; b.damage(u, h.unit, this.base, h.mult, h.note); }
           if (!any) b.say("……箭沒有射中");
           if (up.q2 === "guerrilla") u.state.guerrillaNext = true;   // 下一個行動速度 ×1.5
         },
@@ -319,6 +358,7 @@
           });
           b.setCooldown(u, "smoke", this.cooldown);
           b.say(`${u.name} 吐出一團煙霧`);
+          b.bark(u, "smoke");
           b.emit({ type: "sfx", sound: this.sound });
         },
       },
@@ -424,7 +464,9 @@
             const fp = this.finalePath(b, u, arg);
             b.zones = b.zones.filter((z) => z.type !== "smoke");
             u.charge = 0;
-            b.say(`${u.name}：「看老娘結束這一切！」${fp.count} 根尖刺凝聚成一發飛箭`);
+            b.say(`${u.name} 發動「看老娘結束這一切」！${fp.count} 根尖刺凝聚成一發飛箭`);
+            b.bark(u, "ult");
+            b.bark(u, "finale", 0.75);           // 飛箭射出的時候
             b.emit({ type: "spikes", spikes: list.map((z) => ({ points: [{ x: z.x, y: z.y }, fp.F], delayDist: 0 })), consumed: list, speed: this.projectileSpeed });
             b.emit({ type: "finale", from: fp.F, to: fp.end, width: this.finaleWidth, count: fp.count });
             b.emit({ type: "sfx", sound: this.sound });
@@ -438,6 +480,7 @@
           b.zones = b.zones.filter((z) => z.type !== "smoke");
           u.charge = 0;
           const extra = spikes.filter((s) => s.side).length;
+          b.bark(u, "ult");
           b.say(`${u.name} 發動「煙霧爆發」！${list.length} 根煙霧尖刺射出${extra ? `，反彈分裂出 ${extra} 根` : ""}`);
           b.emit({ type: "spikes", spikes, consumed: list, speed: this.projectileSpeed });
           b.emit({ type: "sfx", sound: this.sound });
