@@ -80,4 +80,4 @@ body.char-forced #cards, body.char-forced #detail { opacity: .4; }
 #rooms { grid-template-columns: repeat(3, 1fr); }
 .detail-title #growBtn { margin-left: auto; }
 .detail-title .lv { font-size: 14px; color: var(--muted); font-weight: 700; margin-left: 4px; }
-/* build */ :root { --build-css-home-css: "20261107205524"; }
+/* build */ :root { --build-css-home-css: "20261107215455"; }

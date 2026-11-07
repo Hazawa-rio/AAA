@@ -243,4 +243,4 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @media (max-width: 760px) { .bp-body { grid-template-columns: 1fr; } .bp-opts { grid-template-columns: 1fr; } .bp-head p { display: none; } }
 #growBtn { white-space: nowrap; }
 #resultXp { margin: -4px 0 14px; font-size: 14px; }
-/* build */ :root { --build-css-style-css: "20261107205524"; }
+/* build */ :root { --build-css-style-css: "20261107215455"; }
