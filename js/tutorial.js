@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tutorial.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tutorial.js": "20261107215455" });
 // 新手引導房的劇本：NPC 羽澤璃央一步一步教戰鬥系統
 // 由 battle-ui.js 在房間設定 script: "tutorial" 時呼叫 RPG.Tutorial.attach(battle, ui)
 //   ui.dialog(lines) → Promise（玩家點完所有對話後 resolve）

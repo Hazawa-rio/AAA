@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/home.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/home.js": "20261107215455" });
 // 選角頁
 (function () {
   const R = window.RPG;
@@ -36,13 +36,11 @@
       el.setAttribute("aria-pressed", String(el.dataset.id === id));
     });
     const c = selected;
-    // 成長後的數值（等級、強化點都算進去）
-    const g = R.Progress ? R.Progress.forBattle(c) : { level: 1, stats: c.stats, upg: {} };
-    const st = g.stats;
+    const st = c.stats;   // 成長在戰鬥中（局內）調整，這裡顯示基礎數值
     $("#detail").classList.remove("hidden");
     $("#dIcon").textContent = c.name[0];
     $("#dIcon").style.setProperty("--c", c.color);
-    $("#dName").innerHTML = `${esc(c.name)} <span class="lv">Lv ${g.level}</span>`;
+    $("#dName").textContent = c.name;
     $("#dSub").textContent = `${st.ap} 點行動點・移動半徑 ${st.spd * R.CONFIG.movePerSpd}`;
     $("#dDesc").textContent = c.desc;
     $("#dStats").innerHTML = STATS.map(([k, label, max, color]) => `
@@ -70,12 +68,6 @@
       </li>`;
     }).join("");
   }
-
-  // ---------- 角色成長 ----------
-  $("#growBtn").addEventListener("click", () => {
-    if (!selected || !R.BuildPanel) return;
-    R.BuildPanel.open(selected.id, { onClose() { select(selected.id); } });
-  });
 
   // ---------- 房間 ----------
   const rooms = R.CONFIG.rooms;

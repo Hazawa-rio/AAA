@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261107215455" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -127,24 +127,35 @@
 
       // 攻擊快到的時候才動（畫面上看起來是在攻擊靠近時閃開）
       const delay = info.speed ? Math.min(0.8, (near / info.speed) * 0.65) : 0.05;
+      // 閃避就是一次真正的移動（和玩家的應急移動一樣），不是無敵：
+      // 判斷不一定準，移動完還在攻擊範圍內就照樣受傷
       const src = info.src, ang0 = Math.atan2(u.y - src.y, u.x - src.x), R0 = b.moveRadius(u);
       const still = () => info.repredict().filter((h) => h === u || h.parent === u).length;
+      const opts = [];
       for (const off of [Math.PI / 2, -Math.PI / 2, Math.PI / 3, -Math.PI / 3, (2 * Math.PI) / 3, (-2 * Math.PI) / 3, 0]) {
         for (const f of [1, 0.7, 0.45]) {
           const dx = Math.cos(ang0 + off) * R0 * f, dy = Math.sin(ang0 + off) * R0 * f;
           if (!b.canShiftGroup(u, dx, dy)) continue;
           b.shiftGroup(u, dx, dy);
-          if (still() === 0) {
-            u.ap -= cost;
-            u.state.dodges = (u.state.dodges || 0) + 1;
-            b.say(`${u.name} 消耗 ${cost} 點行動點閃避了攻擊！`);
-            b.emit({ type: "move", unit: u });
-            b.emit({ type: "enemyDodge", unit: u, group: b.group(u), delay });
-            return;
-          }
+          opts.push({ dx, dy, left: still() });
           b.shiftGroup(u, -dx, -dy);
         }
       }
+      if (!opts.length) return;
+      // 看得清楚（攻擊從遠處來）就比較會選到好的方向，否則常常亂躲
+      const sharp = V.minSharp + (V.maxSharp - V.minSharp) * k;
+      let pick;
+      if (Math.random() < sharp) {
+        const best = Math.min(...opts.map((o) => o.left));
+        const good = opts.filter((o) => o.left === best);
+        pick = good[Math.floor(Math.random() * good.length)];
+      } else pick = opts[Math.floor(Math.random() * opts.length)];
+      b.shiftGroup(u, pick.dx, pick.dy);
+      u.ap -= cost;
+      u.state.dodges = (u.state.dodges || 0) + 1;
+      b.say(pick.left ? `${u.name} 消耗 ${cost} 點行動點閃避……但沒有完全躲開！` : `${u.name} 消耗 ${cost} 點行動點閃避了攻擊！`);
+      b.emit({ type: "move", unit: u });
+      b.emit({ type: "enemyDodge", unit: u, group: b.group(u), delay, failed: !!pick.left });
     },
 
     // ---------- 觸手 ----------

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261107215455" });
 // 角色成長介面：等級（可手動調整）、強化點分配、技能強化樹
 // 選角頁和戰鬥頁共用：R.BuildPanel.open(角色 id, { onClose(changed) {} })
 (function () {
@@ -161,7 +161,7 @@
         <header class="bp-head">
           <span class="bp-icon">${esc(ch.name[0])}</span>
           <div><h2>${esc(ch.name)} <span class="bp-lv">Lv ${d.level}</span></h2>
-            <p class="muted">沒有完整遊戲流程，等級可以直接調整；勝利也會獲得經驗值。成長存在這個瀏覽器裡</p></div>
+            <p class="muted">局內成長：等級可以直接調整，關閉介面後立刻套用到這場戰鬥；勝利也會獲得經驗值</p></div>
           <button type="button" class="ghost bp-close" data-act="close" aria-label="關閉">關閉</button>
         </header>
 

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261107215455" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -46,7 +46,7 @@ RPG.CONFIG = {
       reserveAp: 4,               // 每回合保留給閃避的行動點（在玩家回合閃避一次花 2 點）
       // 閃避機率：攻擊來源距離 ≤ near 時是 minChance，≥ far 時是 maxChance，中間線性變化
       // 每成功閃一次，下一次的機率再 × fatigue（到 Boss 自己的回合重置）
-      dodge: { near: 60, far: 450, minChance: 0.1, maxChance: 0.7, fatigue: 0.6 },
+      dodge: { near: 60, far: 450, minChance: 0.1, maxChance: 0.7, fatigue: 0.6, minSharp: 0.3, maxSharp: 0.8 },   // sharp：選到正確方向的機率
       preferDist: 210,            // 想跟玩家保持的距離（核心中心到玩家）
       r: 52,                      // 核心大小
       armLength: 205,             // 觸手長度（核心到矩陣）

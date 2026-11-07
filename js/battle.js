@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261107215455" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -159,6 +159,9 @@
     // 移動半徑 = 速度 × 13；speedBoost 是暫時的速度倍率（例如游擊作戰）
     moveRadius(u) { return u.spd * this.cfg.movePerSpd * (u.state?.speedBoost || 1); }
 
+    // 角色的個性台詞（畫面決定要不要顯示，不會每次都跳）
+    bark(u, key, delay = 0) { this.emit({ type: "bark", unit: u, key, delay }); }
+
     heal(u, amount, note = "") {
       if (!u.alive || amount <= 0) return 0;
       const got = Math.min(amount, u.maxHp - u.hp);
@@ -207,7 +210,16 @@
       }
       const u = this.current;
       u.ap = u.maxAp;
-      this.say(`輪到 ${u.name}`);
+      // 上一次被扣的「下回合行動點」（例如沉重試煉）
+      if (u.state.apPenalty) {
+        const n = Math.min(u.ap, u.state.apPenalty);
+        u.ap -= n; u.state.apPenalty = 0;
+        if (n) this.emit({ type: "apDrain", unit: u, amount: n });
+      }
+      this.say(`輪到 ${u.name}${u.ap < u.maxAp ? `（行動點 ${u.ap} / ${u.maxAp}）` : ""}`);
+      this.char.onTurnStart?.(this, u);       // 玩家角色對「任何單位回合開始」的效果（例如循環試煉的殘影爆炸）
+      if (this.checkEnd()) return;
+      if (!u.alive) { this.emit(); this.nextTurn(); return; }
       this.tickZones(u);
       if (u.team === "player") {
         this.phase = "player";
@@ -232,6 +244,25 @@
       this.zones = this.zones.filter((z) => !expired.includes(z));
       this.say(`${expired.length} 團煙霧散去了`);
       this.emit({ type: "zoneExpire", zones: expired });
+    }
+
+    // 局內調整成長：立刻套用到玩家身上（不重開戰鬥）
+    // 生命、魔力、行動點上限增加多少，目前值就跟著加多少；降低時不超過新上限
+    applyGrowth() {
+      const u = this.player, ch = this.char;
+      const g = R.Progress.forBattle(ch);
+      const before = { level: u.level, upg: JSON.stringify(u.upg) };
+      const dHp = g.stats.hp - u.maxHp, dMp = (g.stats.mp || 0) - u.maxMp, dAp = g.stats.ap - u.maxAp;
+      u.maxHp = g.stats.hp; if (u.alive) u.hp = Math.max(1, Math.min(u.maxHp, u.hp + Math.max(0, dHp)));
+      u.maxMp = g.stats.mp || 0; u.mp = Math.max(0, Math.min(u.maxMp, u.mp + Math.max(0, dMp)));
+      u.maxAp = g.stats.ap; u.ap = Math.max(0, Math.min(u.maxAp, u.ap + Math.max(0, dAp)));
+      u.atk = g.stats.atk; u.df = g.stats.df; u.spd = g.stats.spd;
+      u.level = g.level; u.upg = g.upg;
+      // 煙霧上限變小時，最舊的煙霧消失
+      ch.onGrowth?.(this, u);
+      if (u.level !== before.level) this.say(`${u.name} 的等級變成 Lv ${u.level}`);
+      if (JSON.stringify(u.upg) !== before.upg) this.say(`${u.name} 的技能強化改變了`);
+      this.emit({ type: "growth", unit: u, level: u.level, up: u.level > before.level });
     }
 
     checkEnd() {
@@ -366,6 +397,11 @@
         return 0;
       }
       if (k !== 1) note += `（立場 ×${k}）`;
+      // 玩家角色的增傷（例如業障纏身）
+      if (src === this.player && this.char.outgoingMult) {
+        const ex = this.char.outgoingMult(this, src, dst);
+        if (ex && ex.mult !== 1) { mult *= ex.mult; note += ex.note || ""; }
+      }
       const amount = Math.max(1, Math.round(this.cfg.damage(base, src.atk, dst.df) * mult * k));
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);

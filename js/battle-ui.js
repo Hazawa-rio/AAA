@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261107205524" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261107215455" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -91,8 +91,8 @@
   if (growBtn) {
     if (CH.frozen || !R.BuildPanel) growBtn.remove();
     else growBtn.addEventListener("click", () => {
-      // 改了成長就重新開始戰鬥，套用新的數值與強化
-      R.BuildPanel.open(CH.id, { onClose(changed) { if (changed) { newBattle(); toast("已套用新的成長，重新開始戰鬥"); } } });
+      // 局內使用：關掉介面時立刻套用到目前的戰鬥
+      R.BuildPanel.open(CH.id, { onClose(changed) { if (changed && B) { B.applyGrowth(); renderUI(); } } });
     });
   }
 
@@ -104,6 +104,7 @@
     $("#ultBanner").classList.add("hidden");
     closeDialog();
     bubbles.length = 0;
+    lastBark.clear();
     B = new R.Battle(C, CH.id, ROOM);
     B.on(onEvent);
     if (ROOMDEF.script === "tutorial") R.Tutorial.attach(B, { dialog, bubble, error: showError });
@@ -216,7 +217,7 @@
       case "enemyDodge":
         // 攻擊靠近時才開始移動：在這之前畫面維持原位
         for (const m of ev.group || [ev.unit]) hold.set(m.id, t + ev.delay * 1000);
-        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - ev.unit.r - 24, text: "閃避！", color: "#3d7fe0", t: t + ev.delay * 1000, dur: 900 });
+        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - ev.unit.r - 24, text: ev.failed ? "閃避失敗" : "閃避！", color: ev.failed ? "#8a8478" : "#3d7fe0", t: t + ev.delay * 1000, dur: 900 });
         break;
       case "bossUlt":
         fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 260, color: "#e8262c", t, dur: 700 });
@@ -224,6 +225,24 @@
         break;
       case "bossUltEnd": hideUltBanner(); break;
       case "over": grantXp(); break;
+      case "bark": {
+        // 個性台詞：依機率出現，同一個角色 2.5 秒內不重複跳（比較特別的台詞可以蓋掉）
+        const set = ev.unit.def.barks?.[ev.key];
+        if (!set || !ev.unit.alive) break;
+        if (Math.random() >= (set.chance ?? 0.4)) break;
+        const last = lastBark.get(ev.unit.id);
+        const at = t + (ev.delay || 0) * 1000;
+        if (last && at - last.t < 2500 && (set.chance ?? 0.4) <= last.chance) break;
+        lastBark.set(ev.unit.id, { t: at, chance: set.chance ?? 0.4 });
+        const text = set.lines[Math.floor(Math.random() * set.lines.length)];
+        if (ev.delay) setTimeout(() => bubble(ev.unit, text, ev.unit.def.color), ev.delay * 1000);
+        else bubble(ev.unit, text, ev.unit.def.color);
+        break;
+      }
+      case "growth":
+        fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 46, color: "#e0b800", t, dur: 700 });
+        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 60, text: `Lv ${ev.level}`, color: "#c79a00", t, dur: 1200 });
+        break;
       case "death":
         if (ev.unit.part) fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 70, color: "#7a7a7a", t, dur: 700 });
         break;
@@ -400,9 +419,10 @@
 
   // 頭上的對話泡泡
   const bubbles = [];
-  function bubble(unit, text) {
+  const lastBark = new Map();
+  function bubble(unit, text, color) {
     for (let i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].unit === unit) bubbles.splice(i, 1);
-    bubbles.push({ unit, text, t: performance.now(), dur: 2400 });
+    bubbles.push({ unit, text, color, t: performance.now(), dur: Math.max(2400, 1200 + text.length * 120) });
   }
   function drawBubbles(now) {
     for (let i = bubbles.length - 1; i >= 0; i--) {
@@ -413,7 +433,7 @@
       ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
       const w = ctx.measureText(b.text).width + 22, h = 30, x = p.x - w / 2, y = p.y - b.unit.r - 58;
       roundRect(x, y, w, h, 8);
-      ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#f4a6c7"; ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = b.color || "#f4a6c7"; ctx.stroke();
       ctx.beginPath(); ctx.moveTo(p.x - 7, y + h); ctx.lineTo(p.x, y + h + 9); ctx.lineTo(p.x + 7, y + h); ctx.closePath();
       ctx.fillStyle = "#fff"; ctx.fill();
       ctx.fillStyle = "#1d1d1f"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -730,6 +750,18 @@
     }
   }
   function drawZones(now) {
+    // 循環試煉的殘影：半透明的心魔輪廓＋虛線範圍
+    for (const z of B.zones) {
+      if (z.type !== "echo") continue;
+      const pul = 0.5 + 0.5 * Math.sin(now / 200);
+      circle(z.x, z.y, z.r, `rgba(91,63,168,${0.35 + 0.3 * pul})`, "rgba(91,63,168,.08)", 2, [5, 5]);
+      ctx.globalAlpha = 0.35 + 0.2 * pul;
+      circle(z.x, z.y, 16, null, "#3a2d70");
+      circle(z.x - 5, z.y - 3, 2.4, null, "#e9d8ff"); circle(z.x + 5, z.y - 3, 2.4, null, "#e9d8ff");
+      ctx.globalAlpha = 0.8;
+      label("殘影：敵人回合開始時爆炸", z.x, z.y + z.r + 10, "#5b3fa8", 10);
+      ctx.globalAlpha = 1;
+    }
     for (const z of smokes()) {
       drawSmoke(z, now);
       const left = z.turnsLeft;
@@ -961,13 +993,15 @@
       const st = statusOf(hoverSkill), sk = CH.skills[hoverSkill];
       if (st.ready && st.aim?.type === "none" && sk.predict) {
         try {
-          if (sk.path) {                       // 試煉：心魔的路線
-            const pa = sk.path(B, u);
-            line(pa.from.x, pa.from.y, pa.to.x, pa.to.y, "rgba(91,63,168,.35)", pa.d.r * 2);
-            circle(pa.to.x, pa.to.y, pa.d.r, "#5b3fa8", null, 2, [4, 4]);
+          if (sk.path) {                       // 試煉：心魔（或伊爾舒自己）的路線
+            const pa = sk.path(B, u), r = pa.r || pa.d.r;
+            line(pa.from.x, pa.from.y, pa.to.x, pa.to.y, "rgba(91,63,168,.35)", r * 2);
+            circle(pa.to.x, pa.to.y, r, "#5b3fa8", null, 2, [4, 4]);
+            if (u.upg?.q2 === "cycle") circle(pa.from.x, pa.from.y, sk.echoRadius, "rgba(91,63,168,.6)", null, 1.5, [3, 5]);
           } else if (sk.radius && sk.hits) {    // 業障：爆炸範圍
             const d = B.demons().find((x) => x.owner === u);
-            if (d) circle(d.x, d.y, sk.radius, "#5b3fa8", "rgba(91,63,168,.15)", 2, [6, 5]);
+            const rr = sk.radiusFor ? sk.radiusFor(u) : sk.radius;
+            if (d) circle(d.x, d.y, rr, "#5b3fa8", "rgba(91,63,168,.15)", 2, [6, 5]);
           }
           highlight(sk.predict(B, u, {}), "#5b3fa8");
         } catch (e) { /* 預覽失敗就不畫 */ }
@@ -1004,7 +1038,15 @@
 
     if (aim.type === "direction" && mouse.in && aim.sector) {
       // 扇形預覽（例如伊爾舒的大招）
-      sectorPreview(u, Math.atan2(mouse.y - u.y, mouse.x - u.x), aim.sector, color);
+      const ang = Math.atan2(mouse.y - u.y, mouse.x - u.x);
+      sectorPreview(u, ang, aim.sector, color);
+      // 負罪前行：心魔會站到對面一起斬
+      const pt = sk.partner ? sk.partner(B, u, ang) : null;
+      if (pt) {
+        line(pt.d.x, pt.d.y, pt.x, pt.y, "rgba(20,16,26,.35)", 3, [4, 5]);
+        circle(pt.x, pt.y, pt.d.r, "#1d1d1f", "rgba(20,16,26,.2)", 2, [4, 4]);
+        sectorPreview({ x: pt.x, y: pt.y }, pt.ang, aim.sector, "#1d1d1f");
+      }
       try { highlight(sk.predict(B, u, { x: mouse.x, y: mouse.y }), color); } catch (e) {}
     } else if (aim.type === "direction" && mouse.in) {
       // 射箭預覽：用技能自己的路線計算，畫出每支箭（分裂、穿透）
@@ -1018,6 +1060,10 @@
           arrowHead(a.to.x, a.to.y, Math.atan2(a.to.y - a.from.y, a.to.x - a.from.x), 12, c);
           for (const h of a.hits) circle(pos(h.unit).x, pos(h.unit).y, h.unit.r + 6, c, null, 3);
         }
+        // 分裂箭同時命中同一個目標：標出支數
+        const cnt = new Map();
+        for (const a of pa.arrows) if (a.split) for (const h of a.hits) cnt.set(h.unit, (cnt.get(h.unit) || 0) + 1);
+        for (const [e, n] of cnt) if (n > 1) label(`×${n}`, pos(e).x + e.r + 14, pos(e).y - e.r, "#c2477a", 15);
         const m = pa.arrows[0], tag = pa.arrows.some((a) => a.pierce) ? `穿雲之箭 ×${sk.pierceMult}` : pa.arrows.some((a) => a.split) ? "分裂成三支 ×1.5" : m.boosted ? "穿過煙霧 ×1.5" : "";
         if (tag) label(tag, (m.from.x + m.to.x) / 2, (m.from.y + m.to.y) / 2 - 14, "#c2477a", 12);
       }
@@ -1266,8 +1312,8 @@
         case "sector":
           threatPath(f); ctx.fillStyle = "rgba(229,57,53,.4)"; ctx.fill();
           break;
-        case "slash": {     // 伊爾舒：突刺（細長、往前戳）／斬擊（弧形刀光掃過）
-          const o = pos(f.unit);
+        case "slash": {     // 伊爾舒：突刺（細長、往前戳）／斬擊（弧形刀光掃過）；dark＝心魔的黑色斬擊
+          const o = f.origin || pos(f.unit);
           if (f.style === "thrust") {
             // 前 40% 時間往前刺出，之後淡出
             const go = Math.min(1, k / 0.4), L = f.radius * (0.35 + 0.75 * go), w = Math.max(f.half, 0.12);
@@ -1287,12 +1333,12 @@
             const lo = Math.min(a0, a1), hi = Math.max(a0, a1);
             ctx.globalAlpha = k < 0.45 ? 1 : 1 - (k - 0.45) / 0.55;
             threatPath({ shape: "sector", x: o.x, y: o.y, ang: f.ang, half: f.half, radius: f.radius });
-            ctx.fillStyle = strong ? "rgba(58,45,112,.22)" : "rgba(75,63,143,.14)"; ctx.fill();
+            ctx.fillStyle = f.dark ? (strong ? "rgba(10,8,14,.3)" : "rgba(20,16,26,.18)") : strong ? "rgba(58,45,112,.22)" : "rgba(75,63,143,.14)"; ctx.fill();
             ctx.lineCap = "round";
             ctx.lineWidth = strong ? 30 : 20;
-            ctx.strokeStyle = strong ? "rgba(40,28,85,.9)" : f.n ? "rgba(58,45,112,.8)" : "rgba(75,63,143,.7)";
+            ctx.strokeStyle = f.dark ? (strong ? "rgba(0,0,0,.95)" : "rgba(12,10,16,.85)") : strong ? "rgba(40,28,85,.9)" : f.n ? "rgba(58,45,112,.8)" : "rgba(75,63,143,.7)";
             ctx.beginPath(); ctx.arc(o.x, o.y, f.radius * 0.82, lo, hi); ctx.stroke();
-            ctx.lineWidth = strong ? 7 : 4; ctx.strokeStyle = "rgba(255,255,255,.95)";
+            ctx.lineWidth = strong ? 7 : 4; ctx.strokeStyle = f.dark ? "rgba(150,40,90,.9)" : "rgba(255,255,255,.95)";
             ctx.beginPath(); ctx.arc(o.x, o.y, f.radius * 0.82 + (strong ? 8 : 5), lo, hi); ctx.stroke();
             if (strong) {   // 第三斬：外圈再多一道紅紫色衝擊
               ctx.lineWidth = 6; ctx.strokeStyle = `rgba(160,40,90,${0.8 * (1 - k)})`;
