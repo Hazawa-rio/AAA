@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/home.js": "20261106185838" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/home.js": "20261107205524" });
 // 選角頁
 (function () {
   const R = window.RPG;
@@ -36,16 +36,19 @@
       el.setAttribute("aria-pressed", String(el.dataset.id === id));
     });
     const c = selected;
+    // 成長後的數值（等級、強化點都算進去）
+    const g = R.Progress ? R.Progress.forBattle(c) : { level: 1, stats: c.stats, upg: {} };
+    const st = g.stats;
     $("#detail").classList.remove("hidden");
     $("#dIcon").textContent = c.name[0];
     $("#dIcon").style.setProperty("--c", c.color);
-    $("#dName").textContent = c.name;
-    $("#dSub").textContent = `${c.stats.ap} 點行動點・移動半徑 ${c.stats.spd * R.CONFIG.movePerSpd}`;
+    $("#dName").innerHTML = `${esc(c.name)} <span class="lv">Lv ${g.level}</span>`;
+    $("#dSub").textContent = `${st.ap} 點行動點・移動半徑 ${st.spd * R.CONFIG.movePerSpd}`;
     $("#dDesc").textContent = c.desc;
     $("#dStats").innerHTML = STATS.map(([k, label, max, color]) => `
       <span class="lb">${label}</span>
-      <span class="track"><i style="width:${Math.min(100, (c.stats[k] / max) * 100)}%;background:${color}"></i></span>
-      <span class="v">${c.stats[k]}</span>`).join("");
+      <span class="track"><i style="width:${Math.min(100, (st[k] / max) * 100)}%;background:${color}"></i></span>
+      <span class="v">${st[k]}</span>`).join("");
 
     // 普攻、Q、W、E 的順序
     const order = [c.basic, c.hud.left, c.hud.center, c.hud.right];
@@ -67,6 +70,12 @@
       </li>`;
     }).join("");
   }
+
+  // ---------- 角色成長 ----------
+  $("#growBtn").addEventListener("click", () => {
+    if (!selected || !R.BuildPanel) return;
+    R.BuildPanel.open(selected.id, { onClose() { select(selected.id); } });
+  });
 
   // ---------- 房間 ----------
   const rooms = R.CONFIG.rooms;

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261106185838" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261107205524" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -95,6 +95,7 @@ RPG.CONFIG = {
     },
     slimes: {
       name: "史萊姆測試房", desc: "3 隻史萊姆",
+      xp: 150,                         // 勝利獲得的經驗值（暫定）
       playerStart: { x: 640, y: 600 },
       wave: [
         { kind: "slime", x: 330, y: 170 },
@@ -104,6 +105,7 @@ RPG.CONFIG = {
     },
     boss: {
       name: "古代遺跡", desc: "測試 Boss：古代遺跡的殲滅矩陣",
+      xp: 800,
       playerStart: { x: 420, y: 640 },
       wave: [{ kind: "matrixBoss", x: 640, y: 230 }],
       bgm: "sounds/boss-bgm.mp3",

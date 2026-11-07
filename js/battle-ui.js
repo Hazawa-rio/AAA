@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261106185838" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261107205524" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -26,6 +26,7 @@
   const fx = [];
   const zoneSeen = new Map();   // 煙霧第一次出現的時間（做浮現動畫）
   const hold = new Map();
+  let lastSpikesEnd = 0;    // 最後一根尖刺飛完的時間（看老娘的飛箭要等）
   let shakeUntil = 0;       // 單位 id → 在這個時間前畫面不移動（敵人閃避的時機）
 
   // ---------- 音效 ----------
@@ -78,8 +79,26 @@
   window.addEventListener("keydown", kickBgm);
   startBgm();
 
+  // ---------- 經驗值與角色成長 ----------
+  let xpNote = "";
+  function grantXp() {
+    xpNote = "";
+    if (B.result !== "win" || !ROOMDEF.xp || CH.frozen || !R.Progress) return;
+    const r = R.Progress.addXp(CH.id, ROOMDEF.xp);
+    xpNote = `獲得 ${ROOMDEF.xp} 經驗值` + (r.after > r.before ? `，升到 <b>Lv ${r.after}</b>！` : `（Lv ${r.after}）`);
+  }
+  const growBtn = $("#growBtn");
+  if (growBtn) {
+    if (CH.frozen || !R.BuildPanel) growBtn.remove();
+    else growBtn.addEventListener("click", () => {
+      // 改了成長就重新開始戰鬥，套用新的數值與強化
+      R.BuildPanel.open(CH.id, { onClose(changed) { if (changed) { newBattle(); toast("已套用新的成長，重新開始戰鬥"); } } });
+    });
+  }
+
   // ---------- 開始 / 重新開始 ----------
   function newBattle() {
+    xpNote = "";
     if (B) B.destroy();
     disp.clear(); fx.length = 0; zoneSeen.clear(); hold.clear(); mode = "move";
     $("#ultBanner").classList.add("hidden");
@@ -127,14 +146,45 @@
       case "move": if (ev.unit.team === "enemy") playSound(ev.unit.def.sounds?.move); break;
       case "leap": fx.push({ k: "leap", unit: ev.unit, from: ev.from, to: ev.to, t, dur: ev.duration * 1000 }); break;
       case "arrow": {
-        // 箭依距離飛行，飛完再淡出
-        const fly = (dist(ev.from.x, ev.from.y, ev.to.x, ev.to.y) / (ev.speed || 900)) * 1000;
-        fx.push({ k: "arrow", from: ev.from, to: ev.to, boosted: ev.boosted, t, fly, dur: fly + 450 });
+        // 每支箭依距離飛行，分裂箭等主箭飛到煙霧另一側才出發
+        const sp = ev.speed || 900;
+        for (const a of ev.arrows || [{ from: ev.from, to: ev.to, boosted: ev.boosted }]) {
+          const fly = (dist(a.from.x, a.from.y, a.to.x, a.to.y) / sp) * 1000;
+          const t0 = t + ((a.delayDist || 0) / sp) * 1000;
+          fx.push({ k: "arrow", from: a.from, to: a.to, boosted: a.boosted, pierce: a.pierce, split: a.split, t: t0, fly, dur: fly + (a.pierce ? 700 : 450) });
+          if (a.split) fx.push({ k: "ring", x: a.from.x, y: a.from.y, r: 18, color: "#c2477a", t: t0, dur: 380 });
+        }
         break;
       }
-      case "spikes":
+      case "spikes": {
         for (const z of ev.consumed) fx.push({ k: "smokeOut", zone: z, t, dur: 400 });
-        ev.spikes.forEach((s, i) => fx.push({ k: "spike", from: s.from, to: s.to, t: t + i * 60, dur: 520 }));
+        const sp = ev.speed || 1100;
+        let end = t;
+        ev.spikes.forEach((s, i) => {
+          const pts = s.points || [s.from, s.to];
+          let len = 0;
+          for (let j = 1; j < pts.length; j++) len += dist(pts[j - 1].x, pts[j - 1].y, pts[j].x, pts[j].y);
+          const fly = Math.max(260, (len / sp) * 1000);
+          const t0 = t + i * 60 + ((s.delayDist || 0) / sp) * 1000;
+          fx.push({ k: "spike", pts, len, side: s.side, t: t0, fly, dur: fly + 300 });
+          end = Math.max(end, t0 + fly);
+        });
+        lastSpikesEnd = end;
+        break;
+      }
+      case "finale": {
+        // 尖刺聚到面前之後才射出
+        const t0 = Math.max(t + 200, lastSpikesEnd) + 120;
+        fx.push({ k: "finaleCharge", x: ev.from.x, y: ev.from.y, count: ev.count, t, dur: t0 - t });
+        fx.push({ k: "finale", from: ev.from, to: ev.to, width: ev.width, count: ev.count, t: t0, dur: 1100 });
+        setTimeout(() => { shakeUntil = performance.now() + 380; }, t0 - performance.now());
+        break;
+      }
+      case "heal": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 34, text: `+${ev.amount}`, color: "#2e9e5b", t }); break;
+      case "buff": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 58, text: ev.text, color: "#1aa3e8", t, dur: 1100 }); break;
+      case "plague":
+        fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: ev.unit.r + 10, color: "#8a9a6a", t, dur: 600 });
+        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - ev.unit.r - 30, text: "瘟疫", color: "#6f7d52", t, dur: 900 });
         break;
       case "chargeCancel": for (const c of ev.charges) fx.push({ k: "chargeOut", c, t, dur: 450 }); break;
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
@@ -173,6 +223,7 @@
         showUltBanner(ev.text);
         break;
       case "bossUltEnd": hideUltBanner(); break;
+      case "over": grantXp(); break;
       case "death":
         if (ev.unit.part) fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 70, color: "#7a7a7a", t, dur: 700 });
         break;
@@ -267,6 +318,7 @@
   $("#restartBtn").addEventListener("click", newBattle);
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT") return;
+    if (document.querySelector("#buildPanel:not(.hidden)")) return;   // 角色成長介面開著時不操作戰鬥
     const k = e.key.toLowerCase();
     if (dlg.active) {   // 對話中：空白鍵 / Enter 推進，其他按鍵不動作
       if (k === " " || k === "enter") { e.preventDefault(); advanceDialog(); }
@@ -411,6 +463,7 @@
     const u = B.player;
     $("#result").classList.toggle("hidden", B.phase !== "over");
     $("#resultTitle").textContent = B.result === "win" ? "勝利！" : "被打倒了…";
+    $("#resultXp").innerHTML = xpNote;
     const prefight = B.scripted && !B.inFight;      // 教學的說明階段：沒有回合
     $("#roundInfo").textContent = prefight ? "" : `第 ${B.round} 回合`;
 
@@ -480,6 +533,17 @@
   }
 
   let hovered = null;
+  // 角色身上選到的技能強化名稱
+  function upgradeNames(u) {
+    const out = [];
+    for (const [slot, tree] of Object.entries(CH.upgrades || {}))
+      tree.tiers.forEach((opts, i) => {
+        const o = opts.find((x) => x.id === u.upg?.[slot + (i + 1)]);
+        if (o) out.push(o.name);
+      });
+    return out;
+  }
+
   function inspect(u) {
     hovered = u;
     const box = $("#inspect");
@@ -509,6 +573,10 @@
       rows.push(["核心立場", k === 0 ? "無敵（先破壞矩陣）" : `受到傷害 ×${k}`]);
       rows.push(["大招", B.round >= u.state.ultReady ? "就緒" : `第 ${u.state.ultReady} 回合起`]);
     } else if (u.team === "player") {
+      rows.unshift(["等級", `Lv ${u.level || 1}`]);
+      if (u.maxMp) rows.splice(2, 0, ["魔力", `${u.mp} / ${u.maxMp}`]);
+      const names = upgradeNames(u);
+      if (names.length) rows.push(["技能強化", names.join("、")]);
       if (CH.passive) rows.push([CH.passive.name, CH.passive.status(B, u).text]);
       for (const id of Object.values(CH.hud)) rows.push([CH.skills[id].name, statusOf(id).note || (statusOf(id).ready ? "就緒" : "")]);
       if (u.state.loaded) rows.push(["上膛", "已上膛"]);
@@ -873,19 +941,6 @@
   }
 
   // ---------- 玩家的預覽 ----------
-  // 箭的路線：回傳 { to, hit, boosted }
-  function arrowPath(u, tx, ty, range) {
-    const L = Math.hypot(tx - u.x, ty - u.y) || 1, dx = (tx - u.x) / L, dy = (ty - u.y) / L;
-    let hit = null, hitT = range;
-    for (const e of B.enemies()) {
-      const t = R.geo.rayCircle(u.x, u.y, dx, dy, e.x, e.y, e.r);
-      if (t !== null && t < hitT) { hit = e; hitT = t; }
-    }
-    const to = { x: u.x + dx * hitT, y: u.y + dy * hitT };
-    const boosted = smokes().some((z) => R.geo.pointSeg(z.x, z.y, u.x, u.y, to.x, to.y) <= z.r);
-    return { to, hit, boosted };
-  }
-
   function sectorPreview(u, ang, sec, color) {
     threatPath({ shape: "sector", x: u.x, y: u.y, ang, half: sec.half, radius: sec.radius });
     ctx.fillStyle = "rgba(75,63,143,.12)"; ctx.fill();
@@ -952,34 +1007,61 @@
       sectorPreview(u, Math.atan2(mouse.y - u.y, mouse.x - u.x), aim.sector, color);
       try { highlight(sk.predict(B, u, { x: mouse.x, y: mouse.y }), color); } catch (e) {}
     } else if (aim.type === "direction" && mouse.in) {
-      // 射箭預覽：沿路線畫到命中點，穿過煙霧會變粉紅並標示 ×1.5
-      const a = arrowPath(u, mouse.x, mouse.y, aim.range);
-      const c = a.boosted ? "#c2477a" : "rgba(229,57,53,.75)";
-      line(u.x, u.y, a.to.x, a.to.y, c, 2.5, [8, 6]);
-      arrowHead(a.to.x, a.to.y, Math.atan2(a.to.y - u.y, a.to.x - u.x), 12, c);
-      if (a.hit) circle(pos(a.hit).x, pos(a.hit).y, a.hit.r + 6, c, null, 3);
-      if (a.boosted) label("穿過煙霧 ×1.5", (u.x + a.to.x) / 2, (u.y + a.to.y) / 2 - 14, "#c2477a", 12);
+      // 射箭預覽：用技能自己的路線計算，畫出每支箭（分裂、穿透）
+      let pa = null;
+      try { pa = sk.path(B, u, { x: mouse.x, y: mouse.y }); } catch (e) {}
+      if (pa) {
+        circle(p.x, p.y, pa.range, "rgba(229,57,53,.25)", null, 1, [3, 6]);
+        for (const a of pa.arrows) {
+          const c = a.pierce ? "#c2477a" : a.boosted ? "#c2477a" : "rgba(229,57,53,.75)";
+          line(a.from.x, a.from.y, a.to.x, a.to.y, c, a.pierce ? 5 : 2.5, [8, 6]);
+          arrowHead(a.to.x, a.to.y, Math.atan2(a.to.y - a.from.y, a.to.x - a.from.x), 12, c);
+          for (const h of a.hits) circle(pos(h.unit).x, pos(h.unit).y, h.unit.r + 6, c, null, 3);
+        }
+        const m = pa.arrows[0], tag = pa.arrows.some((a) => a.pierce) ? `穿雲之箭 ×${sk.pierceMult}` : pa.arrows.some((a) => a.split) ? "分裂成三支 ×1.5" : m.boosted ? "穿過煙霧 ×1.5" : "";
+        if (tag) label(tag, (m.from.x + m.to.x) / 2, (m.from.y + m.to.y) / 2 - 14, "#c2477a", 12);
+      }
     } else if (aim.type === "point") {
       circle(p.x, p.y, aim.range, color, null, 2, [6, 5]);
       if (!mouse.in) return;
       const g = clampToRange(mouse, aim.range);
       if (aim.preview === "spikes") {
-        // 煙霧爆發預覽：每團煙霧連到目標點，標出每個敵人會被幾根尖刺打到
+        // 煙霧爆發預覽：每根尖刺的第一段（迷煙亂舞的反彈不預覽），標出每個敵人會被幾根尖刺打到
         const w = sk.spikeWidth, count = new Map();
-        for (const z of smokes()) {
-          line(z.x, z.y, g.x, g.y, "rgba(194,71,122,.55)", w, null);
+        let list = [];
+        try { list = sk.spikes(B, u, g); } catch (e) {}
+        for (const sp of list) {
+          if (sp.side) continue;
+          const A = sp.points[0], Bp = sp.points[1];
+          line(A.x, A.y, Bp.x, Bp.y, "rgba(194,71,122,.55)", w, null);
+        }
+        // 命中數只算第一段看得到的部分，反彈後的命中留給玩家自己發現
+        for (const sp of list) {
+          if (sp.side) continue;
+          const A = sp.points[0], Bp = sp.points[1];
           for (const e of B.enemies())
-            if (R.geo.pointSeg(e.x, e.y, z.x, z.y, g.x, g.y) <= e.r + w / 2) count.set(e, (count.get(e) || 0) + 1);
+            if (R.geo.pointSeg(e.x, e.y, A.x, A.y, Bp.x, Bp.y) <= e.r + w / 2) count.set(e, (count.get(e) || 0) + 1);
         }
         for (const [e, n] of count) {
           circle(pos(e).x, pos(e).y, e.r + 6, "#c2477a", null, 3);
           label(`×${n}`, pos(e).x + e.r + 14, pos(e).y - e.r, "#c2477a", 15);
         }
         circle(g.x, g.y, 10, "#c2477a", "rgba(194,71,122,.3)", 2);
+      } else if (aim.preview === "finale") {
+        // 看老娘結束這一切：煙霧聚到面前，一發穿透飛箭直到牆
+        let fp = null;
+        try { fp = sk.finalePath(B, u, g); } catch (e) {}
+        if (fp) {
+          for (const z of smokes()) line(z.x, z.y, fp.F.x, fp.F.y, "rgba(194,71,122,.3)", 3, [4, 5]);
+          line(fp.F.x, fp.F.y, fp.end.x, fp.end.y, "rgba(194,71,122,.22)", sk.finaleWidth, null);
+          line(fp.F.x, fp.F.y, fp.end.x, fp.end.y, "#c2477a", 2, [8, 6]);
+          highlight(fp.hits, "#c2477a");
+          label(`${fp.count} 根尖刺 → ${sk.finalePerSpike * fp.count} 基礎傷害`, fp.F.x, fp.F.y - 26, "#c2477a", 13);
+        }
       } else if (aim.preview === "smoke") {
         circle(g.x, g.y, aim.radius, "#c2477a", "rgba(244,170,200,.25)", 2, [5, 4]);
         const list = smokes();
-        if (list.length >= sk.max) label("最舊的一團會消失", list[0].x, list[0].y - list[0].r - 12, "#c2477a", 11);
+        if (list.length >= (aim.max || sk.max)) label("最舊的一團會消失", list[0].x, list[0].y - list[0].r - 12, "#c2477a", 11);
       } else {
         circle(g.x, g.y, aim.radius || 20, color, fill, 3);
       }
@@ -1145,7 +1227,7 @@
     }
 
     ctx.fillStyle = "#1d1d1f"; ctx.font = "12px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "top";
-    ctx.fillText(u.name, p.x, p.y + BD + 13);
+    ctx.fillText(u.team === "player" && u.level ? `Lv${u.level} ${u.name}` : u.name, p.x, p.y + BD + 13);
     if (u.alive) {
       const bw = 46, bx = p.x - bw / 2, by = p.y + BD + 5;
       ctx.fillStyle = "#ece8df"; ctx.fillRect(bx, by, bw, 5);
@@ -1257,31 +1339,89 @@
           break;
         }
         case "arrow": {
-          // 淡紅色箭矢：前 30% 時間飛行，之後殘影淡出
+          // 淡紅色箭矢；穿雲之箭更粗、帶發光拖尾
           ctx.globalAlpha = 1;
           const el = now - f.t, fly = Math.min(1, el / f.fly), ang = Math.atan2(f.to.y - f.from.y, f.to.x - f.from.x);
           const hx = f.from.x + (f.to.x - f.from.x) * fly, hy = f.from.y + (f.to.y - f.from.y) * fly;
-          const tail = Math.max(0, fly - 0.25);
+          const tail = Math.max(0, fly - (f.pierce ? 0.6 : 0.25));
           const tx = f.from.x + (f.to.x - f.from.x) * tail, ty = f.from.y + (f.to.y - f.from.y) * tail;
           const fade = el < f.fly ? 1 : 1 - (el - f.fly) / (f.dur - f.fly);
+          if (f.pierce) {
+            ctx.save(); ctx.shadowColor = "#ff7fb6"; ctx.shadowBlur = 22;
+            line(tx, ty, hx, hy, `rgba(255,190,220,${0.55 * fade})`, 16);
+            line(tx, ty, hx, hy, `rgba(194,71,122,${fade})`, 6);
+            line(tx, ty, hx, hy, `rgba(255,255,255,${0.9 * fade})`, 2);
+            ctx.restore();
+            arrowHead(hx + Math.cos(ang) * 8, hy + Math.sin(ang) * 8, ang, 24, `rgba(194,71,122,${fade})`);
+            // 沿路飄出的光點
+            for (let i = 0; i < 6; i++) {
+              const q = tail + ((fly - tail) * i) / 6, px = f.from.x + (f.to.x - f.from.x) * q, py = f.from.y + (f.to.y - f.from.y) * q;
+              const off = Math.sin(now / 60 + i * 1.7) * 9;
+              circle(px - Math.sin(ang) * off, py + Math.cos(ang) * off, 2.5, null, `rgba(255,160,200,${0.8 * fade})`);
+            }
+            break;
+          }
           const col = f.boosted ? `rgba(214,92,140,${fade})` : `rgba(240,120,120,${fade})`;
           line(tx, ty, hx, hy, col, 4);
           arrowHead(hx + Math.cos(ang) * 6, hy + Math.sin(ang) * 6, ang, 16, col);
           break;
         }
         case "spike": {
-          // 煙霧尖刺：粉色細長三角形從煙霧飛向目標點
+          // 煙霧尖刺：沿折線（反彈）飛行的粉色細長三角形
           ctx.globalAlpha = 1;
-          const fly = Math.min(1, k / 0.55), ang = Math.atan2(f.to.y - f.from.y, f.to.x - f.from.x);
-          const e = fly * fly;
-          const hx = f.from.x + (f.to.x - f.from.x) * e, hy = f.from.y + (f.to.y - f.from.y) * e;
-          const fade = k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45;
-          line(f.from.x + (hx - f.from.x) * 0.3, f.from.y + (hy - f.from.y) * 0.3, hx, hy, `rgba(244,170,200,${0.6 * fade})`, 10);
-          ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang);
+          const el = now - f.t, fly = Math.min(1, el / f.fly);
+          const fade = el < f.fly ? 1 : 1 - (el - f.fly) / (f.dur - f.fly);
+          const at = (d) => {               // 折線上走 d 距離的位置與方向
+            for (let j = 1; j < f.pts.length; j++) {
+              const A = f.pts[j - 1], Bp = f.pts[j], L = dist(A.x, A.y, Bp.x, Bp.y);
+              if (d <= L || j === f.pts.length - 1) {
+                const q = L ? Math.min(1, d / L) : 1;
+                return { x: A.x + (Bp.x - A.x) * q, y: A.y + (Bp.y - A.y) * q, ang: Math.atan2(Bp.y - A.y, Bp.x - A.x) };
+              }
+              d -= L;
+            }
+            return { x: f.pts[0].x, y: f.pts[0].y, ang: 0 };
+          };
+          const d = f.len * fly, h = at(d);
+          // 拖尾：往回取幾個點
+          ctx.lineCap = "round";
+          for (let i = 1; i <= 5; i++) {
+            const q = at(Math.max(0, d - i * 22));
+            circle(q.x, q.y, (f.side ? 4 : 5.5) - i * 0.6, null, `rgba(244,170,200,${(0.55 - i * 0.08) * fade})`);
+          }
+          ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.ang);
           ctx.fillStyle = `rgba(194,71,122,${0.9 * fade})`;
-          ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-30, -7); ctx.lineTo(-22, 0); ctx.lineTo(-30, 7); ctx.closePath(); ctx.fill();
+          const sc = f.side ? 0.75 : 1;
+          ctx.beginPath(); ctx.moveTo(14 * sc, 0); ctx.lineTo(-30 * sc, -7 * sc); ctx.lineTo(-22 * sc, 0); ctx.lineTo(-30 * sc, 7 * sc); ctx.closePath(); ctx.fill();
           ctx.restore();
-          if (fly >= 1) circle(f.to.x, f.to.y, 18 + (k - 0.55) * 60, `rgba(194,71,122,${fade})`, null, 3);
+          if (fly >= 1) circle(h.x, h.y, 14 + (1 - fade) * 20, `rgba(194,71,122,${fade})`, null, 3);
+          break;
+        }
+        case "finaleCharge": {
+          // 尖刺聚集：面前的光球越來越大
+          ctx.globalAlpha = 1;
+          const r = 8 + Math.min(1, k * 1.2) * (10 + f.count * 4);
+          ctx.save(); ctx.shadowColor = "#ff7fb6"; ctx.shadowBlur = 30;
+          circle(f.x, f.y, r, null, `rgba(255,190,220,${0.35 + k * 0.4})`);
+          circle(f.x, f.y, r * 0.5, null, `rgba(255,255,255,${0.5 + k * 0.4})`);
+          ctx.restore();
+          circle(f.x, f.y, r + 10 + Math.sin(now / 50) * 4, "#c2477a", null, 2);
+          break;
+        }
+        case "finale": {
+          // 極強的穿透飛箭：瞬間貫穿到牆，粗光柱慢慢收窄淡出
+          ctx.globalAlpha = 1;
+          const grow = Math.min(1, k / 0.18), fade = k < 0.3 ? 1 : 1 - (k - 0.3) / 0.7;
+          const ex = f.from.x + (f.to.x - f.from.x) * grow, ey = f.from.y + (f.to.y - f.from.y) * grow;
+          const w = f.width * (1 + (1 - fade) * 0.3) * (k < 0.3 ? 1 : fade);
+          ctx.save(); ctx.lineCap = "round"; ctx.shadowColor = "#ff5fa2"; ctx.shadowBlur = 40;
+          line(f.from.x, f.from.y, ex, ey, `rgba(255,170,210,${0.5 * fade})`, w * 1.8);
+          line(f.from.x, f.from.y, ex, ey, `rgba(194,71,122,${0.9 * fade})`, w);
+          line(f.from.x, f.from.y, ex, ey, `rgba(255,255,255,${fade})`, w * 0.3);
+          ctx.restore();
+          const ang = Math.atan2(f.to.y - f.from.y, f.to.x - f.from.x);
+          arrowHead(ex + Math.cos(ang) * 14, ey + Math.sin(ang) * 14, ang, 40 + f.count * 3, `rgba(194,71,122,${fade})`);
+          if (k < 0.4) circle(f.from.x, f.from.y, 30 + k * 160, `rgba(255,120,180,${1 - k / 0.4})`, null, 5);
           break;
         }
       }

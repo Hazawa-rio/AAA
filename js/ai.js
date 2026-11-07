@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261106185838" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261107205524" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -97,8 +97,9 @@
         for (const f of [1, 0.7, 0.45]) {
           const dx = Math.cos(ang0 + off) * step0 * f, dy = Math.sin(ang0 + off) * step0 * f;
           if (!b.canShiftGroup(u, dx, dy)) continue;
+          const from = { x: u.x, y: u.y };
           b.shiftGroup(u, dx, dy);
-          b.enemySpend(u, D.moveCost);
+          b.enemySpend(u, D.moveCost, from);
           b.say(`${u.name} 移動了`);
           b.emit({ type: "move", unit: u });
           return true;

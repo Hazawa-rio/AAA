@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261106185838" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261107205524" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -57,6 +57,7 @@
       this.x = x; this.y = y;
       this.r = r;                  // 碰撞半徑（Boss 核心比較大）
       this.maxHp = this.hp = stats.hp;
+      this.maxMp = this.mp = stats.mp || 0;
       this.atk = stats.atk; this.df = stats.df; this.spd = stats.spd;
       this.maxAp = this.ap = stats.ap;
       this.facing = team === "player" ? -Math.PI / 2 : Math.PI / 2;
@@ -82,7 +83,11 @@
       const ch = R.CHARACTERS[charId] || Object.values(R.CHARACTERS)[0];
       this.char = ch;
       const ps = this.room.playerStart;
-      this.player = this.add(new Unit("player", ch.id, ch, ch.stats, ps.x, ps.y, cfg.body));
+      // 成長系統：等級、數值、技能強化（沒有成長系統或固定角色就用原始數值）
+      const grow = R.Progress ? R.Progress.forBattle(ch) : { level: 1, stats: ch.stats, upg: {} };
+      this.player = this.add(new Unit("player", ch.id, ch, grow.stats, ps.x, ps.y, cfg.body));
+      this.player.level = grow.level;
+      this.player.upg = grow.upg;          // 例如 { q1: "split", e2: "linger", w1: "dance" }
       for (const sp of this.room.wave) this.spawnEnemy(sp);
 
       this.round = 0;
@@ -151,7 +156,18 @@
     // 某個玩家角色能攻擊的目標：心魔只有召喚它的角色打得到
     npcs() { return this.units.filter((u) => u.npc && u.alive); }
     targetsFor(u) { return [...this.enemies(), ...this.demons().filter((d) => d.owner === u), ...this.npcs()]; }
-    moveRadius(u) { return u.spd * this.cfg.movePerSpd; }
+    // 移動半徑 = 速度 × 13；speedBoost 是暫時的速度倍率（例如游擊作戰）
+    moveRadius(u) { return u.spd * this.cfg.movePerSpd * (u.state?.speedBoost || 1); }
+
+    heal(u, amount, note = "") {
+      if (!u.alive || amount <= 0) return 0;
+      const got = Math.min(amount, u.maxHp - u.hp);
+      if (got <= 0) return 0;
+      u.hp += got;
+      this.say(`${u.name} 回復 ${got} 點生命${note}`);
+      this.emit({ type: "heal", unit: u, amount: got });
+      return got;
+    }
     blocked(u, x, y) {
       return this.units.some((o) => o !== u && o.alive && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
     }
@@ -254,6 +270,7 @@
       const cost = this.freeAP ? 0 : this.cfg.moveCost * this.costMult();   // freeAP：教學中不消耗行動點
       this._move(this.player, x, y, cost);
       this.countAction(this.player, "move", cost);
+      this.char.onAction?.(this, this.player, "move", cost);     // 角色強化的「行動後」效果
       this.afterPlayerAction();
     }
 
@@ -280,6 +297,7 @@
       try { sk.use(this, u, arg, st); } finally { this.currentSkill = null; }
       u.ap -= cost;
       this.countAction(u, id, cost);
+      this.char.onAction?.(this, u, id, cost);
       this.afterPlayerAction();
     }
 
@@ -463,9 +481,11 @@
     }
 
     // 敵人每做一次行動，自己的冷卻少 1
-    enemySpend(u, cost) {
+    // from：移動前的位置（移動時，起點或終點在煙霧裡都算）
+    enemySpend(u, cost, from) {
       u.ap -= cost;
       if (u.state.slamCd > 0) u.state.slamCd--;
+      this.char.onEnemyAction?.(this, u, from);     // 玩家角色的強化對「敵人行動」的效果（例如慘白瘟疫）
     }
 
     // ---------- 預告攻擊 ----------
@@ -564,8 +584,9 @@
           const nx = Math.min(Math.max(u.x + Math.cos(ang) * step, B), A.w - B);
           const ny = Math.min(Math.max(u.y + Math.sin(ang) * step, B), A.h - B);
           if (!this.blocked(u, nx, ny)) {
+            const from = { x: u.x, y: u.y };
             u.x = nx; u.y = ny; u.facing = ang;
-            this.enemySpend(u, cost);
+            this.enemySpend(u, cost, from);
             this.say(`${u.name} 移動`);
             this.emit({ type: "move", unit: u });
             return true;
