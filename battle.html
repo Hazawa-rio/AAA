@@ -2,13 +2,13 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="20261106185838">
+<meta name="build" content="20261107205524">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>戰鬥測試</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261106185838">
+<link rel="stylesheet" href="css/style.css?v=20261107205524">
 </head>
 <body class="battle-page">
 <div id="fit">
@@ -17,6 +17,7 @@
     <div id="roominfo"><a href="./" class="back">← 選角</a> · <b id="roomName">測試房間</b></div>
     <div id="order"></div>
     <div id="roundInfo"></div>
+    <button id="growBtn" class="ghost" type="button">角色成長</button>
     <button id="muteBtn" class="ghost" type="button"></button>
   </header>
 
@@ -35,6 +36,7 @@
       <div id="result" class="overlay hidden">
         <div class="panel">
           <h1 id="resultTitle"></h1>
+          <p id="resultXp"></p>
           <button id="againBtn" class="primary">再來一場</button>
           <p><a href="./" class="back">回到選角</a></p>
         </div>
@@ -82,14 +84,16 @@
   </details>
 </div>
 </div>
-<script src="js/config.js?v=20261106185838"></script>
-<script src="js/battle.js?v=20261106185838"></script>
-<script src="js/characters/firsler.js?v=20261106185838"></script>
-<script src="js/characters/ilshu.js?v=20261106185838"></script>
-<script src="js/characters/ilshu-tutorial.js?v=20261106185838"></script>
-<script src="js/ai.js?v=20261106185838"></script>
-<script src="js/tutorial.js?v=20261106185838"></script>
-<script src="js/battle-ui.js?v=20261106185838"></script>
-<script src="js/version-check.js?v=20261106185838"></script>
+<script src="js/config.js?v=20261107205524"></script>
+<script src="js/battle.js?v=20261107205524"></script>
+<script src="js/characters/firsler.js?v=20261107205524"></script>
+<script src="js/characters/ilshu.js?v=20261107205524"></script>
+<script src="js/characters/ilshu-tutorial.js?v=20261107205524"></script>
+<script src="js/progression.js?v=20261107205524"></script>
+<script src="js/build-panel.js?v=20261107205524"></script>
+<script src="js/ai.js?v=20261107205524"></script>
+<script src="js/tutorial.js?v=20261107205524"></script>
+<script src="js/battle-ui.js?v=20261107205524"></script>
+<script src="js/version-check.js?v=20261107205524"></script>
 </body>
 </html>
