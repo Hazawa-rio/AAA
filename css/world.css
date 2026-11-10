@@ -1,0 +1,114 @@
+/* 地圖探索 */
+body.world-page { overflow: hidden; background: #1f2a33; }
+body.world-page #fit { margin: 0 auto; }
+#wx { width: 1312px; padding: 16px; transform-origin: top left; }
+#wxStage { position: relative; width: 1280px; height: 720px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+#map { display: block; width: 1280px; height: 720px; }
+.wx-hud { position: absolute; z-index: 3; color: var(--ink); }
+.wx-hud.tl { top: 12px; left: 12px; background: rgba(255,250,240,.92); border-radius: 12px; padding: 10px 12px; width: 250px; box-shadow: 0 3px 10px rgba(0,0,0,.2); }
+.wx-hud .who { display: flex; gap: 10px; align-items: center; }
+.wx-hud .face { --c: var(--ink); width: 38px; height: 38px; border-radius: 9px; border: 3px solid var(--c); color: var(--c); display: grid; place-items: center; font-weight: 900; background: #fff; }
+.wx-hud .nm { border: none; background: none; padding: 0; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; color: var(--ink); }
+.wx-hud .nm::after { content: " ✎"; font-size: 11px; opacity: .55; }
+.wx-hud .wl { font-size: 11.5px; color: var(--muted); }
+.hpbar { position: relative; height: 16px; border-radius: 5px; background: #ece8df; overflow: hidden; margin-top: 8px; }
+.hpbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #ef6b5b, #e0524a); transition: width .25s; }
+.hpbar span { position: relative; display: block; text-align: center; font-size: 11px; line-height: 16px; font-weight: 700; color: #3a1a14; }
+.gold { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; }
+.gold b, .gold span:nth-child(2) { font-weight: 800; }
+.coin-ic { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe9a0, #d4a017); }
+.wx-hud.tr { top: 12px; right: 12px; display: flex; gap: 8px; }
+.wx-hud.tr button { background: rgba(255,250,240,.92); }
+.wx-hud.bl { left: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.mode { background: rgba(255,250,240,.92); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; border: 2px solid #8a8478; }
+.mode.atk { border-color: #e53935; color: #c62828; }
+.qbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(255,250,240,.95); border: 2px solid #f08a2c; font-weight: 700; }
+.qbtn .k { background: var(--ink); color: #fff; border-radius: 4px; padding: 0 6px; font-size: 11px; }
+.qbtn .cd { font-variant-numeric: tabular-nums; color: #c62828; }
+.qbtn i { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(29,29,31,.18); pointer-events: none; }
+.qbtn.on { box-shadow: 0 0 0 3px rgba(240,138,44,.4); }
+.wx-help { font-size: 11.5px; color: #fff; background: rgba(29,29,31,.6); border-radius: 999px; padding: 4px 10px; }
+#mini { position: absolute; right: 12px; bottom: 12px; z-index: 3; border-radius: 8px; border: 3px solid rgba(255,250,240,.9); box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+.wx-toast { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 4; background: rgba(29,29,31,.85); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: 14px; max-width: 60%; text-align: center; }
+.wx-fade { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgba(10,10,14,.0); animation: wxfade .9s forwards; }
+.wx-fade b { font-size: 54px; font-weight: 900; color: #fff; letter-spacing: .3em; text-shadow: 0 0 20px rgba(240,138,44,.9); opacity: 0; animation: wxpop .9s forwards; }
+.wx-fade.ambush b { text-shadow: 0 0 20px rgba(229,57,53,.95); }
+@keyframes wxfade { to { background: rgba(10,10,14,.95); } }
+@keyframes wxpop { 30% { opacity: 1; transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+.wx-p { font-size: 13.5px; line-height: 1.7; margin: 4px 0; }
+.wx-list { margin: 4px 0 10px; padding-left: 20px; font-size: 13.5px; line-height: 1.8; }
+.wx-quests { display: flex; flex-direction: column; gap: 12px; }
+.bag { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.bag-slot { position: relative; height: 64px; border-radius: 9px; border: 1.5px solid #e5d3b3; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 11.5px; color: var(--ink); padding: 4px; }
+.bag-slot.empty { border-style: dashed; background: transparent; }
+.bag-slot i { width: 18px; height: 22px; border-radius: 50%; }
+.bag-slot b { position: absolute; right: 6px; top: 4px; font-size: 11px; }
+/* build */ :root { --build-css-world-css: "20261108224109"; }
+
+/* 委託進度 */
+.wx-prog { display: flex; align-items: center; gap: 4px; margin: 6px 0 8px; }
+.wx-prog i { width: 22px; height: 8px; border-radius: 4px; background: #e6dcc6; }
+.wx-prog i.on { background: var(--wc, #2f7fa8); }
+.wx-prog span { margin-left: 6px; font-size: 12px; color: #6b5a3a; font-weight: 700; }
+/* build */ :root { --build-css-world-css: "20261108231959"; }
+
+/* 委託追蹤 */
+.wx-track { position: absolute; z-index: 3; top: 60px; right: 12px; width: 260px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.wx-track li { background: rgba(255,250,240,.9); border-left: 4px solid #f2c200; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.45; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.wx-track li b { display: block; font-size: 12.5px; }
+.wx-track li span { color: #6b5a3a; }
+.wx-track li.done { border-left-color: #2e9e5b; opacity: .75; }
+
+/* 委託人對話裡的委託列 */
+.wx-qrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 10px; margin: 6px 0; border: 1.5px solid #e5d3b3; border-radius: 10px; background: #fffdf6; font-size: 13px; }
+.wx-qrow b { font-size: 14px; }
+.wx-qrow .ok { color: #2e9e5b; font-weight: 800; }
+.wx-qrow .warn { color: #c62828; font-weight: 700; }
+.wx-qrow button { margin-left: auto; }
+.slip .got.wip { background: #8a8478; }
+
+/* 商店 */
+.shop { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 330px; overflow: auto; }
+.shop-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1.5px solid #e5d3b3; border-radius: 10px; background: #fff; }
+.shop-row > span { flex: 1; display: flex; flex-direction: column; font-size: 13.5px; }
+.shop-row small { color: #8a7a5a; font-size: 11.5px; }
+.shop-row em { font-style: normal; font-weight: 800; color: #9a6a10; min-width: 64px; text-align: right; }
+.shop-row.locked { opacity: .6; }
+.shop-row .lock { font-size: 12px; color: #8a7a5a; }
+.shop-row .item-slot { width: 34px; height: 34px; }
+.bag-slot.quest { border-color: #9a6ad0; background: #faf5ff; }
+#wxPanel .items { display: flex; gap: 6px; }
+/* build */ :root { --build-css-world-css: "20261109001320"; }
+/* 世界頁的面板和追蹤欄用深色字（body 繼承了酒館頁的淺色字） */
+#wx .tv-card, .wx-track li { color: #1d1d1f; }
+.shop-row > .item-slot { flex: none; }
+/* build */ :root { --build-css-world-css: "20261109015434"; }
+
+/* 海上釣魚 */
+.fish { position: absolute; inset: 0; z-index: 30; background: #1f5a82; }
+.fish canvas { width: 100%; height: 100%; display: block; }
+.fish-hud { position: absolute; left: 16px; top: 14px; display: flex; flex-direction: column; gap: 4px; background: rgba(255,250,240,.9); color: #1d1d1f; padding: 8px 14px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.fish-title { font-size: 14px; }
+.fish-msg { font-size: 13px; color: #3a5a7a; }
+.fish-phase { position: absolute; left: 50%; top: 120px; transform: translateX(-50%); font-size: 40px; font-weight: 900; text-shadow: 0 3px 0 rgba(0,0,0,.25); pointer-events: none; }
+.fish-phase.pull { color: #fff27a; animation: fishPulse .25s infinite alternate; }
+.fish-phase.stop { color: #ff8a80; }
+@keyframes fishPulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.08); } }
+.fish-bar { position: absolute; left: 50%; bottom: 150px; width: 420px; height: 20px; margin-left: -210px; border-radius: 10px; background: rgba(255,255,255,.35); border: 2px solid #fff; overflow: hidden; }
+.fish-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #6fd18a, #f6d98a); }
+.fish-btn { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); padding: 16px 48px; font-size: 24px; font-weight: 900; border-radius: 16px; border: 3px solid #4a2e14; background: #ffcf5a; color: #3a2a1a; box-shadow: 0 6px 0 #a06a1a; cursor: pointer; user-select: none; }
+.fish-btn:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 2px 0 #a06a1a; }
+.fish-result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px; background: #fffdf6; color: #1d1d1f; border-radius: 16px; border: 3px solid #c9a24a; padding: 20px 24px; text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+.fish-result h3 { margin: 0; font-size: 16px; letter-spacing: .1em; }
+.fish-result h3.legend { color: #c62828; }
+.fish-result .fish-name { font-size: 26px; font-weight: 900; margin: 6px 0; }
+.fish-result p { line-height: 1.6; font-size: 14px; }
+/* build */ :root { --build-css-world-css: "20261109200602"; }
+/* 萬聖節旅館：驚嚇值、嚇唬／被嚇到 */
+.wx-fade.scare b { color: #b98aff; text-shadow: 0 0 22px rgba(122,63,176,.95); }
+.hpbar.scare i { background: linear-gradient(90deg, #b07ae0, #7a3fb0) !important; }
+/* build */ :root { --build-css-world-css: "20261110153157"; }
+/* 角色專屬的對話選項 */
+.wx-asks { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.wx-asks button { text-align: left; white-space: normal; line-height: 1.5; }
+/* build */ :root { --build-css-world-css: "20261110175453"; }

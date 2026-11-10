@@ -243,4 +243,67 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 @media (max-width: 760px) { .bp-body { grid-template-columns: 1fr; } .bp-opts { grid-template-columns: 1fr; } .bp-head p { display: none; } }
 #growBtn { white-space: nowrap; }
 #resultXp { margin: -4px 0 14px; font-size: 14px; }
-/* build */ :root { --build-css-style-css: "20261107215455"; }
+
+/* ===== Boss 大血條（畫面正上方） ===== */
+#bossBar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: min(620px, 70%); pointer-events: none; text-align: center; }
+#bossBar .bn { font-size: 17px; font-weight: 900; letter-spacing: .14em; color: #7a0d1a; text-shadow: 0 1px 0 #fff, 0 0 6px rgba(255,255,255,.9); }
+#bossBar .bb { position: relative; height: 14px; margin-top: 4px; background: rgba(29,29,31,.14); border: 2px solid #7a0d1a; border-radius: 4px; overflow: hidden; }
+#bossBar .bb i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#ef3b3b, #b81d1d); transition: width .25s; }
+#bossBar .bb s { position: absolute; top: 0; bottom: 0; width: 2px; background: #f2c200; }
+#bossBar .bmeta { display: flex; justify-content: space-between; font-size: 11px; color: #6b665d; margin-top: 2px; font-variant-numeric: tabular-nums; }
+#bossBar.p2 .bn { color: #c62828; }
+#bossBar.p2 .bb { border-color: #c62828; box-shadow: 0 0 10px rgba(232,38,44,.45); }
+#canvasWrap.has-bossbar #banner { top: 70px; }
+#ultBanner.passion { background: linear-gradient(90deg, transparent, rgba(60,0,8,.82) 15%, rgba(122,13,26,.88) 50%, rgba(60,0,8,.82) 85%, transparent);
+  color: #ffe9a8; letter-spacing: .3em; }
+
+/* ===== 寶物欄 ===== */
+.items { display: grid; grid-template-columns: repeat(6, 30px); gap: 4px; }
+.item-slot { --rc: var(--line); display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; background: #fff;
+  border: 2px solid var(--rc); box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); cursor: help; }
+.item-slot:not(.empty) { box-shadow: 0 0 6px color-mix(in srgb, var(--rc) 55%, transparent); }
+.item-slot.empty { border-style: dashed; border-color: #d9d4c8; background: transparent; cursor: default; }
+.item-slot svg { width: 22px; height: 22px; }
+#resultXp { margin: -4px 0 14px; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.reward { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: #b8860b; }
+.reward.dim { color: var(--muted); font-weight: 400; }
+.bp-items { display: flex; flex-direction: column; gap: 6px; }
+.bp-item { --rc: var(--line); display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px;
+  border: 1px solid var(--line); border-radius: 9px; font-size: 12.5px; }
+.bp-item.empty { grid-template-columns: 30px 1fr; color: var(--muted); }
+.bp-item p { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.bp-rar { font-size: 10.5px; font-weight: 700; color: var(--rc); }
+.bp-empty-slots { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.bp-empty-slots .muted { margin-left: 6px; }
+.bar.mp i { background: linear-gradient(90deg, #7cc0f5, #1a73c9); }
+.reward.coin { color: #a07810; }
+/* build */ :root { --build-css-style-css: "20261108224109"; }
+
+/* 地圖小怪戰的撤退 */
+#fleeBtn { border: 2px solid #8a6a3a; background: #fff6e4; color: #6b4a1a; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 700; }
+#fleeBtn:disabled { opacity: .35; cursor: not-allowed; }
+/* build */ :root { --build-css-style-css: "20261108231959"; }
+
+/* 行囊的小圖示 */
+.bag-ic { --ic: #999; display: inline-block; width: 18px; height: 22px; flex: none; background: var(--ic); border-radius: 50%; box-shadow: inset -2px -3px 0 rgba(0,0,0,.18); }
+.bag-ic.bottle { width: 14px; height: 22px; border-radius: 4px 4px 7px 7px; position: relative; }
+.bag-ic.bottle::before { content: ""; position: absolute; left: 3px; top: -5px; width: 8px; height: 6px; background: #c9b089; border-radius: 2px; }
+.bag-ic.meat { width: 24px; height: 16px; border-radius: 50% 40% 50% 40%; }
+.bag-ic.fang { width: 10px; height: 22px; border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%; border: 1.5px solid #8a7a5a; box-shadow: none; }
+.bag-ic.drop { width: 18px; height: 20px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: .85; }
+.bag-ic.berry { width: 18px; height: 18px; box-shadow: 0 0 8px var(--ic), inset -2px -3px 0 rgba(0,0,0,.25); }
+.bag-ic.leaf { width: 14px; height: 22px; border-radius: 0 100% 0 100%; }
+
+/* 地圖戰鬥：道具、撤退 */
+#bagBtn { border: 2px solid #4a8f5a; background: #f0fbf2; color: #2e6b3e; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 700; }
+#bagPop { position: absolute; right: 16px; bottom: 74px; z-index: 20; width: 300px; background: #fffdf8; border: 2px solid var(--ink); border-radius: 12px; padding: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 6px; }
+#bagPop button { display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 8px; border: 1.5px solid #e5d3b3; border-radius: 8px; background: #fff; }
+#bagPop button span { flex: 1; display: flex; flex-direction: column; font-weight: 700; font-size: 13px; }
+#bagPop button small { font-weight: 400; color: #8a7a5a; font-size: 11px; }
+#bagPop p { margin: 2px 4px; font-size: 12px; color: var(--muted); }
+#vitals { position: relative; }
+#banner.warn { background: #c0392b; }
+.reward.quest { color: #7a5a00; background: #fff6d0; border-radius: 6px; padding: 2px 8px; }
+/* build */ :root { --build-css-style-css: "20261109200602"; }
+.bar.hp.scare i { background: #8a3fd1; }
+/* build */ :root { --build-css-style-css: "20261110175453"; }

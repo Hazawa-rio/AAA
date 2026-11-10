@@ -80,4 +80,15 @@ body.char-forced #cards, body.char-forced #detail { opacity: .4; }
 #rooms { grid-template-columns: repeat(3, 1fr); }
 .detail-title #growBtn { margin-left: auto; }
 .detail-title .lv { font-size: 14px; color: var(--muted); font-weight: 700; margin-left: 4px; }
-/* build */ :root { --build-css-home-css: "20261107215455"; }
+.room { cursor: pointer; }
+.room .variants { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.variant { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: #fff; color: var(--ink); text-align: left; }
+.variant b { font-size: 13px; }
+.variant small { font-size: 11px; color: var(--muted); }
+.variant.trial { border-color: #e7b9bf; }
+.variant.trial b { color: #7a0d1a; }
+.variant.sel { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(29,29,31,.12); }
+.variant.trial.sel { border-color: #7a0d1a; box-shadow: 0 0 0 2px rgba(122,13,26,.15); }
+.tavern-link { font-size: 14px; font-weight: 700; margin-left: 12px; color: #7a4a22; vertical-align: middle; }
+/* build */ :root { --build-css-home-css: "20261110175453"; }
