@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261107215455" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261110175453" });
 // 角色成長介面：等級（可手動調整）、強化點分配、技能強化樹
 // 選角頁和戰鬥頁共用：R.BuildPanel.open(角色 id, { onClose(changed) {} })
 (function () {
@@ -91,8 +91,10 @@
     if (a === "lv") return setLevel(P().derive(ch, build).level + Number(b.dataset.v));
     if (a === "reset") {
       if (!confirmReset()) return;
+      const items = build.items || [];
       build = P().empty();
-      return commit("已重置成長");
+      build.items = items;                 // 寶物不會因為重置成長而消失
+      return commit("已重置成長（寶物保留）");
     }
     if (a === "pt") {
       const k = b.dataset.k, d = P().derive(ch, build), v = Number(b.dataset.v);
@@ -102,6 +104,16 @@
       return commit();
     }
     if (a === "upg") return choose(b.dataset.skill, Number(b.dataset.tier), b.dataset.id);
+    if (a === "itemDrop") {
+      build.items = (build.items || []).filter((x) => x !== b.dataset.id);
+      return commit(`拿掉了【${R.Items.get(b.dataset.id).name}】`);
+    }
+    if (a === "itemAdd") {
+      build.items = build.items || [];
+      if (build.items.length >= R.Items.SLOTS) return commit("寶物欄已滿");
+      build.items.push(b.dataset.id);
+      return commit(`放入了【${R.Items.get(b.dataset.id).name}】（測試用）`);
+    }
   }
   // 重置要再按一次確認（不用瀏覽器的對話框）
   let resetArmed = 0;
@@ -189,6 +201,7 @@
               </tbody>
             </table>
             <p class="muted bp-small">每 ${Pr.POINT_EVERY} 等 1 個強化點：生命 +${Pr.POINT_VALUE.hp}、魔力 +${Pr.POINT_VALUE.mp}、攻擊 +${Pr.POINT_VALUE.atk}、防禦 +${Pr.POINT_VALUE.df}、速度 +${Pr.POINT_VALUE.spd}。每 ${Pr.AP_EVERY} 等行動點 +1（最多 +${Pr.AP_MAX_BONUS}）</p>
+            ${itemsHtml()}
           </section>
 
           <section class="bp-col">
@@ -199,6 +212,27 @@
         </div>
         ${notes.length ? `<p class="bp-notes" role="status">${notes.map(esc).join("<br>")}</p>` : ""}
       </div>`;
+  }
+
+  // 寶物欄：6 格，可以拿掉；測試用可以直接放入
+  function itemsHtml() {
+    const I = R.Items;
+    if (!I) return "";
+    const items = build.items || [];
+    const empty = I.SLOTS - items.length;
+    const slots = items.map((id) => {
+      const it = I.get(id);
+      if (!it) return "";
+      const r = I.RARITY[it.rarity];
+      return `<div class="bp-item" style="--rc:${r.color}">${I.slotHtml(id)}
+        <div><b>${esc(it.name)}</b> <span class="bp-rar">${r.name}</span><p>${esc(it.desc)}</p></div>
+        <button type="button" class="bp-mini" data-act="itemDrop" data-id="${id}" aria-label="拿掉${esc(it.name)}">×</button></div>`;
+    }).join("");
+    const missing = Object.values(I.LIST).filter((it) => !items.includes(it.id));
+    return `<h3>寶物欄 <span class="bp-pill ${items.length ? "on" : ""}">${items.length} / ${I.SLOTS}</span></h3>
+      <div class="bp-items">${slots}${empty ? `<div class="bp-empty-slots">${'<span class="item-slot empty"></span>'.repeat(empty)}<span class="muted">${empty} 個空格</span></div>` : ""}</div>
+      ${missing.length ? `<div class="bp-row">${missing.map((it) => `<button type="button" class="ghost" data-act="itemAdd" data-id="${it.id}">測試：放入【${esc(it.name)}】</button>`).join("")}</div>
+      <p class="muted bp-small">正式取得方式：${missing.map((it) => `【${esc(it.name)}】${esc(it.source || "")}`).join("、")}</p>` : ""}`;
   }
 
   function tree(d) {
