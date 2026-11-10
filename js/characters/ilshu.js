@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261107215455" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261110175453" });
 // 角色：伊爾舒
 // 被動「直面心魔」：場上會有一隻只有伊爾舒打得到的心魔（1 血、不會自己動）。
 // 打倒心魔獲得一層陰霾（最多 5 層），然後在地圖上隨機的位置再出現一隻。
@@ -28,16 +28,22 @@
   // 從任意點（例如心魔的位置）朝 ang 的扇形範圍內的目標
   const inSectorAt = (b, u, x, y, ang, radius, half, skip) =>
     b.targetsFor(u).filter((e) => e !== skip && R.geo.inSector(e.x, e.y, { x, y, ang, radius, half }, e.r));
-  const free = (b, who, ignore, x, y, r) =>
-    !b.units.some((o) => o !== who && !ignore.includes(o) && o.alive && R.dist(o.x, o.y, x, y) < o.r + r);
+  const free = (b, who, ignore, x, y, r) => (b.walkOk ? b.walkOk(who, x, y) : true) &&
+    !b.units.some((o) => o !== who && !ignore.includes(o) && o.alive && !o.cage && R.dist(o.x, o.y, x, y) < o.r + r);
 
   const C = {
     id: "ilshu",
     name: "伊爾舒",
     color: "#4b3f8f",
+    profile: "看著心事重重的女劍士，某段放不下的過往是她深埋心中的心魔，精神有些不穩定，有時會喃喃自語，只有舞劍時能稍微感到平靜。",
     desc: "與心魔共存的劍士。擊破心魔累積陰霾強化劍技，也能把心魔拉過來撞擊敵人，或直接引爆。",
     stats: { hp: 100, mp: 0, atk: 18, df: 7, spd: 9, ap: 6 },          // 暫定
     growth: { hp: 4.5, mp: 2, atk: 0.9, df: 0.45, spd: 0.08 },      // 每升一級（暫定）
+    // 地圖探索：普攻距離、Q（以秒冷卻）
+    field: {
+      basicRange: 150,
+      q: { name: "疑心病", type: "sense", sound: "sounds/ilshu-demon.mp3", cd: 25, charge: 1.2, radius: 520, yes: "我感到有些不適", no: "看來是想多了", desc: "蓄力一下，感測周遭有沒有陷阱或魔物" },
+    },
     basic: "thrust",
     ultimate: "ult",
     hud: { left: "trial", center: "ult", right: "karma" },
@@ -177,25 +183,26 @@
     skills: {
       // ---------- 普攻 長劍突刺 ----------
       thrust: {
-        name: "長劍突刺", slot: "普攻", sound: "sounds/ilshu-thrust.mp3",
+        name: "長劍突刺", slot: "普攻", key: "a", sound: "sounds/ilshu-thrust.mp3",
         tags: ["melee"],
         ap: 1, base: 12, range: 150, halfDeg: 9, gloomBonus: 0.08,
         desc: "指向敵人，朝那個方向刺出細長的扇形，範圍內都會被打到。每層陰霾 +8% 傷害",
         status(b, u) {
           return { ready: true, cost: this.ap, label: this.name,
-            aim: { type: "enemy", range: this.range, sector: { radius: this.range, half: this.halfDeg * DEG } } };
+            aim: { type: "enemy", range: this.range, free: true, sector: { radius: this.range, half: this.halfDeg * DEG } } };
         },
         hits(b, u, ang) { return inSector(b, u, ang, this.range, this.halfDeg * DEG); },
         predict(b, u, arg) {
           const t = arg.target;
-          if (!t || !t.alive || t.team === u.team) err("請點選一個敵人");
+          if (!t) { if (!Number.isFinite(arg.x)) err("請點選敵人或方向"); return this.hits(b, u, Math.atan2(arg.y - u.y, arg.x - u.x)); }
+          if (!t.alive || t.team === u.team) err("請點選一個敵人");
           if (!b.targetsFor(u).includes(t)) err("打不到這個目標");
           if (b.reach(u, t) > this.range) err("距離太遠");
           return this.hits(b, u, Math.atan2(t.y - u.y, t.x - u.x));
         },
         use(b, u, arg, st) {
-          // 方向在出手瞬間決定；敵人如果閃開，就照新位置判定
-          const t = arg.target, ang = Math.atan2(t.y - u.y, t.x - u.x);
+          // 方向在出手瞬間決定；敵人如果閃開，就照新位置判定（按 A 點地面：朝那個方向刺）
+          const t = arg.target || { x: arg.x, y: arg.y }, ang = Math.atan2(t.y - u.y, t.x - u.x);
           u.facing = ang;
           const hits = this.hits(b, u, ang);
           b.say(`${u.name} 使用「長劍突刺」`);
@@ -233,11 +240,16 @@
             const L = R.dist(u.x, u.y, d.x, d.y), ux = (d.x - u.x) / L, uy = (d.y - u.y) / L;
             let len = Math.max(0, Math.min(this.dashMax, L - (u.r + d.r + 4)));
             const A = b.cfg.arena;
-            const ok = (s) => free(b, u, [d], u.x + ux * s, u.y + uy * s, u.r);
+            // 被聖牢籠困住時，衝刺會撞上牢籠停下來（只能衝到框邊）
+            const cage = b.cageOf?.(u);
+            const ok = (s) => free(b, u, [d], u.x + ux * s, u.y + uy * s, u.r) &&
+              (!cage || b.inCage(cage, u.x + ux * s, u.y + uy * s, b.cfg.body * 0.6));
+            const want = len;
             while (len > 0 && !ok(len)) len -= 4;
+            const blockedByCage = !!cage && len < want && !b.inCage(cage, u.x + ux * want, u.y + uy * want, b.cfg.body * 0.6);
             const to = { x: Math.min(Math.max(u.x + ux * len, u.r), A.w - u.r), y: Math.min(Math.max(u.y + uy * len, u.r), A.h - u.r) };
             const hits = b.targetsFor(u).filter((e) => !e.demon && R.geo.pointSeg(e.x, e.y, u.x, u.y, to.x, to.y) <= e.r + u.r);
-            return { d, mover: u, from: { x: u.x, y: u.y }, to, hits, r: u.r, dist: len };
+            return { d, mover: u, from: { x: u.x, y: u.y }, to, hits, r: u.r, dist: len, caged: blockedByCage };
           }
           const L = R.dist(d.x, d.y, u.x, u.y), ux = (u.x - d.x) / L, uy = (u.y - d.y) / L;
           const ok = (s) => free(b, d, [u], d.x + ux * s, d.y + uy * s, d.r);
@@ -272,7 +284,7 @@
           if (pa.mover === u) {
             u.facing = Math.atan2(pa.to.y - u.y, pa.to.x - u.x);
             u.x = pa.to.x; u.y = pa.to.y;
-            b.say(`${u.name} 使用「逆行試煉」，衝向心魔`);
+            b.say(`${u.name} 使用「逆行試煉」，衝向心魔${pa.caged ? "……但被聖牢籠擋住了" : ""}`);
             b.emit({ type: "leap", unit: u, from: pa.from, to: pa.to, duration: 0.22 });
             b.emit({ type: "demonPull", unit: u, from: pa.from, to: pa.to });
           } else {

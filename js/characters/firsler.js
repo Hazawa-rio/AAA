@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261107215455" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261110175453" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
@@ -42,10 +42,16 @@
     id: "firsler",
     name: "弗爾斯勒",
     color: "#c2477a",
+    profile: "外型嬌小的少女，透過菸斗吐出特殊的煙霧並加以操縱，個性傲慢任性，態度相當輕蔑，似乎甚麼都看不起，擅長暗殺，喜歡在煙霧中戲耍對手。",
     desc: "用煙霧配合弩箭的遠程角色。箭穿過煙霧會變強，累積行動後能把所有煙霧化成尖刺一次射出。",
     stats: { hp: 75, mp: 0, atk: 16, df: 5, spd: 12, ap: 6 },
     // 每升一級增加的數值（暫定）
     growth: { hp: 3.5, mp: 2, atk: 0.9, df: 0.3, spd: 0.1 },
+    // 地圖探索：普攻距離、Q（以秒冷卻）
+    field: {
+      basicRange: 80,
+      q: { name: "射出箭矢", type: "arrow", sound: "sounds/firsler-load.mp3", cd: 30, range: 720, speed: 900, desc: "朝指定方向射出箭矢，射中遠處的魔物就以迎戰開始戰鬥（之後也能觸發機關）" },
+    },
     basic: "kick",
     ultimate: "burst",
     // HUD 位置：左小圈 / 中間大圈 / 右小圈
@@ -183,30 +189,40 @@
     skills: {
       // ---------- 普攻 ----------
       kick: {
-        name: "踢腿", slot: "普攻", sound: "sounds/firsler-kick.mp3",
-        ap: 1, base: 10, range: 70,
-        desc: "近距離，造成 10 × 攻擊力% 傷害",
+        name: "踢腿", slot: "普攻", key: "a", sound: "sounds/firsler-kick.mp3",
+        ap: 1, base: 10, range: 70, size: 56,
+        desc: "朝前方踢出，打到面前一小塊方形範圍內的敵人，造成 10 × 攻擊力% 傷害。點敵人直接踢，按 A 可以朝任何方向踢",
         status(b, u) {
-          return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range } };
+          return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range, free: true } };
         },
+        // 方形範圍：面前的一塊正方形（中心在身體前方）
+        box(u, arg) {
+          const t = arg.target ? arg.target : arg;
+          if (!t || !Number.isFinite(t.x)) err("請點選敵人或方向");
+          const ang = Math.atan2(t.y - u.y, t.x - u.x);
+          return { shape: "rect", x: u.x + Math.cos(ang) * (u.r - 6), y: u.y + Math.sin(ang) * (u.r - 6), ang, length: this.size, width: this.size };
+        },
+        hits(b, u, box) { return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, box, e.r * 0.8)); },
         predict(b, u, arg) {
           const t = arg.target;
-          if (!t || !t.alive || t.team === u.team) err("請點選一個敵人");
-          if (b.reach(u, t) > this.range) err("距離太遠");
-          return [t];
+          if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
+          if (t && b.reach(u, t) > this.range) err("距離太遠");
+          return this.hits(b, u, this.box(u, arg));
         },
+        preview(b, u, arg) { const box = this.box(u, arg); return { shapes: [box], hits: this.hits(b, u, box) }; },
         use(b, u, arg) {
-          const t = arg.target;
-          u.facing = Math.atan2(t.y - u.y, t.x - u.x);
+          const box = this.box(u, arg);
+          u.facing = box.ang;
           b.say(`${u.name} 使用「踢腿」`);
           b.emit({ type: "sfx", sound: this.sound });
-          if (b.reach(u, t) > this.range) {          // 目標閃開了
+          b.emit({ type: "fxShape", shape: box, color: "#c2477a", dur: 320 });
+          const hits = this.hits(b, u, box);
+          if (!hits.length) {
             b.say("……踢空了");
-            b.emit({ type: "miss", x: t.x, y: t.y });
+            b.emit({ type: "miss", x: box.x + Math.cos(box.ang) * this.size / 2, y: box.y + Math.sin(box.ang) * this.size / 2 });
             return;
           }
-          b.emit({ type: "kick", unit: u, target: t });
-          b.damage(u, t, this.base);
+          for (const t of hits) { b.emit({ type: "kick", unit: u, target: t }); b.damage(u, t, this.base); }
         },
       },
 
