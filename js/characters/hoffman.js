@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261112021356" });
 // 角色：霍夫曼（怪鼠機關屋的主人）
 // 被動「時間壓縮」：回合結束時消耗所有剩下的行動點存起來（最多 5）；滿了也照樣消耗
 // 大招「壓縮加速機」：把存起來的行動點換回來，展開齒輪領域，普攻變成在領域裡直線來回撞擊
@@ -118,7 +118,10 @@
       }
       this.endDomain(b, u);
     },
-    onAction(b, u) { if (u.ap <= 0) this.endDomain(b, u); },
+    onAction(b, u) { if (u.ap <= 0 && !u.state.suppressing) this.endDomain(b, u); },
+    // 亞光速撞擊（含超壓縮穿梭的分身一起撞）不能充能大招
+    noCharge(b, u, id) { return id === "wrench" && !!domainOf(b, u) && upg(u).w1 !== "suppress"; },
+    canActFree(b, u) { return !!u.state.suppressing; },      // 演出結束前不要自動結束回合
     endDomain(b, u) {
       const z = domainOf(b, u);
       if (!z) return;
@@ -335,10 +338,10 @@
       // ---------- W 壓縮加速機 ----------
       compress: {
         name: "壓縮加速機", slot: "W", key: "w", ultimate: true, sound: "sounds/hoffman-gear.mp3",
-        tags: ["area"],
-        ap: 3, charge: 5, radius: 260, pullRange: 170, slamBase: 6, slamPerAp: 3,
+        tags: ["area", "buff"],
+        ap: 4, charge: 6, radius: 260, pullRange: 170, slamBase: 6, slamPerAp: 3,
         rad(u) { return this.radius * (upg(u).w1 === "shuttle" ? 1.3 : 1); },
-        desc: "消耗 3 點行動點和時間壓縮存下的點數，存下多少就加回多少行動點，並以自己為中心展開藍色的齒輪領域：普攻變成「亞光速撞擊」。行動點用光或回合結束時領域消失",
+        desc: "消耗 4 點行動點和時間壓縮存下的點數，存下多少就加回多少行動點，並以自己為中心展開藍色的齒輪領域：普攻變成「亞光速撞擊」。行動點用光或回合結束時領域消失",
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
           if (domainOf(b, u)) return { ready: false, cost: this.ap, label: this.name, note: "領域中", reason: "領域已經展開了" };
@@ -371,26 +374,71 @@
           }
           // 超光速制壓：把領域外的敵人吸進來，躍起下砸（消耗所有行動點；扣掉大招本身的 3 點之後）
           if (upg(u).w1 === "suppress") {
-            for (const e of this.pulls(b, u)) {
-              const d = R.dist(e.x, e.y, u.x, u.y) || 1, to = { x: u.x + ((e.x - u.x) / d) * (r - e.r - 6), y: u.y + ((e.y - u.y) / d) * (r - e.r - 6) };
-              const from = { x: e.x, y: e.y };
-              const spot = landing(b, e, from, to);
-              e.x = spot.x; e.y = spot.y;
-              b.emit({ type: "afterimage", from: { x: u.x, y: u.y }, to: from });
-              b.emit({ type: "leap", unit: e, from, to: spot, duration: 0.2 });
-              b.say(`${e.name} 被吸進了領域`);
-            }
             const spend = Math.max(0, u.ap - this.ap);
-            u.state.slamAp = spend;
             u.ap -= spend;
-            const base = this.slamBase + this.slamPerAp * spend;
-            b.emit({ type: "fxShape", shape: { shape: "circle", x: u.x, y: u.y, radius: r }, color: "#2f6fd6", dur: 700 });
-            b.emit({ type: "shake" });
-            b.say(`${u.name} 高速躍起下砸！（消耗 ${spend} 點行動點）`);
-            for (const e of b.enemies()) if (e.alive && R.dist(e.x, e.y, u.x, u.y) <= r + e.r) b.damage(u, e, base, 1, "（超光速制壓）");
+            u.state.suppressing = true;
+            b.cutscene = true;                      // 演出中不能行動
+            this.suppress(b, u, z, spend);
           }
         },
+        // 超光速制壓的演出：在領域裡高速移動、慢慢把敵人往內拉 → 高高躍起 → 下砸（藍色震盪）
+        async suppress(b, u, z, spend) {
+          const r = z.r, pulls = this.pulls(b, u).map((e) => {
+            const d = R.dist(e.x, e.y, z.x, z.y) || 1;
+            return { e, from: { x: e.x, y: e.y }, to: { x: z.x + ((e.x - z.x) / d) * (r - e.r - 8), y: z.y + ((e.y - z.y) / d) * (r - e.r - 8) } };
+          });
+          const ok = () => !b.dead && b.phase !== "over";
+          b.say(`${u.name} 在齒輪領域裡高速移動！`);
+          b.emit({ type: "sfx", sound: "sounds/hoffman-jet.mp3" });
+          b.emit({ type: "suction", x: z.x, y: z.y, r, units: pulls.map((p) => p.e), duration: 1.7 });
+          // 1) 高速移動 1.6 秒，同時慢慢把範圍內的敵人往內拉
+          const T = 1.6, step = 0.08;
+          let lastHop = 0;
+          for (let t = 0; t < T; t += step) {
+            await b.wait(step);
+            if (!ok()) return C.endSuppress(b, u);
+            const k = Math.min(1, (t + step) / T), ease = k * k * (3 - 2 * k);
+            for (const p of pulls) if (p.e.alive) { p.e.x = p.from.x + (p.to.x - p.from.x) * ease; p.e.y = p.from.y + (p.to.y - p.from.y) * ease; }
+            if (t - lastHop >= 0.16) {
+              lastHop = t;
+              const a = Math.random() * Math.PI * 2, d = (r - u.r) * (0.3 + Math.random() * 0.65);
+              const to = landing(b, u, { x: u.x, y: u.y }, { x: z.x + Math.cos(a) * d, y: z.y + Math.sin(a) * d });
+              b.emit({ type: "afterimage", from: { x: u.x, y: u.y }, to });
+              u.x = to.x; u.y = to.y; u.facing = a;
+            }
+            b.emit();
+          }
+          for (const p of pulls) if (p.e.alive) { const spot = landing(b, p.e, p.from, p.to); p.e.x = spot.x; p.e.y = spot.y; }
+          if (pulls.length) b.say(`${pulls.filter((p) => p.e.alive).map((p) => p.e.name).join("、")} 被吸進了領域`);
+          // 回到領域中心
+          const c = landing(b, u, { x: u.x, y: u.y }, { x: z.x, y: z.y });
+          b.emit({ type: "afterimage", from: { x: u.x, y: u.y }, to: c });
+          u.x = c.x; u.y = c.y;
+          await b.wait(0.15);
+          if (!ok()) return C.endSuppress(b, u);
+          // 2) 高高躍起
+          b.say(`${u.name} 高高躍起——`);
+          b.emit({ type: "sfx", sound: "sounds/hoffman-jet.mp3" });
+          b.emit({ type: "leap", unit: u, from: c, to: c, duration: 0.95, height: 300 });
+          await b.wait(0.95);
+          if (!ok()) return C.endSuppress(b, u);
+          // 3) 下砸：藍色震盪
+          const base = this.slamBase + this.slamPerAp * spend;
+          b.emit({ type: "sfx", sound: "sounds/hoffman-gear.mp3" });
+          b.emit({ type: "blueQuake", x: u.x, y: u.y, r });
+          b.say(`下砸！（消耗 ${spend} 點行動點）`);
+          for (const e of b.enemies()) if (e.alive && R.dist(e.x, e.y, u.x, u.y) <= r + e.r) b.damage(u, e, base, 1, "（超光速制壓）");
+          await b.wait(0.7);
+          C.endSuppress(b, u);
+        },
       },
+    },
+    endSuppress(b, u) {
+      u.state.suppressing = false;
+      b.cutscene = false;
+      if (b.checkEnd()) return;
+      if (u.ap <= 0 && b.phase === "player") { this.onTurnEnd(b, u); b.nextTurn(); }
+      else b.emit();
     },
   };
 

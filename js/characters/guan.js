@@ -1,6 +1,7 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261112021356" });
 // 角色：觀知命（卜卦人）
-// 吉位／兇位是場上的區域（zones 的 lucky / unlucky）。站在吉位時護盾更多；從吉位打兇位的敵人傷害更高
+// 吉位／兇位是場上的區域（zones 的 lucky / unlucky）。從吉位打兇位的敵人傷害更高
+// 魔力角色：趨吉避凶、陰陽兩和、乾坤挪移花魔力；被動「天明道法」：給護盾時魔力夠就消耗雙倍魔力，護盾 ×1.5
 // 數值都是暫定
 (function () {
   const R = window.RPG;
@@ -25,9 +26,10 @@
     role: "輔助・卜卦",
     gacha: true,
     profile: "本名乾默存，是一位巧算天機的卜卦人，自認參透命運有著高昂的自信，會不問意願的去卜算他人的命運，會滔滔不絕一些難懂的名詞",
-    desc: "卜卦人。能把戰場分成吉位和兇位：站在吉位時護盾更多，從吉位攻擊兇位的敵人傷害更高；替自己和隊友卜吉卦加護盾、替敵人卜兇卦讓他們虛弱。",
-    stats: { hp: 72, mp: 0, atk: 14, df: 5, spd: 10, ap: 6 },        // 暫定
-    growth: { hp: 3.3, mp: 2, atk: 0.8, df: 0.3, spd: 0.1 },
+    desc: "卜卦人（魔力角色）。能把戰場分成吉位和兇位，從吉位攻擊兇位的敵人傷害更高；替自己和隊友卜吉卦加護盾、替敵人卜兇卦讓他們虛弱。魔力夠的時候，給護盾會消耗雙倍魔力，讓護盾更多。",
+    stats: { hp: 72, mp: 100, atk: 14, df: 5, spd: 10, ap: 6 },      // 暫定
+    growth: { hp: 3.3, mp: 3, atk: 0.8, df: 0.3, spd: 0.1 },
+    mpRegen: 0.3,                      // 每次輪到自己時回復最大魔力的 30%
     field: {
       basicRange: 90,
       q: { name: "趨吉避凶", type: "luck", sound: "sounds/guan-chime.mp3", cd: 40, duration: 60,
@@ -46,11 +48,13 @@
       healOther: { chance: 0.5, lines: ["你的面相帶吉，再撐一下。"] },
     },
 
+    // 天明道法：給護盾的時候，只要魔力足夠，就消耗雙倍魔力（多付一份），護盾 ×1.5
+    //   金剛咒符本身不花魔力：給隊友護盾時多付 talismanMp
     passive: {
       name: "天明道法",
-      desc: "身處吉位時，獲得的護盾量 ×1.5",
-      mult: 1.5,
-      status(b, u) { const on = inZone(b, "lucky", u.x, u.y); return { text: on ? "身處吉位：護盾 ×1.5" : "不在吉位", on }; },
+      desc: "給予護盾時，只要魔力足夠，就會消耗雙倍魔力，讓給予的護盾 ×1.5（金剛咒符不花魔力，給護盾時改成消耗 6 點）",
+      mult: 1.5, talismanMp: 6,
+      status(b, u) { const need = Math.min(C.skills.omen.mp * 2, C.skills.array.mp * 2); const on = u.mp >= need; return { text: on ? `魔力足夠：護盾 ×${this.mult}（消耗雙倍魔力）` : "魔力不足：護盾不加成", on }; },
     },
 
     // ===== 技能強化樹 =====
@@ -119,15 +123,26 @@
       if (a === u && got) u.state.blessed = true;
       return got;
     },
+    // 天明道法：同一次技能裡只判斷、只多扣一次（趨吉避凶一次給好幾個人護盾，也只多付一份）
     shieldOf(b, u, base) {
-      const lucky = inZone(b, "lucky", u.x, u.y);
-      return { amount: Math.round(base * (1 + u.atk / 100) * (lucky ? this.passive.mult : 1)), note: lucky ? "（天明道法 ×1.5）" : "" };
+      const P = this.passive, sk = b.currentSkill && this.skills[b.currentSkill];
+      if (b._daoSeq !== b.skillSeq) {
+        b._daoSeq = b.skillSeq;
+        const cost = sk?.mp || P.talismanMp, need = (sk?.mp || 0) + cost;      // 技能本身的魔力（之後才扣）＋多付的一份
+        b._daoOn = u.maxMp > 0 && u.mp >= need;
+        if (b._daoOn) { u.mp -= cost; b.say(`天明道法：多消耗 ${cost} 點魔力，護盾 ×${P.mult}`); b.emit({ type: "buff", unit: u, text: `天明道法 −${cost} MP`, color: "#2f6fd6" }); }
+      }
+      return { amount: Math.round(base * (1 + u.atk / 100) * (b._daoOn ? P.mult : 1)), note: b._daoOn ? `（天明道法 ×${P.mult}）` : "" };
     },
     // 我方（自己＋召喚物、馬車）
     friends(b, u) { return [u, ...b.allies()]; },
 
     tune: [
       ["天明道法 護盾倍率", "passive", "mult", 1, 3, 0.1],
+      ["每回合回復魔力（比例）", "char", "mpRegen", 0, 1, 0.05],
+      ["趨吉避凶 魔力", "omen", "mp", 0, 60, 1],
+      ["陰陽兩和 魔力", "yinyang", "mp", 0, 60, 1],
+      ["乾坤挪移 魔力", "array", "mp", 0, 100, 1],
       ["金剛咒符 射程", "talisman", "range", 100, 600, 10],
       ["金剛咒符 傷害", "talisman", "base", 1, 30, 1],
       ["金剛咒符 隊友護盾", "talisman", "shield", 0, 30, 1],
@@ -145,7 +160,7 @@
       // ---------- 普攻 金剛咒符 ----------
       talisman: {
         name: "金剛咒符", slot: "普攻", key: "a", sound: "sounds/vivilla-throw.mp3",
-        tags: ["projectile"],
+        tags: ["projectile", "shield"],
         ap: 1, range: 320, base: 7, shield: 8, projectileSpeed: 800,
         desc: "射出一張射程中等的符咒，打到第一個敵人（傷害不高）。打到隊友會給少量護盾（不能給自己）",
         status(b, u) { return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range, free: true } }; },
@@ -181,13 +196,14 @@
       // ---------- Q 趨吉避凶 ----------
       omen: {
         name: "趨吉避凶", slot: "Q", key: "q", sound: "sounds/guan-chime.mp3",
-        tags: ["area"],
-        ap: 1, cooldown: 2, radius: 170, shield: 10, cleanseBonus: 0.6, weakMult: 0.75,
+        tags: ["area", "shield"],
+        ap: 1, mp: 15, cooldown: 2, radius: 170, shield: 10, cleanseBonus: 0.6, weakMult: 0.75,
         desc: "替範圍內的自己和隊友卜吉卦：給護盾，同時去除 1 個負面狀態（去除成功護盾更多）；替範圍內的敵人卜兇卦：虛弱（造成的傷害降低）",
         status(b, u) {
           const cd = u.cd.omen || 0;
-          if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
-          return { ready: true, cost: this.ap, label: this.name, aim: { type: "none" } };
+          if (cd > 0) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
+          if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
+          return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "none" } };
         },
         rad(u) { return this.radius * (upg(u).q2 === "calamity" ? 1.4 : 1); },
         hits(b, u) { return b.enemies().filter((e) => R.dist(e.x, e.y, u.x, u.y) <= this.rad(u) + e.r); },
@@ -216,13 +232,14 @@
       yinyang: {
         name: "陰陽兩和", slot: "E", key: "e", sound: "sounds/guan-chime.mp3",
         tags: ["area"],
-        ap: 1, cooldown: 3, luckyR: 110, unluckyR: 100, dist: 270, turns: 2, bonus: 1.35, bonusHigh: 1.7,
+        ap: 1, mp: 15, cooldown: 3, luckyR: 110, unluckyR: 100, dist: 270, turns: 2, bonus: 1.35, bonusHigh: 1.7,
         size(u) { return upg(u).e2 === "greatEvil" ? 1.35 : 1; },
         desc: "自己周圍變成吉位，前方固定距離的地方變成兇位（持續 2 回合）。從吉位攻擊兇位的敵人傷害增加",
         status(b, u) {
           const cd = u.cd.yinyang || 0;
-          if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
-          return { ready: true, cost: this.ap, label: this.name, aim: { type: "direction" } };
+          if (cd > 0) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
+          if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
+          return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "direction" } };
         },
         spots(b, u, arg) {
           const d = dirOf(u, arg);
@@ -256,8 +273,8 @@
       // ---------- W 乾坤挪移 ----------
       array: {
         name: "乾坤挪移", slot: "W", key: "w", ultimate: true, sound: "sounds/guan-chime.mp3",
-        tags: ["area"],
-        ap: 2, charge: 5, shield: 24, weakMult: 0.55, weakRounds: 2, fieldBase: 9,
+        tags: ["area", "shield"],
+        ap: 2, mp: 40, charge: 5, shield: 24, weakMult: 0.55, weakRounds: 2, fieldBase: 9,
         desc: "以吉位和兇位連線的最遠距離為直徑，旋轉畫出一個陰陽陣：陣裡的我方得到大吉（較多護盾），敵人得到大兇（額外虛弱）。要先有吉位和兇位",
         circle(b, u) {
           const L = zonesOf(b, "lucky").find((z) => z.owner === u), U = zonesOf(b, "unlucky").find((z) => z.owner === u);
@@ -267,9 +284,10 @@
           return { x: (a.x + c.x) / 2, y: (a.y + c.y) / 2, radius: R.dist(a.x, a.y, c.x, c.y) / 2 };
         },
         status(b, u) {
-          if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
-          if (!this.circle(b, u)) return { ready: false, cost: this.ap, label: this.name, note: "沒有吉凶位", reason: "要先用「陰陽兩和」做出吉位和兇位" };
-          return { ready: true, cost: this.ap, label: this.name, aim: { type: "none" } };
+          if (u.charge < this.charge) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
+          if (!this.circle(b, u)) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: "沒有吉凶位", reason: "要先用「陰陽兩和」做出吉位和兇位" };
+          if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
+          return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "none" } };
         },
         predict(b, u) { return []; },
         preview(b, u) {

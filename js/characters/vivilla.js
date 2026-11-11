@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261112021356" });
 // 角色：薇薇拉（輔助，第一個使用魔力的角色）
 // 技能格式同 firsler.js：status / predict / use；status 可以回傳 mp（魔力消耗，由 battle 扣）
 // 蘑菇丟出去之後要過一下才爆炸（飛行＋引信），所以爆炸是非同步結算
@@ -364,7 +364,7 @@
       // ---------- E 加大劑量 ----------
       dose: {
         name: "加大劑量", slot: "E", key: "e",
-        tags: [],
+        tags: ["buff"],
         ap: 1, mp: 20, cooldown: 3, mult: 1.8, multHigh: 2.5, refluxMp: 15,
         desc: "強化下一次普攻：傷害與補血量 ×1.8",
         status(b, u) {
