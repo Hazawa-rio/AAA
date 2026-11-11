@@ -292,6 +292,7 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .bag-ic.fang { width: 10px; height: 22px; border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%; border: 1.5px solid #8a7a5a; box-shadow: none; }
 .bag-ic.drop { width: 18px; height: 20px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: .85; }
 .bag-ic.berry { width: 18px; height: 18px; box-shadow: 0 0 8px var(--ic), inset -2px -3px 0 rgba(0,0,0,.25); }
+.bag-ic.block { width: 18px; height: 18px; border-radius: 1px; border: 2px solid #1d1d1f; box-shadow: inset 6px -4px 0 rgba(255,255,255,.25); }
 .bag-ic.leaf { width: 14px; height: 22px; border-radius: 0 100% 0 100%; }
 
 /* 地圖戰鬥：道具、撤退 */
@@ -306,4 +307,4 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .reward.quest { color: #7a5a00; background: #fff6d0; border-radius: 6px; padding: 2px 8px; }
 /* build */ :root { --build-css-style-css: "20261109200602"; }
 .bar.hp.scare i { background: #8a3fd1; }
-/* build */ :root { --build-css-style-css: "20261110175453"; }
+/* build */ :root { --build-css-style-css: "20261112021356"; }

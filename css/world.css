@@ -43,6 +43,35 @@ body.world-page #fit { margin: 0 auto; }
 .bag-slot.empty { border-style: dashed; background: transparent; }
 .bag-slot i { width: 18px; height: 22px; border-radius: 50%; }
 .bag-slot b { position: absolute; right: 6px; top: 4px; font-size: 11px; }
+
+/* 委託指示收起來（或對話框開著的時候） */
+.wx-track.collapsed { display: none; }
+
+/* 委託人的對話框：像新手引導一樣在畫面下方；選項在對話框右側上方 */
+#wxPanel.dlg { background: linear-gradient(to top, rgba(20,12,6,.35), rgba(20,12,6,0) 55%); place-items: end center; }
+#wxPanel.dlg .tv-card { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(880px, calc(100% - 32px));
+  max-height: none; overflow: visible; background: none; box-shadow: none; padding: 0; border: 0; }
+#wxPanel.dlg .tv-card > header { position: absolute; right: 12px; bottom: 10px; margin: 0; z-index: 2; }
+#wxPanel.dlg .tv-card > header h2 { display: none; }
+#wxPanel.dlg .tv-card > header button { padding: 4px 12px; font-size: 12px; }
+.dlg-box { position: relative; display: flex; gap: 14px; align-items: flex-start; background: rgba(255,253,248,.97); border: 2.5px solid #e5c99a;
+  border-radius: 14px; padding: 18px 96px 18px 18px; box-shadow: 0 6px 24px rgba(0,0,0,.18); min-height: 92px; }
+.dlg-box[data-act] { cursor: pointer; }
+.dlg-face { flex: none; width: 52px; height: 52px; border-radius: 12px; border: 3px solid; display: grid; place-items: center; font-weight: 900; font-size: 22px; background: #fff; }
+.dlg-name { position: absolute; top: -14px; left: 80px; color: #fff; font-weight: 800; font-size: 13px; padding: 3px 12px; border-radius: 999px; letter-spacing: .05em; }
+.dlg-text { margin: 4px 0 0; font-size: 17px; line-height: 1.75; color: #1d1d1f; flex: 1; }
+.dlg-note { position: absolute; left: 84px; bottom: 4px; margin: 0; font-size: 11px; color: #8a7a5a; }
+.dlg-next { position: absolute; right: 96px; bottom: 8px; font-size: 12px; color: #c2477a; animation: dlgBlink 1s infinite; }
+@keyframes dlgBlink { 50% { opacity: .3; } }
+.dlg-opts { position: absolute; right: 0; bottom: calc(100% + 10px); display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  max-width: min(520px, 70%); max-height: 430px; overflow: auto; padding: 2px; }
+.dlg-opts:empty { display: none; }
+.dlg-opts > * { box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+.dlg-opts .wx-qrow { margin: 0; background: rgba(255,253,246,.97); }
+.dlg-opts .tv-row, .dlg-opts .tv-note, .dlg-opts .wx-p { margin: 0; background: rgba(255,253,246,.97); border-radius: 10px; padding: 6px 10px; }
+.dlg-opts .dlg-ask { text-align: left; white-space: normal; line-height: 1.5; background: rgba(255,253,246,.97); max-width: 100%; }
+.dlg-said { background: rgba(255,253,246,.97); border-left: 4px solid; border-radius: 10px; padding: 8px 12px; font-size: 14px; color: #1d1d1f; }
+
 /* build */ :root { --build-css-world-css: "20261108224109"; }
 
 /* 委託進度 */
@@ -111,4 +140,23 @@ body.world-page #fit { margin: 0 auto; }
 /* 角色專屬的對話選項 */
 .wx-asks { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .wx-asks button { text-align: left; white-space: normal; line-height: 1.5; }
-/* build */ :root { --build-css-world-css: "20261110175453"; }
+/* build */ :root { --build-css-world-css: "20261110210428"; }
+/* 美食研究所的電腦 */
+.lab-pc { background: #0f1a14; color: #9df2b8; border-radius: 10px; padding: 12px 14px; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; line-height: 1.6; box-shadow: inset 0 0 30px rgba(80,255,150,.08); }
+.lab-pc .pc-head { color: #d6ffe4; font-weight: 800; letter-spacing: .08em; border-bottom: 1px dashed #3a6a4a; padding-bottom: 6px; margin-bottom: 6px; }
+.lab-pc .pc-head span { color: #5aa070; font-weight: 400; }
+.lab-pc .pc-status { color: #7ac896; margin-bottom: 8px; }
+.lab-pc .ok { color: #5affa0; } .lab-pc .ng { color: #ff7a7a; }
+.lab-pc .pc-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+.lab-pc .pc-tab, .lab-pc .pc-btn { background: transparent; color: #9df2b8; border: 1px solid #3a6a4a; border-radius: 4px; padding: 3px 10px; font: inherit; cursor: pointer; }
+.lab-pc .pc-tab.on { background: #9df2b8; color: #0f1a14; }
+.lab-pc .pc-btn { display: block; margin: 6px 0; }
+.lab-pc .pc-btn:hover, .lab-pc .pc-tab:hover { border-color: #9df2b8; }
+.lab-pc .pc-body { min-height: 120px; max-height: 300px; overflow: auto; }
+.lab-pc .pc-dim { color: #5aa070; margin: 2px 0 6px; }
+.lab-pc .pc-err { color: #ff7a7a; font-weight: 800; }
+.lab-pc .pc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 12px; }
+.lab-pc .pc-grid b { color: #d6ffe4; }
+.lab-pc .pc-pick { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.lab-pc select { background: #0f1a14; color: #d6ffe4; border: 1px solid #3a6a4a; font: inherit; padding: 2px 6px; }
+/* build */ :root { --build-css-world-css: "20261112021356"; }
