@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112021356" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -43,8 +43,8 @@
   const basicSk = CH.skills[CH.basic];
   if (basicSk?.key) {
     const el = document.getElementById("charHelp");
-    el.innerHTML = `<b>${basicSk.key.toUpperCase()}</b>：${esc(basicSk.name)}不用指定敵人，點地面就朝那裡出手${basicSk.aimAlly ? "・點自己或召喚物：丟過去補血" : ""}`;
-    el.classList.remove("hidden");
+    if (el) el.innerHTML = `<b>${basicSk.key.toUpperCase()}</b>：${esc(basicSk.name)}不用指定敵人，點地面就朝那裡出手${basicSk.aimAlly ? "・點自己或召喚物：丟過去補血" : ""}`;
+    el?.classList.remove("hidden");
   }
 
   let B = null;            // 目前的戰鬥
@@ -201,6 +201,13 @@
       const qm = R.Commissions.onBattle(t, { result: "win", variant: ROOMDEF.variant, outside: QS.get("out") === "1", quest: QS.get("quest"), items: run.items });
       for (const m of qm) xpNote += `<span class="reward quest">${esc(m)}</span>`;
       if (qm.length) msg += "。" + qm.join("；");
+      // 連續戰鬥（例如午夜嚇人比賽）：下一個階段也是連戰，就直接進入下一場，不回地圖
+      const qid = QS.get("quest"), nst = qid && QS.get("chain") ? R.Commissions.stage(t, qid) : null;
+      if (nst?.chain) {
+        const url = `battle.html?char=${encodeURIComponent(t.char)}&from=world&room=${encodeURIComponent(nst.room)}&boss=${encodeURIComponent(nst.variant)}&quest=${encodeURIComponent(qid)}&chain=1`;
+        chainNext = { url, name: nst.chainName || "下一場" };
+        xpNote += `<span class="reward quest">${esc(nst.chainNote || "比賽還沒結束——下一位選手已經在場邊等著了")}</span>`;
+      }
     } else if (B.result === "escortFail") {
       // 護送失敗：委託沒有推進，可以回去再試一次
       run.hp = u.hp;
@@ -228,9 +235,12 @@
       document.querySelectorAll("#result a.back").forEach((el) => { el.href = "tavern.html"; el.textContent = "回到酒館"; });
       return;
     }
+    run.lastBattle = { result: B.result, room: ROOM, variant: ROOMDEF.variant, quest: QS.get("quest"), at: Date.now() };     // 時空的玩法用得到（例如狼人排隊：嚇跑的是哪一隻）
     t.lastResult = msg;
     R.Profile.setTrip(t);
+    if (chainNext) document.querySelectorAll("#result a.back").forEach((el) => { el.href = chainNext.url; el.textContent = `下一場：${chainNext.name}`; });
   }
+  let chainNext = null;
 
   // ---------- 行囊：地圖戰鬥中可以用消耗品（花 1 行動點，非自己回合 ×2） ----------
   if (FROM_WORLD && R.Bag) {
@@ -300,6 +310,12 @@
   }
 
   // ---------- 開始 / 重新開始 ----------
+  // 魔物圖鑑：遇到就記名字，打贏就記技能和數值（js/bestiary.js）
+  function foes() { return [...new Set(B.units.filter((u) => u.team === "enemy" && !u.npc).map((u) => u.kind))]; }
+  function recordBestiary() {
+    if (!R.Bestiary || !B) return;
+    if (B.result === "win") R.Bestiary.markKnown(foes()); else R.Bestiary.markSeen(foes());
+  }
   function newBattle() {
     xpNote = "";
     if (B) B.destroy();
@@ -311,6 +327,10 @@
     poses.clear();
     B = new R.Battle(C, CH.id, ROOM, ROOMDEF.variant);
     B.on(onEvent);
+    if (R.Bestiary) R.Bestiary.markSeen(foes());
+    // 午夜嚇人比賽之類的開場白；暗黑霸王龍變形完會咆哮
+    if (ROOMDEF.intro) { B.say(ROOMDEF.intro); fx.push({ k: "bigText", text: ROOMDEF.intro.replace(/^[^：]+：/, ""), color: "#ffb04a", t: performance.now(), dur: 2600 }); }
+    if (B.units.some((u) => u.def?.rex)) setTimeout(() => playSound("sounds/dino-roar.mp3"), 1300);    // 紅色方塊冒完、黑色方塊開始變白時咆哮
     applyDrink();
     if (FROM_WORLD) {
       const run = R.Profile.trip().run;
@@ -325,6 +345,8 @@
 
   function onEvent(ev) {
     const t = performance.now();
+    // 角色自己畫的特效（例如蒼幽的泡泡、蝠鱝）：角色檔的 fxEvents[事件] 回傳持續時間，drawFx 負責畫
+    if (ev?.type && CH.fxEvents?.[ev.type]) { const d = CH.fxEvents[ev.type](ev); if (d) fx.push({ k: "char", ev, t: t + (ev.delay || 0) * 1000, dur: d }); }
     switch (ev.type) {
       case "damage":
         fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - (ev.unit.def.bigBar ? 110 : 30), text: ev.text || (SCARE ? `+${ev.amount} 驚嚇` : `-${ev.amount}`), color: SCARE ? PURPLE : ev.unit.cage ? "#b8860b" : ev.boosted ? "#c2477a" : "#e53935", t });
@@ -380,7 +402,7 @@
         for (const e of ev.targets) fx.push({ k: "ring", x: e.x, y: e.y, r: e.r + 8, color: "#a0b43c", t, dur: 500 });
         break;
       case "summon": fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 60, color: "#3d9a5b", t, dur: 700 }); break;
-      case "summonDeath": if (!ev.quiet) fx.push({ k: "shroomBoom", x: ev.unit.x, y: ev.unit.y, radius: 50, t, dur: 600 }); break;
+      case "summonDeath": if (!ev.quiet) fx.push(ev.unit.kind === "giantShroom" ? { k: "shroomBoom", x: ev.unit.x, y: ev.unit.y, radius: 50, t, dur: 600 } : { k: "ring", x: ev.unit.x, y: ev.unit.y, r: 40, color: "#8fd3ea", t, dur: 600 }); break;
       case "mpRegen": fx.push({ k: "num", x: ev.unit.x + 20, y: ev.unit.y - 44, text: `+${ev.amount} MP`, color: "#1a73c9", t, dur: 900 }); break;
       case "crownRing": fx.push({ k: "bellWave", x: ev.x, y: ev.y, radius: ev.radius, crown: true, t, dur: 650 }); break;
       case "cageTick": fx.push({ k: "ring", x: ev.unit.holds?.x ?? ev.unit.x, y: ev.unit.holds?.y ?? ev.unit.y, r: 40, color: "#d4a017", t, dur: 400 }); break;
@@ -394,7 +416,13 @@
         break;
       case "gloomSpent": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 56, text: "陰霾耗盡", color: "#3a2d70", t: t + 520, dur: 1100 }); break;
       case "move": if (ev.unit.team === "enemy") playSound(ev.unit.def.sounds?.move); break;
-      case "leap": fx.push({ k: "leap", unit: ev.unit, from: ev.from, to: ev.to, t, dur: ev.duration * 1000 }); break;
+      case "leap": fx.push({ k: "leap", unit: ev.unit, from: ev.from, to: ev.to, height: ev.height, t, dur: ev.duration * 1000 }); break;
+      // 霍夫曼的超光速制壓：吸入、下砸的藍色震盪
+      case "suction": fx.push({ k: "suction", x: ev.x, y: ev.y, r: ev.r, units: ev.units, t, dur: ev.duration * 1000 }); break;
+      // 瑪莉卡：蛇腹劍的甩動（一節一節的劍刃連成弧線，左右來回掃過扇形）、伸長勾取
+      case "lash": fx.push({ k: "lash", x: ev.x, y: ev.y, ang: ev.ang, half: ev.half, radius: ev.radius, hits: ev.hits, fire: ev.fire, circle: ev.circle, t, dur: 260 * ev.hits + 240 }); if (ev.circle) shakeUntil = t + 260 * ev.hits; break;
+      case "grab": fx.push({ k: "grab", from: ev.from, to: ev.to, fire: ev.fire, t, dur: 700 }); break;
+      case "blueQuake": fx.push({ k: "blueQuake", x: ev.x, y: ev.y, r: ev.r, t, dur: 1100 }); shakeUntil = t + 550; break;
       case "arrow": {
         // 每支箭依距離飛行，分裂箭等主箭飛到煙霧另一側才出發
         const sp = ev.speed || 900;
@@ -436,7 +464,7 @@
       case "fxShape": fx.push({ k: "shape", shape: ev.shape, color: ev.color || "#1d1d1f", t, dur: ev.dur || 400 }); break;
       case "shieldGain": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 46, text: `+${ev.amount} 護盾`, color: "#2f8fd6", t, dur: 1000 }); fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 40, color: "#7fc4ff", t, dur: 500 }); break;
       case "shieldHit": fx.push({ k: "num", x: ev.unit.x - 18, y: ev.unit.y - 30, text: ev.broke ? "護盾破了" : `護盾 −${ev.amount}`, color: "#2f8fd6", t }); break;
-      case "talisman": fx.push({ k: "talisman", from: ev.from, to: ev.to, t, dur: ev.dur || 300 }); break;
+      case "talisman": fx.push({ k: "talisman", from: ev.from, to: ev.to, star: ev.star, t, dur: ev.dur || 300 }); break;
       case "taiji": fx.push({ k: "taiji", x: ev.x, y: ev.y, r: ev.r, t, dur: 1400 }); break;
       case "afterimage": fx.push({ k: "afterimage", from: ev.from, to: ev.to, color: ev.color, t, dur: 650 }); break;
       case "plague":
@@ -445,6 +473,15 @@
         break;
       case "chargeCancel": for (const c of ev.charges) fx.push({ k: "chargeOut", c, t, dur: 450 }); break;
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
+      case "ink":        // 凡塔黑的墨水
+        fx.push({ k: "ink", x: ev.x, y: ev.y, r: ev.r, t, dur: 1400 });
+        break;
+      case "dive": fx.push({ k: "splash", x: ev.x, y: ev.y, r: 70, t, dur: 700 }); if (ev.sound) playSound(ev.sound, 0.7); break;
+      case "surface": fx.push({ k: "splash", x: ev.x, y: ev.y, r: 60, t, dur: 600 }); disp.set(ev.unit.id, { x: ev.x, y: ev.y }); break;
+      case "bigText": fx.push({ k: "bigText", text: ev.text, color: ev.color || "#c62828", style: ev.style, t, dur: ev.style === "warn" ? 2800 : 2200 }); break;
+      case "gumStick":   // 泡泡糖黏在地上
+        for (const sp of ev.spots) fx.push({ k: "gum", x: sp.x, y: sp.y, t, dur: 2200 });
+        break;
       case "strike":
         playSound(ev.sound, ev.rate || 1);
         if (ev.kind === "passionSlash") { fx.push({ k: "bigSlash", ...ev, t, dur: 600 }); shakeUntil = t + 250; break; }
@@ -470,6 +507,20 @@
         else fx.push({ k: "rect", ...ev, t });
         if (ev.lunge) fx.push({ k: "lunge", unit: ev.owner, ang: ev.ang, len: ev.length * 0.55, t, dur: 320 });
         if (ev.shot) fx.push({ k: "tracer", x: ev.owner.x, y: ev.owner.y, ang: ev.ang, length: ev.length, r: ev.owner.r, t, dur: 260 });
+        if (ev.bigSlash) { fx.push({ k: "bigSlash", x: ev.x, y: ev.y, ang: ev.ang, length: ev.length, width: ev.width, t, dur: 700 }); shakeUntil = t + 350; }
+        if (ev.fire) {
+          const blue = ev.fire === "blue", fx0 = ev.fromX ?? ev.x, fy0 = ev.fromY ?? ev.y;
+          if (ev.shape === "circle") {
+            fx.push({ k: "fireball", x: fx0, y: fy0, tx: ev.x, ty: ev.y, blue, t, dur: 260 });          // 從鬼火裡射出的火球
+            fx.push({ k: "fireBurst", x: ev.x, y: ev.y, r: ev.radius, blue, t: t + 200, dur: 700 });
+          } else {
+            const ex = ev.x + Math.cos(ev.ang) * ev.length, ey = ev.y + Math.sin(ev.ang) * ev.length;
+            fx.push({ k: "fireball", x: fx0, y: fy0, tx: ex, ty: ey, blue, t, dur: 420 });
+          }
+        }
+        if (ev.burst) { fx.push({ k: "splash", x: ev.x, y: ev.y, r: ev.radius, t, dur: 800 }); shakeUntil = t + 300; }
+        if (ev.words) fx.push(ev.shape === "circle" ? { k: "wordRing", x: ev.x, y: ev.y, r: ev.radius, text: ev.words, color: ev.owner.def.color || "#5a3a8a", t, dur: 700 }
+          : { k: "words", x: ev.owner.x, y: ev.owner.y, ang: ev.ang, length: ev.length, text: ev.words, color: ev.owner.def.color || "#5a3a8a", t, dur: 650 });
         break;
       case "blocked":
         fx.push({ k: "shield", unit: ev.unit, t, dur: 500 });
@@ -487,7 +538,8 @@
         showUltBanner(ev.text, ev.style);
         break;
       case "bossUltEnd": hideUltBanner(); break;
-      case "over": grantXp(); worldResult(); break;
+      case "crystalBreak": fx.push({ k: "ring", x: ev.x, y: ev.y, r: 90, color: "#e8262c", t, dur: 700 }); fx.push({ k: "num", x: ev.x, y: ev.y - 50, text: "水晶碎了！", color: "#e8262c", t, dur: 1100 }); shakeUntil = t + 400; break;
+      case "over": grantXp(); worldResult(); recordBestiary(); break;
       case "bark": {
         // 個性台詞：依機率出現，同一個角色 2.5 秒內不重複跳（比較特別的台詞可以蓋掉）
         const set = ev.unit.def.barks?.[ev.key];
@@ -534,7 +586,7 @@
     const dx = Math.abs(p.x - c.x), dy = Math.abs(p.y - c.y), h = c.size / 2;
     return Math.max(dx, dy) <= h + 12 && Math.max(dx, dy) >= h - 16;
   };
-  const unitAt = (p) => B.units.filter((u) => u.alive && (u.cage ? onCageEdge(u, p) : dist(pos(u).x, pos(u).y, p.x, p.y) <= u.r + 4))
+  const unitAt = (p) => B.units.filter((u) => u.alive && !u.state?.dived && (u.cage ? onCageEdge(u, p) : dist(pos(u).x, pos(u).y, p.x, p.y) <= u.r + 4))
     .sort((a, b) => (a.cage ? 1 : 0) - (b.cage ? 1 : 0) || a.r - b.r)[0] || null;
   const statusOf = (id) => CH.skills[id].status(B, B.player);
   const smokes = () => B.zones.filter((z) => z.type === "smoke");
@@ -902,6 +954,8 @@
       return;
     }
     const table = (rows) => `<div class="nm">${esc(u.name)}</div><table>${rows.map(([a, b]) => `<tr><td class="muted">${a}</td><td>${b}</td></tr>`).join("")}</table>`;
+    const own = u.summon && CH.summonInfo?.(u);
+    if (own) { box.innerHTML = table(own); return; }
     if (u.kind === "giantShroom") {
       const sk = CH.skills.bloom;
       box.innerHTML = table([["生命", `${u.hp} / ${u.maxHp}`], ["防禦", u.df], ["剩餘", `${u.turnsLeft} 回合`],
@@ -1125,6 +1179,62 @@
     for (let y = 40; y < H; y += 120) for (const x of [W * 0.4, W * 0.5, W * 0.6]) { g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x + 14, y); g.lineTo(x, y + 14); g.lineTo(x - 14, y); g.closePath(); g.fill(); }
     return c;
   })() : null;
+  // 午夜郵局（房間 terrain: "post"）：深藍色的地磚，地上散著寄錯時間的信
+  const POST = ROOMDEF.terrain === "post";
+  const postBg = POST ? (() => {
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#26304f"; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 64) for (let x = 0; x < W; x += 64) { g.fillStyle = (x / 64 + y / 64) % 2 ? "#2b3658" : "#232c48"; g.fillRect(x, y, 64, 64); }
+    let seed = 7; const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
+    for (let i = 0; i < 26; i++) {
+      const x = rnd() * W, y = rnd() * H, a = (rnd() - 0.5) * 1.2;
+      g.save(); g.translate(x, y); g.rotate(a);
+      g.fillStyle = "rgba(240,232,210,.55)"; g.fillRect(-16, -11, 32, 22);
+      g.strokeStyle = "rgba(160,140,110,.6)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-16, -11); g.lineTo(0, 2); g.lineTo(16, -11); g.stroke();
+      g.restore();
+    }
+    return c;
+  })() : null;
+  // 蒙德里安的理想國（房間 terrain: "canvas"）：白色畫布、黑色粗線、紅黃藍色塊
+  const CANVAS = ROOMDEF.terrain === "canvas";
+  const canvasBg = CANVAS ? (() => {
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#1d1d1f"; g.fillRect(0, 0, W, H);
+    const xs = [0, 210, 470, 520, 860, 1040, W], ys = [0, 150, 330, 380, 560, H];
+    const col = ["#f4f2ea", "#f4f2ea", "#f4f2ea", "#e8262c", "#f4f2ea", "#1a3ae8", "#f4f2ea", "#f0d800", "#f4f2ea"];
+    let n = 0;
+    for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) {
+      const L = 9, x = xs[i] + L, y = ys[j] + L, w = xs[i + 1] - xs[i] - L * 2, h = ys[j + 1] - ys[j] - L * 2;
+      g.fillStyle = col[(i * 7 + j * 5 + n++) % col.length]; g.fillRect(x, y, w, h);
+    }
+    // 中間的戰鬥區淡一點，看得清楚紅框
+    g.fillStyle = "rgba(244,242,234,.55)"; g.fillRect(0, 0, W, H);
+    return c;
+  })() : null;
+  // 理性倉庫（房間 terrain: "warehouse"）：水泥地＋黃色安全線；貨架（room.obstacles）畫在背景上，不能站上去、可以當掩體
+  const WARE = ROOMDEF.terrain === "warehouse";
+  const wareBg = WARE ? (() => {
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    g.fillStyle = "#d8d4cc"; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(0,0,0,.06)"; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 80) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 80) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    g.fillStyle = "#e8c23a"; g.fillRect(0, H - 40, W, 8); g.fillRect(0, 32, W, 8);
+    const cols = ["#c0392b", "#2f7fa8", "#3a9a4a", "#e8781e", "#7a3fb0", "#d9a441"];
+    for (const o of ROOMDEF.obstacles || []) {
+      g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(o.x + 6, o.y + 8, o.w, o.h);
+      g.fillStyle = "#7a7f88"; g.fillRect(o.x, o.y, o.w, o.h); g.strokeStyle = "#3a3f48"; g.lineWidth = 3; g.strokeRect(o.x, o.y, o.w, o.h);
+      const horiz = o.w > o.h, n = Math.floor((horiz ? o.w : o.h) / 30);
+      for (let i = 0; i < n; i++) {
+        g.fillStyle = cols[(i * 5 + o.x) % cols.length];
+        if (horiz) g.fillRect(o.x + 6 + i * 30, o.y + 8, 20, o.h - 16); else g.fillRect(o.x + 8, o.y + 6 + i * 30, o.w - 16, 20);
+      }
+    }
+    return c;
+  })() : null;
   // 海上（房間 terrain: "sea"）：海面＋船（玩家只能站在船上 room.walk）
   const SEA = ROOMDEF.terrain === "sea";
   function drawSea(now) {
@@ -1172,9 +1282,16 @@
     ctx.fillStyle = "rgba(220,210,180,.5)"; ctx.fillRect(w.x + w.w - 90, w.y + 14, 70, 40);
     ctx.restore();
   }
+  // 其他時空的地形（js/enemy-art-c.js 的 R.Terrains）：bg(g, W, H, ROOMDEF) 畫一次；draw(ctx, now, W, H) 每一格都畫（會動的部分）
+  const TER = R.Terrains?.[ROOMDEF.terrain] || null;
+  const terBg = TER?.bg ? (() => { const c = document.createElement("canvas"); c.width = W; c.height = H; TER.bg(c.getContext("2d"), W, H, ROOMDEF); return c; })() : null;
   function drawGrid() {
+    if (TER) { if (terBg) ctx.drawImage(terBg, 0, 0); TER.draw?.(ctx, performance.now(), W, H, ROOMDEF); return; }
     if (SEA) return drawSea(performance.now());
     if (HOTEL) { ctx.drawImage(hotelBg, 0, 0); return; }
+    if (POST) { ctx.drawImage(postBg, 0, 0); return; }
+    if (WARE) { ctx.drawImage(wareBg, 0, 0); return; }
+    if (CANVAS) { ctx.drawImage(canvasBg, 0, 0); return; }
     if (GRASS) {
       ctx.drawImage(grassBg, 0, 0);
       ctx.strokeStyle = "rgba(255,255,255,.12)"; ctx.lineWidth = 1;
@@ -1281,6 +1398,20 @@
       } else if (z.type === "taijiField") {
         ctx.globalAlpha = 0.55; drawTaiji(z.x, z.y, z.r, now / 1500); ctx.globalAlpha = 1;
         label(`難神降禍・${z.turnsLeft <= 0 ? "下次輪到你時停止" : `還有 ${z.turnsLeft} 回合`}`, z.x, z.y - z.r - 14, "#7a3fb0", 11);
+      } else if (z.type === "fire") {
+        // 瑪莉卡的烈火之舞：地上一團搖曳的火焰
+        const pul = 0.5 + 0.5 * Math.sin(now / 160 + z.x);
+        const g = ctx.createRadialGradient(z.x, z.y, 0, z.x, z.y, z.r);
+        g.addColorStop(0, `rgba(255,200,80,${0.42 + 0.12 * pul})`); g.addColorStop(0.6, `rgba(240,100,30,${0.3 + 0.1 * pul})`); g.addColorStop(1, "rgba(200,40,20,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+        const n = Math.max(4, Math.round(z.r / 14));
+        for (let i = 0; i < n; i++) {   // 一小簇一小簇往上竄的火舌
+          const a = (i / n) * Math.PI * 2 + i * 0.7, rr = z.r * (0.25 + 0.5 * ((i * 53) % 10) / 10), fx0 = z.x + Math.cos(a) * rr, fy0 = z.y + Math.sin(a) * rr * 0.7;
+          const h = 14 + 10 * Math.sin(now / 120 + i * 1.9);
+          ctx.fillStyle = i % 2 ? "rgba(255,140,30,.85)" : "rgba(255,210,90,.85)";
+          ctx.beginPath(); ctx.moveTo(fx0 - 6, fy0); ctx.quadraticCurveTo(fx0 - 4, fy0 - h * 0.6, fx0 + Math.sin(now / 90 + i) * 3, fy0 - h); ctx.quadraticCurveTo(fx0 + 4, fy0 - h * 0.6, fx0 + 6, fy0); ctx.closePath(); ctx.fill();
+        }
+        ctx.globalAlpha = 0.7; label(z.turnsLeft <= 0 ? "火焰・下次輪到你時熄滅" : `火焰・還有 ${z.turnsLeft} 回合`, z.x, z.y + z.r + 10, "#c8501a", 10); ctx.globalAlpha = 1;
       } else if (z.type === "gearField") {
         const rot = now / 900;
         circle(z.x, z.y, z.r, "rgba(47,111,214,.85)", "rgba(80,150,240,.07)", 4);
@@ -1303,6 +1434,14 @@
   // ---------- 敵人預告 ----------
   function drawCharges(now) {
     for (const c of B.charges) {
+      if (c.kind === "dive") {
+        // 深海狂潛：地上一圈圈的漣漪（不畫出牠在哪裡）
+        const k = (now / 900) % 1;
+        circle(c.x, c.y, c.radius, "#1a5a8a", `rgba(40,110,170,${0.12 + Math.abs(Math.sin(now / 400)) * 0.08})`, 3, [12, 8]);
+        for (const q of [k, (k + 0.5) % 1]) circle(c.x, c.y, c.radius * q, `rgba(40,110,170,${0.5 * (1 - q)})`, null, 2);
+        label("深海狂潛・下次輪到大白鯊時從這裡衝出", c.x, c.y - c.radius - 14, "#1a5a8a");
+        continue;
+      }
       if (c.kind === "redemption") {
         // 無序者的救贖：一圈圈的紅色同心圓（空隙是安全區）
         const pulse = 0.12 + Math.abs(Math.sin(now / 380)) * 0.1;
@@ -2251,7 +2390,9 @@
   }
 
   function drawUnit(u, now) {
+    if (u.state?.dived) return;                 // 潛到地底：看不到
     if (u.kind === "giantShroom") return drawGiant(u, now);
+    if (u.summon && CH.drawSummon && u.alive) { ctx.save(); const done = CH.drawSummon(ctx, u, now, { pos, label, circle, line }); ctx.restore(); if (done) return; }   // 角色自己畫的召喚物（例如蒼幽的魚群）
     if (u.team === "enemy" && !u.demon && !u.cage) drawDebuffs(u, pos(u));
     if (u.demon) return drawDemon(u, now);
     if (u.kind === "mentor") return drawMentor(u, now);
@@ -2266,10 +2407,12 @@
     const off = lungeOffset(u, now);
     const leap = leapProgress(u, now);
     if (leap) {
-      const g = pos(u), h = Math.sin(leap.k * Math.PI);
+      const g = pos(u), kk = leap.k;
+      // 高高躍起（有 height 的）：快速升空、在空中停一下、猛然下砸
+      const h = leap.f.height ? (kk < 0.65 ? Math.sin((kk / 0.65) * Math.PI / 2) : 1 - Math.pow((kk - 0.65) / 0.35, 2)) : Math.sin(kk * Math.PI);
       ctx.fillStyle = `rgba(29,29,31,${0.18 - h * 0.08})`;
       ctx.beginPath(); ctx.ellipse(g.x, g.y + C.body * 0.8, C.body * (1 - h * 0.35), C.body * 0.35 * (1 - h * 0.35), 0, 0, Math.PI * 2); ctx.fill();
-      off.y -= h * 90;
+      off.y -= h * (leap.f.height || 90);
     }
     const p = { x: pos(u).x + off.x, y: pos(u).y + off.y }, BD = C.body;
     const isCur = B.current === u && B.phase !== "over";
@@ -2312,6 +2455,11 @@
       // 護盾：外面一圈淡藍色的框
       if (u.shield > 0 && u.alive) { roundRect(p.x - S - 6, p.y - S - 6, (S + 6) * 2, (S + 6) * 2, 12); ctx.strokeStyle = `rgba(47,143,214,${0.55 + 0.25 * Math.sin(now / 250)})`; ctx.lineWidth = 3; ctx.stroke(); }
 
+    } else if (R.EnemyArt?.[u.kind]) {
+      // 旅館的扮演者、郵局的情緒煙霧…（js/enemy-art.js）
+      R.EnemyArt[u.kind](ctx, u, p, now);
+      const top = p.y - u.r - (R.EnemyArt[u.kind].top || 16), col = u.def.color || "#7a3fb0";
+      if (u.alive && !B.realtime) for (let i = 0; i < u.maxAp; i++) circle(p.x + (i - (u.maxAp - 1) / 2) * 10, top, 3.5, col, i < u.ap && isCur ? col : "#fffdf8", 1.5);
     } else if (u.kind === "ghostActor") {
       drawGhostActor(u, p, now);
       const top = p.y - u.r - 22;
@@ -2328,13 +2476,14 @@
       if (u.alive && !B.realtime) for (let i = 0; i < u.maxAp; i++) circle(p.x + (i - (u.maxAp - 1) / 2) * 10, top, 3.5, "#6b6f86", i < u.ap && isCur ? "#6b6f86" : "#fffdf8", 1.5);
     } else {
       const squish = 1 + Math.sin(now / 260 + u.x) * 0.04;
+      const SC = u.def.color || "#2bb24c";      // 史萊姆的變體（例如彈跳噩夢）可以換顏色
       ctx.save(); ctx.translate(p.x, p.y); ctx.scale(1 / squish, squish);
-      circle(0, 0, BD, "#2bb24c", "rgba(43,178,76,.12)", 3);
+      circle(0, 0, BD, SC, u.def.fill || "rgba(43,178,76,.12)", 3);
       ctx.restore();
       circle(p.x - 7 + Math.cos(u.facing) * 4, p.y - 3 + Math.sin(u.facing) * 4, 2.6, null, "#1d1d1f");
       circle(p.x + 7 + Math.cos(u.facing) * 4, p.y - 3 + Math.sin(u.facing) * 4, 2.6, null, "#1d1d1f");
       if (u.alive) for (let i = 0; i < u.maxAp; i++) {
-        circle(p.x + (i - (u.maxAp - 1) / 2) * 10, p.y - BD - 10, 3.5, "#2bb24c", i < u.ap && isCur ? "#2bb24c" : "#fffdf8", 1.5);
+        circle(p.x + (i - (u.maxAp - 1) / 2) * 10, p.y - BD - 10, 3.5, SC, i < u.ap && isCur ? SC : "#fffdf8", 1.5);
       }
       if (u.alive && u.state.slamCd > 0) label(`壓制 CD ${u.state.slamCd}`, p.x + BD + 34, p.y - BD + 2, "#8a8478", 11);
     }
@@ -2375,6 +2524,82 @@
       switch (f.k) {
         case "ring": circle(f.x, f.y, f.r * (0.4 + k * 0.6), f.color, null, 4); break;
         case "shape": drawShape(f.shape, f.color, f.color, 0.35); break;
+        case "char": ctx.save(); CH.drawFx?.(ctx, f.ev, k, now, { circle, line, label }); ctx.restore(); break;
+        case "lash": {   // 蛇腹劍：劍柄在角色手上，劍刃一節一節沿著弧線甩出去
+          const per = 1 / f.hits, i = Math.min(f.hits - 1, Math.floor(k / per)), q = (k - i * per) / per;
+          const side = i % 2 ? -1 : 1, sweep = f.half * 2 + 0.3;
+          const a = f.ang + side * (-f.half - 0.15 + sweep * Math.min(1, q * 1.25));
+          const reach = f.radius * (0.55 + 0.45 * Math.sin(Math.min(1, q * 1.4) * Math.PI / 2));
+          const segs = 11, pts = [];
+          for (let j = 0; j <= segs; j++) {
+            const r = (j / segs) * reach, lag = (j / segs) * (j / segs) * side * 0.5 * (1 - q);   // 尖端比較慢，拖出弧度
+            pts.push([f.x + Math.cos(a - lag) * r, f.y + Math.sin(a - lag) * r]);
+          }
+          ctx.globalAlpha = Math.min(1, 1.6 - k);
+          if (f.fire) { ctx.strokeStyle = "rgba(255,120,30,.45)"; ctx.lineWidth = 16; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+          ctx.strokeStyle = "#3a3a42"; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();   // 串起劍節的鋼索
+          for (let j = 1; j <= segs; j++) {   // 一節一節的劍刃（菱形）
+            const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], aa = Math.atan2(y1 - y0, x1 - x0), L = Math.hypot(x1 - x0, y1 - y0);
+            ctx.save(); ctx.translate(x0, y0); ctx.rotate(aa);
+            ctx.fillStyle = f.fire ? (j % 2 ? "#ffb347" : "#ff6a1a") : "#d9dde3"; ctx.strokeStyle = f.fire ? "#a8320f" : "#5a5f6a"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.5, -5); ctx.lineTo(L * 0.95, 0); ctx.lineTo(L * 0.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+          }
+          // 掃過的殘光
+          ctx.globalAlpha = 0.35 * (1 - q); ctx.strokeStyle = f.fire ? "#ff7a1e" : "#9aa3b0"; ctx.lineWidth = 6;
+          ctx.beginPath(); ctx.arc(f.x, f.y, reach * 0.92, Math.min(a, f.ang + side * (-f.half - 0.15)), Math.max(a, f.ang + side * (-f.half - 0.15))); ctx.stroke();
+          if (f.circle) { ctx.globalAlpha = 0.25 * (1 - k); circle(f.circle.x, f.circle.y, f.circle.radius, f.fire ? "#e8781e" : "#8a8478", f.fire ? "rgba(255,120,30,.12)" : "rgba(80,80,90,.06)", 3, [8, 6]); }
+          break;
+        }
+        case "grab": {   // 抓取：劍刃伸長出去，再收回來
+          const out = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55, x = f.from.x + (f.to.x - f.from.x) * out, y = f.from.y + (f.to.y - f.from.y) * out;
+          const L = Math.hypot(x - f.from.x, y - f.from.y), aa = Math.atan2(f.to.y - f.from.y, f.to.x - f.from.x), n = Math.max(2, Math.round(L / 22));
+          ctx.globalAlpha = 1;
+          line(f.from.x, f.from.y, x, y, "#3a3a42", 2);
+          for (let j = 0; j < n; j++) {
+            const r0 = (j / n) * L, r1 = ((j + 1) / n) * L;
+            ctx.save(); ctx.translate(f.from.x + Math.cos(aa) * r0, f.from.y + Math.sin(aa) * r0); ctx.rotate(aa + Math.sin(j * 1.7 + now / 60) * 0.08);
+            ctx.fillStyle = f.fire ? "#ff8a2a" : "#d9dde3"; ctx.strokeStyle = f.fire ? "#a8320f" : "#5a5f6a"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo((r1 - r0) * 0.5, -5); ctx.lineTo(r1 - r0, 0); ctx.lineTo((r1 - r0) * 0.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+          }
+          // 勾爪狀的劍尖
+          ctx.save(); ctx.translate(x, y); ctx.rotate(aa); ctx.fillStyle = f.fire ? "#ff6a1a" : "#c9ced6"; ctx.strokeStyle = "#3a3a42"; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-4, -9); ctx.lineTo(0, 0); ctx.lineTo(-4, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+          break;
+        }
+        case "suction": {   // 吸入：從四周往中心捲的藍色氣流，被吸的敵人身上拉出線
+          const n = 26;
+          for (let i = 0; i < n; i++) {
+            const ph = ((now / 900) + i / n) % 1, a = (i / n) * Math.PI * 2 + ph * 2.2, rr2 = f.r * (1.5 - ph * 1.1);
+            ctx.globalAlpha = (1 - k * 0.5) * Math.sin(ph * Math.PI) * 0.8;
+            ctx.strokeStyle = "#4a90f0"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(f.x, f.y, rr2, a, a + 0.35); ctx.stroke();
+          }
+          ctx.globalAlpha = 0.6 * (1 - k * 0.5);
+          for (const e of f.units || []) if (e.alive) line(pos(e).x, pos(e).y, f.x + (pos(e).x - f.x) * 0.55, f.y + (pos(e).y - f.y) * 0.55, "#7fb4ff", 3, [10, 6]);
+          break;
+        }
+        case "blueQuake": {   // 下砸：藍色震盪波＋地面裂痕＋齒輪狀的衝擊環
+          const e1 = 1 - Math.pow(1 - k, 3);
+          ctx.globalAlpha = Math.max(0, 0.55 - k * 0.8); ctx.fillStyle = "#8ec5ff"; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * Math.min(1, k * 5), 0, Math.PI * 2); ctx.fill();
+          for (let i = 0; i < 3; i++) {
+            const q = Math.max(0, e1 - i * 0.15);
+            if (q <= 0) continue;
+            ctx.globalAlpha = (1 - q) * 0.95; ctx.strokeStyle = i === 1 ? "#ffffff" : "#2f6fd6"; ctx.lineWidth = 10 - i * 3;
+            ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 1.15 * q, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#2f6fd6"; ctx.lineWidth = 3;
+          for (let i = 0; i < 14; i++) {
+            const a = (i / 14) * Math.PI * 2 + 0.2, L = f.r * (0.45 + 0.35 * ((i * 37) % 10) / 10) * Math.min(1, k * 4);
+            ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(a) * L * 0.5, f.y + Math.sin(a) * L * 0.5 + 8); ctx.lineTo(f.x + Math.cos(a) * L, f.y + Math.sin(a) * L); ctx.stroke();
+          }
+          ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(k * 1.5); ctx.globalAlpha = (1 - k) * 0.8; ctx.strokeStyle = "#5aa0ff"; ctx.lineWidth = 6;
+          const R1 = f.r * 0.35 * (0.6 + e1);
+          for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(a) * R1, Math.sin(a) * R1); ctx.lineTo(Math.cos(a) * (R1 + 18), Math.sin(a) * (R1 + 18)); ctx.stroke(); }
+          ctx.restore();
+          break;
+        }
         case "taiji": {   // 觀知命的陰陽陣：旋轉的太極圖
           ctx.globalAlpha = k < 0.7 ? 0.8 : (1 - k) / 0.3 * 0.8;
           drawTaiji(f.x, f.y, f.r * Math.min(1, k * 4), k * Math.PI * 2);
@@ -2394,6 +2619,12 @@
         case "talisman": {   // 觀知命的符咒：黃紙飛過去
           const kk = Math.min(1, k * 1.6), x = f.from.x + (f.to.x - f.from.x) * kk, y = f.from.y + (f.to.y - f.from.y) * kk;
           ctx.globalAlpha = 1;
+          if (f.star) {   // 宇宙秘密 42 號的小星星
+            ctx.save(); ctx.translate(x, y); ctx.rotate(now / 80); ctx.fillStyle = "#f2d45a"; ctx.strokeStyle = "#a8781a"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 4 : 10, a = -Math.PI / 2 + (i * Math.PI) / 5; i ? ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r) : ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+            break;
+          }
           ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(f.to.y - f.from.y, f.to.x - f.from.x) + Math.PI / 2);
           ctx.fillStyle = "#f6d55c"; ctx.fillRect(-7, -11, 14, 22); ctx.strokeStyle = "#c0392b"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(0, 7); ctx.moveTo(-4, -2); ctx.lineTo(4, -2); ctx.stroke();
           ctx.restore();
@@ -2479,6 +2710,95 @@
           ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.ang);
           ctx.fillStyle = "rgba(232,38,44,.55)"; ctx.fillRect(0, -w / 2, f.length, w);
           ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(0, -w / 6, f.length, w / 3);
+          ctx.restore();
+          break;
+        }
+        case "bigSlash": {     // 鬼一文字：沿著紅框一閃而過的刀光
+          const c = Math.cos(f.ang), s2 = Math.sin(f.ang), L = f.length * Math.min(1, k * 4);
+          ctx.save(); ctx.globalAlpha = k < 0.5 ? 1 : (1 - k) * 2;
+          ctx.translate(f.x, f.y); ctx.rotate(f.ang);
+          const g = ctx.createLinearGradient(0, 0, L, 0); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.7, "rgba(255,255,255,.95)"); g.addColorStop(1, "rgba(255,80,60,.9)");
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -6); ctx.quadraticCurveTo(L * 0.5, -f.width * 0.45, L, 0); ctx.quadraticCurveTo(L * 0.5, -f.width * 0.25, 0, 6); ctx.fill();
+          ctx.strokeStyle = "rgba(200,30,30,.8)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(L * 0.5, -f.width * 0.35, L, 0); ctx.stroke();
+          ctx.restore();
+          if (k < 0.6) { ctx.save(); ctx.globalAlpha = 1 - k / 0.6; ctx.font = "900 44px 'Noto Serif TC', serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 8; ctx.strokeStyle = "#fff"; const tx = f.x + c * f.length * 0.5, ty = f.y + s2 * f.length * 0.5 - 40; ctx.strokeText("鬼一文字", tx, ty); ctx.fillStyle = "#b81a20"; ctx.fillText("鬼一文字", tx, ty); ctx.restore(); }
+          break;
+        }
+        case "fireball": {     // 火球（藍色＝死神的鬼火）：從起點飛到終點，拖著尾巴
+          if (k < 0) break;
+          const ang = Math.atan2(f.ty - f.y, f.tx - f.x), x = f.x + (f.tx - f.x) * k, y = f.y + (f.ty - f.y) * k;
+          ctx.save(); if (f.blue) { ctx.shadowColor = "#5ab4ff"; ctx.shadowBlur = 14; }
+          for (let i = 0; i < 6; i++) { const q = i / 6, xx = x - Math.cos(ang) * q * 60, yy = y - Math.sin(ang) * q * 60; ctx.fillStyle = f.blue ? `rgba(${60 + 120 * (1 - q)},${150 + 80 * (1 - q)},255,${(1 - q) * 0.9})` : `rgba(255,${100 + 120 * (1 - q)},30,${(1 - q) * (1 - k * 0.5)})`; ctx.beginPath(); ctx.arc(xx, yy, 16 * (1 - q * 0.6), 0, Math.PI * 2); ctx.fill(); }
+          ctx.restore();
+          break;
+        }
+        case "fireBurst": {
+          if (k < 0) break;
+          const a = 1 - k;
+          ctx.save(); if (f.blue) { ctx.shadowColor = "#5ab4ff"; ctx.shadowBlur = 16; }
+          for (let i = 0; i < 10; i++) { const an = (i / 10) * Math.PI * 2 + k, rr = f.r * (0.2 + 0.8 * k); ctx.fillStyle = f.blue ? `rgba(${50 + (i % 3) * 40},${140 + (i % 3) * 40},255,${a * 0.8})` : `rgba(255,${90 + (i % 3) * 50},30,${a * 0.8})`; ctx.beginPath(); ctx.arc(f.x + Math.cos(an) * rr * 0.6, f.y + Math.sin(an) * rr * 0.6 - k * 30, 18 * a + 6, 0, Math.PI * 2); ctx.fill(); }
+          ctx.fillStyle = f.blue ? `rgba(210,240,255,${a * 0.6})` : `rgba(255,220,120,${a * 0.6})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 0.5 * (1 - k * 0.5), 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+          break;
+        }
+        case "splash": {
+          ctx.save(); ctx.globalAlpha = 1 - k;
+          ctx.strokeStyle = "#2a6aa8"; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (0.4 + k), f.r * (0.25 + k * 0.6), 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = "#8a6a4a"; for (let i = 0; i < 8; i++) { const an = (i / 8) * Math.PI * 2; ctx.fillRect(f.x + Math.cos(an) * f.r * k * 1.1 - 5, f.y + Math.sin(an) * f.r * k * 0.8 - 5 - Math.sin(k * Math.PI) * 30, 10, 10); }
+          ctx.restore();
+          break;
+        }
+        case "bigText": {   // 畫面中央的大字（例如死神的警告）
+          if (f.style === "warn") {
+            // 警告條：黑紅斜紋的長條＋閃爍的警告文字
+            const a = k < 0.1 ? k / 0.1 : k > 0.85 ? (1 - k) / 0.15 : 1, y0 = H * 0.66, bh = 84, open = Math.min(1, k / 0.12);
+            ctx.save(); ctx.globalAlpha = a;
+            ctx.fillStyle = "rgba(20,0,0,.88)"; ctx.fillRect(0, y0 - (bh / 2) * open, W, bh * open);
+            ctx.beginPath(); ctx.rect(0, y0 - bh / 2, W, 12); ctx.rect(0, y0 + bh / 2 - 12, W, 12); ctx.clip();
+            const off = (now / 20) % 40;
+            for (let x = -40 + off; x < W + 40; x += 40) { ctx.fillStyle = "#e8262c"; ctx.beginPath(); ctx.moveTo(x, y0 - bh / 2); ctx.lineTo(x + 20, y0 - bh / 2); ctx.lineTo(x + 8, y0 + bh / 2); ctx.lineTo(x - 12, y0 + bh / 2); ctx.closePath(); ctx.fill(); }
+            ctx.restore();
+            ctx.save(); ctx.globalAlpha = a * (0.75 + 0.25 * Math.sin(now / 70));
+            ctx.font = "900 38px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "#ff4a4a"; ctx.fillText(`⚠ ${f.text} ⚠`, W / 2, y0 + 2);
+            ctx.restore();
+            break;
+          }
+          const a = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1, sc = 1 + 0.08 * Math.sin(k * 30);
+          ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.7); ctx.scale(sc, sc);
+          ctx.font = "900 46px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.lineWidth = 10; ctx.strokeStyle = "rgba(20,0,0,.85)"; ctx.strokeText(f.text, 0, 0); ctx.fillStyle = f.color; ctx.fillText(f.text, 0, 0);
+          ctx.restore();
+          break;
+        }
+        case "ink": {
+          const g = Math.min(1, k * 4), a = k < 0.7 ? 1 : (1 - k) / 0.3;
+          ctx.save(); ctx.globalAlpha = 0.9 * a; ctx.fillStyle = "#050507"; ctx.beginPath();
+          for (let i = 0; i < 9; i++) { const an = (i / 9) * Math.PI * 2 + i, rr = f.r * g * (0.55 + 0.35 * ((i * 7) % 3) / 2); ctx.moveTo(f.x + Math.cos(an) * rr + 16, f.y + Math.sin(an) * rr); ctx.arc(f.x + Math.cos(an) * rr, f.y + Math.sin(an) * rr, 16 * g, 0, Math.PI * 2); }
+          ctx.arc(f.x, f.y, f.r * 0.6 * g, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+          break;
+        }
+        case "gum": {
+          const a = k < 0.8 ? 1 : (1 - k) * 5;
+          ctx.save(); ctx.globalAlpha = a;
+          ctx.fillStyle = "rgba(244,140,190,.85)"; ctx.beginPath();
+          for (let i = 0; i < 7; i++) { const an = (i / 7) * Math.PI * 2, rr = 26 + (i % 3) * 6; ctx.moveTo(f.x + Math.cos(an) * rr + 12, f.y + Math.sin(an) * rr * 0.6); ctx.arc(f.x + Math.cos(an) * rr, f.y + Math.sin(an) * rr * 0.6, 12, 0, Math.PI * 2); }
+          ctx.arc(f.x, f.y, 24, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(f.x - 8, f.y - 6, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+          break;
+        }
+        case "words": {    // 噴出來的文字：沿著攻擊方向飛出去
+          const L = f.length * Math.min(1, k * 1.6), x = f.x + Math.cos(f.ang) * L, y = f.y + Math.sin(f.ang) * L;
+          ctx.save(); ctx.globalAlpha = k < 0.75 ? 1 : (1 - k) * 4;
+          ctx.font = `900 ${Math.round(20 + 6 * Math.sin(k * Math.PI))}px 'Noto Sans TC', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.lineWidth = 5; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeText(f.text, x, y); ctx.fillStyle = f.color; ctx.fillText(f.text, x, y);
+          ctx.restore();
+          break;
+        }
+        case "wordRing": { // 圓形攻擊：文字往四周散開
+          ctx.save(); ctx.globalAlpha = 1 - k; ctx.font = "900 16px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + k, rr = f.r * (0.3 + 0.7 * k); ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeText(f.text, f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr); }
           ctx.restore();
           break;
         }
@@ -2702,6 +3022,14 @@
       drawPlanning();
       drawThreat(now);
       [...B.units].sort((a, b) => a.alive - b.alive).forEach((u) => drawUnit(u, now));
+      // 死神的收割目標：紅色的瞄準圈
+      for (const e of B.units) {
+        const m = e.alive && e.state?.mark;
+        if (!m || !m.alive) continue;
+        const p = pos(m), k = (now / 600) % 1;
+        circle(p.x, p.y, (m.r || 22) + 14 + k * 8, `rgba(198,40,40,${0.9 - k * 0.6})`, null, 3, [6, 5]);
+        label("☠ 收割目標", p.x, p.y + (m.r || 22) + 34, "#c62828", 12);
+      }
       drawBushes(now, true);
       for (const u of B.units) if (inBush(u) && !u.def.bigBar) { const p = pos(u); label("草叢", p.x, p.y - (u.team === "player" ? 44 : u.r + 22), "#2e6b1e", 11); }
       drawProjectiles();
@@ -2715,6 +3043,8 @@
         ctx.restore();
         if (disc.back) line(disc.x, disc.y, pos(B.player).x, pos(B.player).y, "rgba(90,96,112,.35)", 2, [4, 6]);
       }
+      // 角色場上的東西（例如蒼幽的泡泡、幽靈魚、海馬先生）
+      if (CH.drawBattle) { ctx.save(); CH.drawBattle(ctx, now, B, { circle, line, label, pos }); ctx.restore(); }
       drawFx(now);
       drawThreatLabel(now);
       const key = `${mode}|${mouse.in}|${B.phase}|${B.player.ap}|${mouse.in && unitAt(mouse)?.id}`;
@@ -2745,7 +3075,7 @@
   R.getBattle = () => B;   // 除錯用：在 Console 輸入 RPG.getBattle()
   document.title = `${ROOMDEF.name} · 戰鬥測試`;
   $("#roomName").textContent = ROOMDEF.name;
-  if (ROOMDEF.help) $("#roomHelp").innerHTML = ROOMDEF.help;
+  if (ROOMDEF.help && $("#roomHelp")) $("#roomHelp").innerHTML = ROOMDEF.help;
   newBattle();
   requestAnimationFrame(frame);
 })();

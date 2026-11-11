@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261112021356" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -46,8 +46,10 @@
     { id: "bartender", label: "酒保 桑恩", at: { x: 930, y: 282 }, box: { x: 880, y: 100, w: 100, h: 140 } },
     { id: "phone", label: "懸掛電話", at: { x: 340, y: 150 }, box: { x: 306, y: 18, w: 68, h: 86 } },
     { id: "board", label: "時空委託欄", at: { x: 535, y: 150 }, box: { x: 430, y: 12, w: 210, h: 88 } },
+    { id: "radio", label: "收音機", at: { x: 1226, y: 302 }, box: { x: 1196, y: 150, w: 62, h: 56 } },
     { id: "rack", label: "適格者名牌架", at: { x: 706, y: 182 }, box: { x: 660, y: 70, w: 92, h: 82 } },
     { id: "telescope", label: "天文望遠鏡", at: { x: 165, y: 236 }, box: { x: 120, y: 120, w: 100, h: 96 } },
+    { id: "bestiary", label: "魔物圖鑑", at: { x: 930, y: 590 }, box: { x: 890, y: 440, w: 80, h: 64 } },
     { id: "door", label: "出入口（前往時空）", at: { x: 640, y: 662 }, box: { x: 596, y: 684, w: 88, h: 36 } },
   ];
 
@@ -224,9 +226,9 @@
     // 適格者名牌架（靠牆的木架，掛著每位適格者的名牌）
     rr(RACK.x, RACK.y - 40, RACK.w, RACK.h + 40, 5); ctx.fillStyle = "#6e4527"; ctx.fill();
     ctx.fillStyle = "#3e2716"; ctx.fillRect(RACK.x + 6, RACK.y - 32, RACK.w - 12, 3); ctx.fillRect(RACK.x + 6, RACK.y - 6, RACK.w - 12, 3);
-    const chars = Object.values(R.CHARACTERS).filter((c) => !c.hidden && P.owns(c.id));
+    const chars = featured().map((id) => R.CHARACTERS[id]);            // 只掛玩家精選的三位
     chars.forEach((c, i) => {
-      const px = RACK.x + 10 + (i % 3) * 21, py = RACK.y - 28 + Math.floor(i / 3) * 26;
+      const px = RACK.x + 10 + i * 21, py = RACK.y - 22;
       rr(px, py, 17, 20, 3); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = c.color; ctx.stroke();
       text(c.letter || c.name[0], px + 8.5, py + 10.5, c.color, 10, 900);
     });
@@ -253,6 +255,79 @@
     ctx.restore();
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = "#3e2716"; ctx.fill();
   }
+  // ===== 名牌架：玩家精選三位掛出來（存在 rpg.rackShow；沒選過就掛前三位） =====
+  const RACK_MAX = 3;
+  function featured() {
+    const owned = Object.values(R.CHARACTERS).filter((c) => !c.hidden && P.owns(c.id)).map((c) => c.id);
+    let pick = null;
+    try { pick = JSON.parse(store.get("rpg.rackShow") || "null"); } catch (e) { pick = null; }
+    pick = Array.isArray(pick) ? pick.filter((id) => owned.includes(id)).slice(0, RACK_MAX) : null;
+    return pick && pick.length ? pick : owned.slice(0, RACK_MAX);
+  }
+  let rackMsg = "";
+
+  // ===== 吧檯上的收音機：平常播爵士樂，可以貼 YouTube 連結換成想聽的音樂 =====
+  const RADIO = { x: 1226, y: 178 };
+  const radio = (() => { try { return JSON.parse(store.get("rpg.radio") || "null") || { on: true, yt: null }; } catch (e) { return { on: true, yt: null }; } })();
+  const saveRadio = () => store.set("rpg.radio", JSON.stringify(radio));
+  const jazz = new Audio("sounds/tavern-jazz.mp3");
+  jazz.loop = true; jazz.volume = 0.35;
+  let radioMsg = "", gestured = false;
+  // 從各種 YouTube 網址取出影片 id（watch?v=、youtu.be/、shorts/、embed/、live/）
+  function ytId(url) {
+    const m = String(url || "").trim().match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/);
+    return m ? m[1] : (/^[\w-]{11}$/.test(String(url || "").trim()) ? String(url).trim() : null);
+  }
+  // YouTube 播放器：右下角的小視窗（YouTube 規定播放器要看得到；可以收起成一條）
+  function ytBox() {
+    let box = document.getElementById("radioYt");
+    if (!box) {
+      box = document.createElement("div"); box.id = "radioYt"; box.className = "radio-yt";
+      box.innerHTML = `<div class="radio-yt-bar"><span>📻 收音機・YouTube</span><button type="button" data-yt="fold" aria-label="收起或展開">▁</button><button type="button" data-yt="off" aria-label="關掉">✕</button></div><div class="radio-yt-frame"></div>`;
+      box.addEventListener("click", (e) => {
+        const k = e.target.closest("[data-yt]")?.dataset.yt;
+        if (k === "fold") box.classList.toggle("folded");
+        if (k === "off") { radio.on = false; saveRadio(); applyRadio(); if (panelId === "radio") renderPanel(); }
+      });
+      document.body.appendChild(box);
+    }
+    return box;
+  }
+  function applyRadio() {
+    const id = radio.on && radio.yt ? ytId(radio.yt) : null;
+    const box = document.getElementById("radioYt");
+    if (id) {
+      jazz.pause();
+      const b = ytBox(), fr = b.querySelector(".radio-yt-frame");
+      if (fr.dataset.id !== id) {
+        fr.dataset.id = id;
+        fr.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&loop=1&playlist=${id}&rel=0" title="收音機（YouTube）" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      }
+      b.classList.remove("hidden");
+      return;
+    }
+    if (box) { box.classList.add("hidden"); const fr = box.querySelector(".radio-yt-frame"); fr.innerHTML = ""; fr.dataset.id = ""; }
+    if (radio.on && gestured) jazz.play().catch(() => {});
+    else jazz.pause();
+  }
+  // 瀏覽器要等玩家先點一下才能放聲音
+  const firstGesture = () => { if (gestured) return; gestured = true; applyRadio(); };
+  window.addEventListener("pointerdown", firstGesture, { once: false });
+  window.addEventListener("keydown", firstGesture, { once: false });
+  function drawRadio(now) {
+    const { x, y } = RADIO, playing = radio.on && (gestured || radio.yt);
+    rr(x - 24, y - 16, 48, 30, 6); ctx.fillStyle = "#8a2d2d"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#3e2716"; ctx.stroke();
+    ctx.fillStyle = "#e8d6b0"; ctx.beginPath(); ctx.arc(x - 9, y - 1, 9, 0, Math.PI * 2); ctx.fill();          // 喇叭
+    ctx.strokeStyle = "#8a6a4a"; ctx.lineWidth = 1; for (let k = 3; k <= 7; k += 2) { ctx.beginPath(); ctx.arc(x - 9, y - 1, k, 0, Math.PI * 2); ctx.stroke(); }
+    rr(x + 3, y - 9, 16, 7, 2); ctx.fillStyle = playing ? "#f2d79a" : "#5a4632"; ctx.fill();                      // 刻度窗
+    ctx.fillStyle = "#3e2716"; ctx.beginPath(); ctx.arc(x + 7, y + 7, 3, 0, Math.PI * 2); ctx.arc(x + 15, y + 7, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#3e2716"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 14, y - 16); ctx.lineTo(x + 22, y - 32); ctx.stroke();   // 天線
+    if (playing) for (let i = 0; i < 3; i++) {
+      const k = ((now / 1600) + i / 3) % 1;
+      ctx.globalAlpha = 1 - k; text(i % 2 ? "♪" : "♫", x - 14 + i * 12 + Math.sin(now / 300 + i) * 4, y - 22 - k * 30, "#f2d79a", 13, 900); ctx.globalAlpha = 1;
+    }
+  }
+
   function drawBar() {
     // 吧檯：深色木頭、檯面亮邊、幾個杯子
     ctx.fillStyle = "#5a3820"; ctx.fillRect(774, WALL, 16, BAR.y - WALL);
@@ -275,6 +350,18 @@
       ctx.restore();
     }
     rr(-58, -58, 116, 116, 22); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  // 桌上的魔物圖鑑
+  function drawBook() {
+    const t = TABLES[2];
+    ctx.save(); ctx.translate(t.x, t.y - 6); ctx.rotate(-0.25);
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(-28, -18, 60, 44);
+    ctx.fillStyle = "#5a2a1a"; rr(-32, -24, 62, 46, 4); ctx.fill();
+    ctx.fillStyle = "#f3e6d0"; ctx.fillRect(-28, -20, 26, 38); ctx.fillRect(0, -20, 26, 38);
+    ctx.fillStyle = "#5a2a1a"; ctx.fillRect(-2, -22, 4, 42);
+    ctx.strokeStyle = "rgba(90,58,34,.5)"; ctx.lineWidth = 1.5; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-24, -12 + i * 8); ctx.lineTo(-6, -12 + i * 8); ctx.moveTo(4, -12 + i * 8); ctx.lineTo(22, -12 + i * 8); ctx.stroke(); }
+    ctx.fillStyle = "#7a3fb0"; ctx.beginPath(); ctx.arc(-15, 10, 5, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
   function drawNpc(now) {
@@ -319,8 +406,10 @@
       drawWalls(now);
       drawTelescope();
       for (const t of TABLES) drawTable(t);
+      drawBook();
       drawNpc(now);
       drawBar();
+      drawRadio(now);
       if (hover && hover !== near) { const b = hover.box; rr(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 8); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(242,215,154,.7)"; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]); }
       if (me.target) { ctx.beginPath(); ctx.arc(me.target.x, me.target.y, 6 + Math.sin(now / 120) * 2, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,250,240,.8)"; ctx.lineWidth = 2; ctx.stroke(); }
       drawMe();
@@ -362,7 +451,7 @@
 
   // ===== 面板 =====
   const panel = $("#tvPanel");
-  let panelId = null, mixState = null, myCode = null, dialed = "";
+  let panelId = null, mixState = null, myCode = null, dialed = "", bxTab = null;
   function open(id) {
     panelId = id; panelOpen = true; keys.clear(); me.target = null;
     panel.classList.remove("hidden");
@@ -409,6 +498,7 @@
             <button type="button" class="ghost" data-act="ask" data-q="who">你是誰？</button>
             <button type="button" class="ghost" data-act="chat">隨便聊聊</button>
             ${meatCount() ? `<button type="button" class="primary" data-act="roast">請桑恩烤魔狼肉（×${meatCount()}）</button>` : ""}
+            ${meatCount("blockFish") ? `<button type="button" class="primary" data-act="roast" data-id="blockFish">請桑恩烤方塊魚（×${meatCount("blockFish")}）</button>` : ""}
           </div>
           <p class="tv-note">時空幣：${P.coins()}（完成委託可以獲得）</p>`;
         return;
@@ -466,8 +556,28 @@
             <small>生命 ${c.stats.hp}・攻擊 ${c.stats.atk}・防禦 ${c.stats.df}・速度 ${c.stats.spd}</small>
           </button>`;
         }).join("")}</div>
+        <div class="rack-show"><b>掛在名牌架上的名牌</b><span class="muted">（最多 ${RACK_MAX} 位，點一下掛上或取下）</span>
+          <div class="rack-chips">${all.filter((c) => P.owns(c.id)).map((c) => { const on = featured().includes(c.id); return `<button type="button" class="rack-chip${on ? " on" : ""}" style="--c:${c.color}" data-act="feature" data-id="${c.id}" aria-pressed="${on}"><span>${esc(c.letter || c.name[0])}</span>${esc(c.name)}</button>`; }).join("")}</div>
+          ${rackMsg ? `<p class="tv-note" style="margin:6px 0 0">${esc(rackMsg)}</p>` : ""}</div>
         ${peekC?.profile ? `<div class="plate-profile" style="--c:${peekC.color}"><b>${esc(peekC.name)}</b>${P.owns(peekC.id) ? "" : '<span class="muted">・尚未觀測到</span>'}<p>${esc(peekC.profile)}</p></div>` : ""}
         <p class="tv-note">冒險中的等級、技能強化與寶物只屬於這輪冒險，冒險結束就重新開始。在戰鬥中的「角色成長」調整。</p>`;
+      return;
+    }
+    if (panelId === "radio") {
+      title.textContent = "收音機";
+      const id = radio.yt ? ytId(radio.yt) : null;
+      const now = !radio.on ? "關掉了" : id ? "YouTube" : "爵士樂（酒館平常放的）";
+      body.innerHTML = `<p class="tv-note" style="margin:0 0 10px">吧檯上的老收音機。平常放爵士樂；貼上 YouTube 連結，就能換成你想聽的音樂。</p>
+        <p style="margin:0 0 12px"><b>正在播放：</b>${now}${!gestured && radio.on && !id ? '<span class="muted">（點一下畫面就會開始播放）</span>' : ""}</p>
+        <div class="tv-row" style="gap:8px;flex-wrap:wrap">
+          <button type="button" class="${radio.on && !id ? "primary" : "ghost"}" data-act="radioJazz">播放爵士樂</button>
+          <button type="button" class="ghost" data-act="radioOff" ${radio.on ? "" : "disabled"}>關掉收音機</button>
+        </div>
+        <label class="radio-url"><span>YouTube 連結</span>
+          <input type="url" id="radioUrl" placeholder="https://www.youtube.com/watch?v=…" value="${esc(radio.yt || "")}" autocomplete="off"></label>
+        <div class="tv-row" style="margin-top:8px"><button type="button" class="primary" data-act="radioYt">播放這個連結</button></div>
+        ${radioMsg ? `<p class="tv-note" style="margin:8px 0 0">${esc(radioMsg)}</p>` : ""}
+        <p class="tv-note">YouTube 的音樂會在右下角的小視窗播放（可以收起）。換到其他頁面（例如出發去時空）時音樂會停。</p>`;
       return;
     }
     if (panelId === "phone") {
@@ -487,6 +597,14 @@
             <p class="status" id="callStatus">輸入 6 位數房號</p>
           </section>
         </div>`;
+      return;
+    }
+    if (panelId === "bestiary") {
+      title.textContent = "魔物圖鑑";
+      const r = R.Bestiary.html(bxTab, esc);
+      bxTab = r.tab;
+      body.innerHTML = r.html;
+      body.querySelectorAll("canvas[data-k]").forEach((cv) => R.Bestiary.thumb(cv));
       return;
     }
     if (panelId === "telescope") {
@@ -577,6 +695,7 @@
           <div class="lic-xp"><i style="width:${pct}%"></i><span>執照經驗 ${L.lxp}${L.next ? ` / ${L.need}（升到 ${L.next}）` : "（最高等級）"}</span></div>
           <p class="tv-note">${adv ? `冒險進行中：已去過 ${adv.cleared.length} 次時空、完成 ${adv.done.length} 張委託。金幣 ${adv.gold}、行囊 ${adv.items.length} 格會帶到下一次出發。` : "每輪冒險從 C 級執照開始。完成委託可以得到執照經驗，執照越高，能前往越危險、報酬越豐厚的時空。"}同一輪冒險完成過的委託不能再接。全員戰敗＝委託失敗，冒險結束。</p>
           ${adv && t.status === "plan" ? `<button type="button" class="ghost small" data-act="endAdv">結束這輪冒險</button>` : ""}
+          <div class="tv-row" style="margin-top:6px;align-items:center;gap:4px"><span class="tv-note" style="margin:0">測試：調整執照</span>${CM.RANKS.map((r) => `<button type="button" class="ghost small" data-act="setRank" data-r="${r}" ${r === rank || t.status !== "plan" ? "disabled" : ""}>${r}</button>`).join("")}</div>
         </div>
       </div>
       <p class="tv-note" style="margin:0 0 10px">接下委託後從<b>出入口</b>出發，就會抵達委託所在的時空；接下的委託全部完成才能回來。同一個時空可以同時接多張委託，彼此衝突的不行。出發前都可以更改。</p>`;
@@ -585,7 +704,9 @@
     if (!boardWorld || !CM.WORLDS[boardWorld]) {
       const tilt = [-1.6, 1.1, -0.8, 1.4, -1.2];
       html += `<div class="tv-row" style="margin:0 0 6px;align-items:center"><span class="tv-note" style="margin:0">委託牆一次只貼出 ${BOARD_N} 個時空。</span>
-        <button type="button" class="ghost small" data-act="boardRefresh" ${t.status === "plan" ? "" : "disabled"}>刷新委託牆</button></div>`;
+        <button type="button" class="ghost small" data-act="boardRefresh" ${t.status === "plan" ? "" : "disabled"}>刷新委託牆</button>
+        ${rank !== "C" ? `<label class="tv-note" style="margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" data-act="hideLow" ${hideLow() ? "checked" : ""}>隱藏低於 ${rank} 級的時空</label>` : ""}</div>
+        <p class="tv-note" style="margin:0 0 8px">委託牆只會貼出有 ${rank} 級執照接得到的委託的時空。</p>`;
       html += `<div class="banners">${boardWorlds().map((wid) => [wid, CM.WORLDS[wid]]).map(([wid, W], i) => {
         const n = CM.ofWorld(wid).length, mine = t.accepted.filter((x) => CM.get(x).world === wid).length;
         return `<button type="button" class="banner${W.ready === false ? " soon" : ""}" style="--wc:${W.color};--tilt:${tilt[i % tilt.length]}deg" data-act="wtab" data-w="${wid}" aria-label="${W.code} ${esc(W.name)}">
@@ -602,15 +723,16 @@
     }
     html += `<div class="tv-row" style="margin:0 0 10px"><button type="button" class="ghost" data-act="wtab" data-w="">← 回到委託牆</button></div>`;
     for (const [wid, W] of Object.entries(CM.WORLDS).filter(([wid]) => wid === boardWorld)) {
-      const rankOk = CM.rankOk(wid, rank);
-      html += `<div class="world-h${rankOk ? "" : " locked"}" style="--wc:${W.color}"><i class="rk">${W.rank || "C"}</i><b>${W.code}</b> ${esc(W.name)}<span>${esc(W.level)}</span></div>
-        <p class="tv-note" style="margin:0 0 8px">${esc(W.summary)}${rankOk ? "" : `<br><b>需要 ${W.rank} 級以上的委託執照</b>`}${W.ready === false ? `<br><b>這個時空還在準備中：目前只有委託單，暫時無法接取</b>` : ""}</p><div class="slips">`;
+      const rankOk = CM.rankOk(wid, rank), anyOk = CM.RANKS.indexOf(rank) >= CM.RANKS.indexOf(CM.minRank(wid));
+      html += `<div class="world-h${anyOk ? "" : " locked"}" style="--wc:${W.color}"><i class="rk">${W.rank || "C"}</i><b>${W.code}</b> ${esc(W.name)}<span>${esc(W.level)}</span></div>
+        <p class="tv-note" style="margin:0 0 8px">${esc(W.summary)}${rankOk ? "" : anyOk ? `<br><b>大部分委託需要 ${W.rank} 級委託執照；標著 C 級的委託現在就能接</b>` : `<br><b>需要 ${W.rank} 級以上的委託執照</b>`}${W.ready === false ? `<br><b>這個時空還在準備中：目前只有委託單，暫時無法接取</b>` : ""}</p><div class="slips">`;
       for (const c of CM.ofWorld(wid)) {
         const on = t.accepted.includes(c.id), cleared = adv?.done?.includes(c.id), failed = adv?.failed?.includes(c.id);
-        const chk = on ? { ok: true } : !rankOk ? { ok: false, why: `需要 ${W.rank} 級委託執照` } : CM.canAccept(c.id, t.accepted, adv);
+        const cOk = CM.rankOk(wid, rank, c), cRank = c.rank || W.rank || "C";
+        const chk = on ? { ok: true } : !cOk ? { ok: false, why: `需要 ${cRank} 級委託執照` } : CM.canAccept(c.id, t.accepted, adv);
         const conf = (c.conflicts || []).map((x) => CM.get(x)?.title).filter(Boolean);
         html += `<article class="slip${on ? " taken" : ""}${c.shady ? " shady" : ""}${cleared ? " cleared" : ""}" style="--wc:${W.color}">
-          <header><span class="stamp">${W.code}</span><span class="wn">${esc(W.name)}</span>${on ? '<span class="got">已接下</span>' : cleared ? `<span class="got done">本輪已完成${c.id === "CI00001-06" && adv?.flags?.blackfin ? (adv.flags.blackfin === "helped" ? "・替黑鰭辦過事" : "・漁網還給了老伯恩") : ""}</span>` : failed ? '<span class="got fail">本輪已失敗</span>' : ""}${c.extra ? '<span class="got extra">額外</span>' : ""}${c.wip ? '<span class="got wip">玩法設計中</span>' : ""}</header>
+          <header><span class="stamp">${W.code}</span><span class="wn">${esc(W.name)}</span>${on ? '<span class="got">已接下</span>' : cleared ? `<span class="got done">本輪已完成${c.id === "CI00001-06" && adv?.flags?.blackfin ? (adv.flags.blackfin === "helped" ? "・替黑鰭辦過事" : "・漁網還給了老伯恩") : ""}</span>` : failed ? '<span class="got fail">本輪已失敗</span>' : ""}${c.extra ? '<span class="got extra">額外</span>' : ""}${c.wip ? '<span class="got wip">玩法設計中</span>' : ""}${c.rank && c.rank !== W.rank ? `<span class="got rk-c">${c.rank} 級委託</span>` : ""}</header>
           <h3>${esc(c.title)}</h3>
           <dl>
             <dt>委託人</dt><dd>${esc(c.client)}<small>${esc(c.clientNote || "")}</small></dd>
@@ -644,15 +766,27 @@
   }
 
   // 冒險行囊裡的魔狼肉（出發前才能交給酒保）
-  const meatCount = () => (R.Bag && P.trip().status !== "away" ? R.Bag.count(R.Adventure.get()?.items || [], "wolfMeat") : 0);
+  const meatCount = (id = "wolfMeat") => (R.Bag && P.trip().status !== "away" ? R.Bag.count(R.Adventure.get()?.items || [], id) : 0);
   let peek = null, lensTarget = null, gachaMsg = "", lastPull = null;
   // 委託牆一次只貼出 BOARD_N 個時空（存起來；已接委託的時空一定留著）。刷新＝重新抽
   const BOARD_N = 4;
+  // 委託牆能貼哪些時空：只貼「有目前執照接得到的委託」的時空（不會刷到更高等級的）；
+  // 執照升級後可以選擇「隱藏低於執照等級的時空」（只貼有同等級委託的時空）
+  const hideLow = () => store.get("rpg.hideLow") === "1";
+  function boardEligible(wid, rank) {
+    const CM = R.Commissions, RK = CM.RANKS, ri = RK.indexOf(rank);
+    const ranks = CM.ofWorld(wid).map((c) => RK.indexOf(c.rank || CM.WORLDS[wid].rank || "C"));
+    if (!ranks.length) return false;
+    if (Math.min(...ranks) > ri) return false;                 // 全部都比執照高：接不到
+    if (hideLow() && ri > 0 && !ranks.includes(ri)) return false;   // 隱藏低於執照等級的時空
+    return true;
+  }
   function boardWorlds(refresh) {
-    const CM = R.Commissions, all = Object.keys(CM.WORLDS), t = P.trip();
+    const CM = R.Commissions, t = P.trip(), rank = R.Adventure.license(R.Adventure.get()).rank;
+    const all = Object.keys(CM.WORLDS).filter((w) => boardEligible(w, rank));
     const keep = [...new Set((t.accepted || []).map((id) => CM.get(id)?.world).filter(Boolean))];
     let cur = [];
-    try { cur = (JSON.parse(store.get("rpg.board")) || []).filter((w) => CM.WORLDS[w]); } catch (e) { cur = []; }
+    try { cur = (JSON.parse(store.get("rpg.board")) || []).filter((w) => CM.WORLDS[w] && all.includes(w)); } catch (e) { cur = []; }
     if (refresh || cur.length < Math.min(BOARD_N, all.length)) {
       const rest = all.filter((w) => !keep.includes(w)).sort(() => Math.random() - 0.5);
       cur = [...keep, ...rest].slice(0, Math.max(BOARD_N, keep.length));
@@ -671,18 +805,22 @@
   }
 
   function act(a, data) {
+    if (a === "bxTab") { bxTab = data.w; return renderPanel(); }
     if (a === "ask") { panel.dataset.chat = TALK[data.q]; renderPanel(); delete panel.dataset.chat; return; }
     if (a === "chat") { panel.dataset.chat = LINES[Math.floor(Math.random() * LINES.length)]; renderPanel(); delete panel.dataset.chat; return; }
     if (a === "roast") {
-      // 冒險行囊裡的魔狼肉 → 烤魔狼肉（回復生命的食物）
+      // 冒險行囊裡的魔狼肉 → 烤魔狼肉；方塊魚 → 烤方塊魚
       const adv = R.Adventure.get();
       if (!adv) return;
-      const n = R.Bag.count(adv.items, "wolfMeat");
-      R.Bag.remove(adv.items, "wolfMeat", n);
-      const k = R.Bag.add(adv.items, "roastMeat", n);
-      if (k < n) R.Bag.add(adv.items, "wolfMeat", n - k);
+      const fish = data.id === "blockFish", raw = fish ? "blockFish" : "wolfMeat", done = fish ? "grilledBlockFish" : "roastMeat";
+      const n = R.Bag.count(adv.items, raw);
+      R.Bag.remove(adv.items, raw, n);
+      const k = R.Bag.add(adv.items, done, n);
+      if (k < n) R.Bag.add(adv.items, raw, n - k);
       R.Adventure.save(adv);
-      panel.dataset.chat = k ? `烤好了，${k} 塊烤魔狼肉。外皮烤得酥一點，路上餓了就拿出來吃吧。${k < n ? "（行囊滿了，剩下的肉先還你）" : ""}` : "你的行囊塞不下了，先整理一下吧。";
+      panel.dataset.chat = !k ? "你的行囊塞不下了，先整理一下吧。"
+        : fish ? `方塊魚？……第一次烤這種東西。翻面的時候要對齊格線，不然會烤成梯形。好了，${k} 條烤方塊魚，烤痕是正正方方的格子。${k < n ? "（行囊滿了，剩下的魚先還你）" : ""}`
+        : `烤好了，${k} 塊烤魔狼肉。外皮烤得酥一點，路上餓了就拿出來吃吧。${k < n ? "（行囊滿了，剩下的肉先還你）" : ""}`;
       renderPanel(); delete panel.dataset.chat; return;
     }
     if (a === "mix") { mixState = { base: P.BASES[Math.floor(Math.random() * P.BASES.length)], adds: [] }; return renderPanel(); }
@@ -703,6 +841,8 @@
     if (a === "mixDone") { mixState = null; return renderPanel(); }
     if (a === "go") return go(quests()[Number(data.i)]);
     if (a === "tab") { boardTab = data.t; return renderPanel(); }
+    if (a === "setRank") { R.Adventure.setRank(data.r); boardWorlds(true); boardWorld = null; slipMsg = ""; renderTop(); return renderPanel(); }
+    if (a === "hideLow") { store.set("rpg.hideLow", hideLow() ? "0" : "1"); boardWorlds(true); boardWorld = null; return renderPanel(); }
     if (a === "boardRefresh") { boardWorlds(true); boardWorld = null; slipMsg = ""; return renderPanel(); }
     if (a === "wtab") { boardWorld = data.w || null; slipMsg = ""; return renderPanel(); }
     if (a === "endAdv") { R.Adventure.end(); slipMsg = ""; renderTop(); return renderPanel(); }
@@ -729,6 +869,22 @@
     }
     if (a === "pick") { if (!P.owns(data.id)) return; store.set("rpg.char", data.id); peek = data.id; renderTop(); return renderPanel(); }
     if (a === "peek") { peek = data.id; return renderPanel(); }
+    if (a === "feature") {
+      const cur = featured(), on = cur.includes(data.id);
+      let next = on ? cur.filter((x) => x !== data.id) : [...cur, data.id];
+      rackMsg = "";
+      if (!on && cur.length >= RACK_MAX) { rackMsg = `名牌架最多掛 ${RACK_MAX} 位，先取下一位再掛上新的`; return renderPanel(); }
+      if (!next.length) { rackMsg = "名牌架上至少要掛一位"; return renderPanel(); }
+      store.set("rpg.rackShow", JSON.stringify(next));
+      return renderPanel();
+    }
+    if (a === "radioJazz") { radio.on = true; radio.yt = null; radioMsg = ""; gestured = true; saveRadio(); applyRadio(); return renderPanel(); }
+    if (a === "radioOff") { radio.on = false; radioMsg = ""; saveRadio(); applyRadio(); return renderPanel(); }
+    if (a === "radioYt") {
+      const url = $("#radioUrl")?.value || "";
+      if (!ytId(url)) { radioMsg = "看不懂這個連結，請貼 YouTube 影片的網址（例如 https://www.youtube.com/watch?v=…）"; return renderPanel(); }
+      radio.on = true; radio.yt = url.trim(); radioMsg = ""; gestured = true; saveRadio(); applyRadio(); return renderPanel();
+    }
     // ----- 天文望遠鏡：觀測適格者 -----
     if (a === "aimLens") { lensTarget = lensTarget === data.id ? null : data.id; return renderPanel(); }
     if (a === "observe") {

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261112021356" });
 // 成長系統：經驗值 → 等級 → 數值、強化點、行動值、技能強化
 // 目前沒有完整遊戲流程，所以等級可以在「角色成長」介面直接調整；戰鬥勝利也會給一點經驗
 // 每個角色的成長存在瀏覽器（localStorage），換頁、重新整理都會保留
@@ -17,7 +17,7 @@
     // 沒有另外設定時的每級成長（暫定）
     DEFAULT_GROWTH: { hp: 4, mp: 2, atk: 0.8, df: 0.4, spd: 0.1 },
     STATS: [["hp", "生命"], ["mp", "魔力"], ["atk", "攻擊"], ["df", "防禦"], ["spd", "速度"]],
-    TAG_NAMES: { projectile: "投射物", area: "範圍", melee: "近戰", summon: "召喚物" },
+    TAG_NAMES: { projectile: "投射物", area: "範圍", melee: "近戰", summon: "召喚物", shield: "護盾", buff: "強化" },
 
     // ---------- 經驗值 ----------
     xpToNext(level) { return 100 + 25 * (level - 1); },

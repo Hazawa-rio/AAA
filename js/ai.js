@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261112021356" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -73,6 +73,45 @@
         b.emit();
         if (u.ap > 0) await b.wait(b.cfg.aiDelay);
       }
+    },
+  };
+
+  // ===== 彈跳噩夢（史萊姆的變體）：撞擊、壓制，加上往四周噴泡泡糖 =====
+  // 泡泡糖：好幾個紅圈（一個一定瞄準玩家），黏在地上的泡泡糖會鼓起來變成粉色史萊姆
+  R.AI.nightmare = {
+    init(b, u) { u.state.gumAt = u.def.gum.first; },
+    async takeTurn(b, u) {
+      const D = u.def, G = D.gum, p = b.player, A = b.cfg.arena;
+      if (b.round >= u.state.gumAt && u.ap >= G.ap && !u.state.slamPending) {
+        u.state.gumAt = b.round + G.every;
+        b.enemySpend(u, G.ap);
+        b.say(`${u.name} 張開長滿鋸齒的大嘴，往四周噴出泡泡糖！`);
+        const spots = [];
+        if (R.dist(u.x, u.y, p.x, p.y) <= G.range + 60) spots.push({ x: p.x, y: p.y });
+        let tries = 0;
+        while (spots.length < G.count && tries++ < 80) {
+          const a = Math.random() * Math.PI * 2, r = 110 + Math.random() * (G.range - 110);
+          const x = u.x + Math.cos(a) * r, y = u.y + Math.sin(a) * r;
+          if (x < 50 || y < 50 || x > A.w - 50 || y > A.h - 50) continue;
+          if (b.onObstacle({ r: 20 }, x, y) || spots.some((s) => R.dist(s.x, s.y, x, y) < G.radius * 1.4)) continue;
+          spots.push({ x, y });
+        }
+        b.emit({ type: "gumSpit", unit: u, spots });
+        await Promise.all(spots.map((s, i) => b.telegraph(u, { shape: "circle", x: s.x, y: s.y, radius: G.radius, reaction: G.reaction, gum: true }, { base: G.base, sound: i ? null : D.sounds?.slam, label: "泡泡糖", quiet: i > 0 })));
+        if (!u.alive || b.dead || b.phase === "over") return;
+        b.emit({ type: "gumStick", spots });
+        let n = Math.min(G.spawn, G.max - b.mainEnemies().filter((e) => e.kind === "pinkSlime").length);
+        const made = [];
+        for (const s of spots.slice().sort(() => Math.random() - 0.5)) {
+          if (n <= 0) break;
+          if (b.blocked({ r: 22, team: "enemy" }, s.x, s.y)) continue;
+          made.push(b.summonEnemy("pinkSlime", s.x, s.y)); n--;
+        }
+        if (made.length) b.say(`黏在地上的泡泡糖鼓了起來，變成了${made.length} 隻粉色史萊姆！`);
+        b.emit();
+        if (u.ap > 0) await b.wait(b.cfg.aiDelay);
+      }
+      if (u.ap > 0 && u.alive) await R.AI.slime.takeTurn(b, u);
     },
   };
 
@@ -708,27 +747,27 @@
       if (!t) { u.ap = 0; return false; }
       const d = R.dist(u.x, u.y, t.x, t.y);
       const reach = D.bite.length + (t.r || b.cfg.body) * 0.6;
-      const wolves = b.mainEnemies().filter((e) => e.def.ai === "wolf").length;
-      if (b.round >= u.state.howlAt && wolves < D.howl.max && u.ap >= D.howl.ap) {
+      const wolves = b.mainEnemies().filter((e) => (D.howl?.kind ? e.kind === D.howl.kind : e.def.ai === "wolf")).length;
+      if (D.howl && b.round >= u.state.howlAt && wolves < D.howl.max && u.ap >= D.howl.ap) {
         b.enemySpend(u, D.howl.ap);
         u.state.howlAt = b.round + D.howl.every;
-        b.say(`${u.name} 仰天長嚎！魔狼從草叢裡竄了出來`);
+        b.say(D.howl.line ? `${u.name}：${D.howl.line}` : `${u.name} 仰天長嚎！魔狼從草叢裡竄了出來`);
         b.emit({ type: "sfx", sound: D.howl.sound });
         const A = b.cfg.arena, side = Math.random() < 0.5 ? 60 : A.w - 60;
-        b.summonEnemy("wolf", side, 120 + Math.random() * (A.h - 240));
+        b.summonEnemy(D.howl.kind || "wolf", side, 120 + Math.random() * (A.h - 240));
         return true;
       }
       if (!(u.state.spinCd > 0) && u.ap >= D.spin.ap && d <= D.spin.radius - 10) {
         u.state.spinCd = D.spin.cooldown + 1;
-        await b.enemySpin(u, D.spin, "雙刃迴旋");
+        await b.enemySpin(u, D.spin, D.spin.name || "雙刃迴旋");
         return true;
       }
       if (!(u.state.rendCd > 0) && u.ap >= D.rend.ap && d > reach && d <= D.rend.length) {
         u.state.rendCd = D.rend.cooldown + 1;
-        await b.enemyLunge(u, t, D.rend, "撕裂撲擊", true);
+        await b.enemyLunge(u, t, D.rend, D.rend.name || "撕裂撲擊", true);
         return true;
       }
-      if (d <= reach && u.ap >= D.bite.ap) { await b.enemyLunge(u, t, D.bite, "撕咬", false); return true; }
+      if (d <= reach && u.ap >= D.bite.ap) { await b.enemyLunge(u, t, D.bite, D.bite.name || "撕咬", false); return true; }
       if (b.enemyMoveToward(u, t, reach * 0.7)) return true;
       u.ap = 0;
       return false;
@@ -743,6 +782,294 @@
         if (!ok) break;
         if (u.ap > 0) await b.wait(b.cfg.aiDelay);
       }
+    },
+  };
+
+  // ===== 午夜嚇人比賽：黑馬選手武士盔甲 =====
+  // 跟異變魔狼領頭一樣的斬、迴旋斬、居合・一閃，再加上「收刀呼氣」：
+  //   收刀進入呼氣狀態（這一回合不再動作）；這時候被打，會立刻反擊大範圍斬擊「鬼一文字」
+  R.AI.samurai = {
+    init(b, u) { R.AI.alphaWolf.init(b, u); u.state.stanceAt = 2; },
+    async takeTurn(b, u) {
+      const S = u.def.stance;
+      if (u.state.stance) { u.state.stance = false; b.say(`${u.name} 緩緩吐出一口氣，重新握好了刀`); b.emit({ type: "buff", unit: u, text: "呼——", color: "#8a9aa8" }); }
+      const d = R.dist(u.x, u.y, b.player.x, b.player.y);
+      if (b.round >= u.state.stanceAt && u.ap >= S.ap && d <= S.range) {
+        u.state.stanceAt = b.round + S.every;
+        b.enemySpend(u, S.ap);
+        u.state.stance = true;
+        b.say(`${u.name} 收刀入鞘，深深地吸了一口氣……（現在出手，會被反擊！）`);
+        b.emit({ type: "buff", unit: u, text: "收刀呼氣", color: "#c62828" });
+        b.emit({ type: "sfx", sound: S.sound });
+        u.ap = 0;
+        b.emit();
+        return;
+      }
+      await R.AI.alphaWolf.takeTurn(b, u);
+    },
+    onHurt(b, u) {
+      if (!u.state.stance || u.state.countering || !u.alive) return;
+      u.state.stance = false;
+      u.state.countering = true;
+      this.counter(b, u).finally(() => { u.state.countering = false; });
+    },
+    async counter(b, u) {
+      const C = u.def.counter, t = b.player;
+      const ang = Math.atan2(t.y - u.y, t.x - u.x);
+      u.facing = ang;
+      b.say(`${u.name} 的刀出鞘了——「${C.name}」！`);
+      b.emit({ type: "bossUlt", unit: u, text: C.name, style: "samurai" });
+      const tg = { shape: "rect", x: u.x - Math.cos(ang) * 40, y: u.y - Math.sin(ang) * 40, ang, length: C.length, width: C.width, reaction: C.reaction, bigSlash: true };
+      await b.telegraph(u, tg, { base: C.base, sound: C.sound, label: `${u.name} 的${C.name}` });
+      b.emit({ type: "bossUltEnd" });
+      b.emit();
+    },
+  };
+
+  // ===== 午夜嚇人比賽：熱門選手大白鯊 =====
+  // 咬、甩尾、破地衝出，再加上「深海狂潛」：潛進地底（打不到、看不到），
+  //   地上留下預告的圓圈；下次輪到牠時從那裡衝出來
+  R.AI.shark = {
+    init(b, u) { R.AI.alphaWolf.init(b, u); u.state.diveAt = 2; },
+    async takeTurn(b, u) {
+      const D = u.def.dive;
+      if (!u.state.dived && b.round >= u.state.diveAt && u.ap >= D.ap) {
+        u.state.diveAt = b.round + D.every;
+        b.enemySpend(u, D.ap);
+        const t = b.aggroTarget(u) || b.player;
+        b.emit({ type: "dive", unit: u, x: u.x, y: u.y, sound: D.sound });
+        u.state.dived = true;
+        b.charges.push({ kind: "dive", owner: u, x: t.x, y: t.y, radius: D.radius, base: D.base });
+        b.say(`${u.name} 一頭鑽進了地板裡……不見了！地上浮現了一圈漣漪（下次輪到牠時會從那裡衝出來）`);
+        u.ap = 0;
+        b.emit({ type: "charge" });
+        return;
+      }
+      await R.AI.alphaWolf.takeTurn(b, u);
+    },
+    async resolveCharge(b, c) {
+      const u = c.owner, D = u.def.dive;
+      b.charges = b.charges.filter((x) => x !== c);
+      if (!u.alive) return;
+      b.emit({ type: "bossUlt", unit: u, text: D.name });
+      b.say(`地板下傳來轟隆聲——「${D.name}」！`);
+      await b.telegraph(u, { shape: "circle", x: c.x, y: c.y, radius: c.radius, reaction: 0.35, burst: true }, { base: c.base, sound: D.sound, label: `${u.name} 的${D.name}` });
+      b.emit({ type: "bossUltEnd" });
+      // 從洞裡探出頭（找最近的空位）
+      let to = { x: c.x, y: c.y };
+      u.state.dived = false;
+      if (b.blocked(u, to.x, to.y)) {
+        for (let r = 20; r < 400; r += 20) { let ok = null; for (let i = 0; i < 12 && !ok; i++) { const a = (i / 12) * Math.PI * 2, x = c.x + Math.cos(a) * r, y = c.y + Math.sin(a) * r; if (!b.blocked(u, x, y) && x > u.r && y > u.r && x < b.cfg.arena.w - u.r && y < b.cfg.arena.h - u.r) ok = { x, y }; } if (ok) { to = ok; break; } }
+      }
+      u.x = to.x; u.y = to.y;
+      b.emit({ type: "surface", unit: u, x: u.x, y: u.y });
+      b.emit({ type: "move", unit: u });
+    },
+  };
+
+  // ===== 午夜嚇人比賽：衛冕選手死神 =====
+  //   揮動鐮刀（自己周圍的圓）・舉起鐮刀，用鐮刀上的火焰發射地獄火（很長的紅框）
+  //   抬起右手「你是下一個！」：指定玩家或玩家的召喚物為收割目標，之後的攻擊都瞄準它
+  //   打中收割目標 → 不花行動點，立刻舉起鐮刀發射大量地獄火「你的靈魂歸我所有！」
+  //   叫來亡魂（幽靈扮演者）
+  R.AI.reaper = {
+    init(b, u) { u.state.markAt = 1; u.state.callAt = 2; },
+    pose(b, u, pose, dur) { u.state.pose = pose; u.state.poseT = performance.now(); u.state.poseDur = dur * 1000; b.emit(); },
+    target(b, u) { const m = u.state.mark; return m && m.alive ? m : b.aggroTarget(u); },
+    async takeTurn(b, u) {
+      const D = u.def;
+      if (u.state.sweepCd > 0) u.state.sweepCd--;
+      if (u.state.fireCd > 0) u.state.fireCd--;
+      if (u.state.mark && (!u.state.mark.alive || b.round > u.state.markUntil)) { u.state.mark = null; }
+      let guard = 0;
+      while (u.ap > 0 && u.alive && !b.dead && b.phase !== "over" && guard++ < 8) {
+        const t = this.target(b, u), d = R.dist(u.x, u.y, t.x, t.y);
+        const crew = b.mainEnemies().filter((e) => e.kind === D.call.kind).length;
+        if (!u.state.mark && b.round >= u.state.markAt && u.ap >= D.mark.ap) {
+          b.enemySpend(u, D.mark.ap);
+          u.state.markAt = b.round + D.mark.every;
+          const cands = [b.player, ...b.allies().filter((a) => a.summon)].filter((x) => x.alive);
+          const m = cands.length > 1 && Math.random() < 0.5 ? cands[1 + Math.floor(Math.random() * (cands.length - 1))] : b.player;
+          u.state.mark = m; u.state.markUntil = b.round + D.mark.last;
+          u.facing = Math.atan2(m.y - u.y, m.x - u.x);
+          this.pose(b, u, "point", 1.4);
+          b.say(`${u.name} 抬起右手，指向 ${m.name}——「${D.mark.name}」`);
+          b.emit({ type: "buff", unit: m, text: "收割目標", color: "#c62828" });
+          b.emit({ type: "sfx", sound: D.mark.sound });
+          await b.wait(0.9);
+        } else if (b.round >= u.state.callAt && crew < D.call.max && u.ap >= D.call.ap) {
+          b.enemySpend(u, D.call.ap);
+          u.state.callAt = b.round + D.call.every;
+          b.say(`${u.name}：「${D.call.line}」`);
+          const A = b.cfg.arena;
+          b.summonEnemy(D.call.kind, Math.random() < 0.5 ? 90 : A.w - 90, 120 + Math.random() * (A.h * 0.45));
+        } else if (!(u.state.sweepCd > 0) && u.ap >= D.sweep.ap && d <= D.sweep.radius - 10) {
+          u.state.sweepCd = D.sweep.cooldown + 1;
+          await this.swing(b, u);
+        } else if (!(u.state.fireCd > 0) && u.ap >= D.shot.ap && d <= D.shot.length) {
+          u.state.fireCd = D.shot.cooldown + 1;
+          await this.fire(b, u, t);
+        } else if (!b.enemyMoveToward(u, t, D.sweep.radius * 0.6)) break;
+        if (u.state.reapNow && u.alive && !b.dead && b.phase !== "over") { u.state.reapNow = false; await this.ult(b, u); }
+        b.emit();
+        if (u.ap > 0) await b.wait(b.cfg.aiDelay);
+      }
+      u.ap = 0;
+    },
+    onAny(b, u) { return (x) => { if (x === u.state.mark) u.state.reapNow = true; }; },
+    async swing(b, u) {
+      const S = u.def.sweep;
+      b.enemySpend(u, S.ap);
+      this.pose(b, u, "swing", 1.6);
+      b.say(`${u.name} 揮動鐮刀！`);
+      await b.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: S.radius, reaction: S.reaction, follow: u }, { base: S.base, sound: S.sound, label: `${u.name} 的${S.name}`, onAny: this.onAny(b, u) });
+    },
+    async fire(b, u, t) {
+      const S = u.def.shot, ang = Math.atan2(t.y - u.y, t.x - u.x);
+      b.enemySpend(u, S.ap);
+      u.facing = ang;
+      this.pose(b, u, "raise", 1.8);
+      b.say(`${u.name} 舉起鐮刀，刀尖的火焰暴漲——「${S.name}」！`);
+      const from = R.EnemyArt?.reaperFlame ? R.EnemyArt.reaperFlame(u, u) : { x: u.x, y: u.y };
+      await b.telegraph(u, { shape: "rect", x: u.x + Math.cos(ang) * u.r * 0.6, y: u.y + Math.sin(ang) * u.r * 0.6, ang, length: S.length, width: S.width, reaction: S.reaction, fire: "blue", fromX: from.x, fromY: from.y }, { base: S.base, sound: S.sound, label: `${u.name} 的${S.name}`, quiet: t !== b.player, onAny: this.onAny(b, u) });
+    },
+    // 大招：你的靈魂歸我所有！（不花行動點）
+    async ult(b, u) {
+      const U = u.def.ult, A = b.cfg.arena, p = b.player;
+      u.state.mark = null;
+      this.pose(b, u, "raise", 3.4);
+      b.say(`${u.name} 舉起鐮刀——「${U.name}」`);
+      b.emit({ type: "bossUlt", unit: u, text: U.warn, style: "reaper" });           // 橫幅顯示的是警告：「哈哈哈哈哈哈！墮入地獄吧！！」
+      b.say(`${u.name}：「${U.warn}」`);
+      b.emit({ type: "sfx", sound: U.sound });
+      await b.wait(0.8);
+      const spots = [{ x: p.x, y: p.y }];
+      for (let i = 0; i < 40 && spots.length < U.count; i++) {
+        const x = 80 + Math.random() * (A.w - 160), y = 80 + Math.random() * (A.h - 160);
+        if (spots.some((s) => R.dist(s.x, s.y, x, y) < U.radius * 1.5)) continue;
+        spots.push({ x, y });
+      }
+      await Promise.all(spots.map((s, i) => b.wait(i * 0.06).then(() => b.telegraph(u, { shape: "circle", x: s.x, y: s.y, radius: U.radius, reaction: U.reaction, fire: "blue", fromX: R.EnemyArt?.reaperFlame?.(u, u).x, fromY: R.EnemyArt?.reaperFlame?.(u, u).y }, { base: U.base, sound: i ? null : u.def.shot.sound, label: "地獄火", quiet: i > 0 }))));
+      b.emit({ type: "bossUltEnd" });
+    },
+  };
+
+  // ===== 古代遺跡的秘密寶庫：超古代兵器・翁爾貢（試煉 Boss） =====
+  //   迴旋斬擊・槍尖連戳・噴射突刺（雙肩往後噴雷射，一路衝到房間邊緣；途中可能迴旋斬或連戳）
+  //   投擲長槍・肩炮光彈・大招「執行-徹底清除」（槍尖戳進地面，雙肩的雷射分兩波掃過房間）
+  //   被它打到＝破綻 2 回合；噴射突刺撞上能量水晶＝暈眩 1 回合、受到 1.5 倍傷害
+  R.AI.ongergon = {
+    init(b, u) { u.state.ultAt = u.def.ult.firstRound; },
+    react(b, u, hits, info) { if (!u.alive || u.state.stunUntil >= b.round || u.state.busy) return; dodge(b, u, hits, info); },
+    pose(b, u, pose, dur) { u.state.pose = pose; u.state.poseT = performance.now(); u.state.poseDur = dur * 1000; b.emit(); },
+    face(u, t) { u.facing = Math.atan2(t.y - u.y, t.x - u.x); },
+    flaw(b, u) {
+      const F = u.def.flaw;
+      return (x) => { if (!x.alive) return; const fresh = !(x.state.flawUntil >= b.round); x.state.flawUntil = b.round + F.rounds; x.state.flawMult = F.mult; if (fresh) { b.say(`${x.name} 露出了破綻（${F.rounds} 回合內受到的傷害變多）`); b.emit({ type: "buff", unit: x, text: "破綻", color: "#e8262c" }); } };
+    },
+    async takeTurn(b, u) {
+      const D = u.def;
+      u.state.dodges = 0;
+      if (u.state.stunUntil >= b.round) { b.say(`${u.name} 還在暈眩中，動不了！`); b.emit({ type: "buff", unit: u, text: "暈眩", color: "#f0c800" }); u.ap = 0; return; }
+      for (const k of ["spinCd", "dashCd", "throwCd", "orbCd"]) if (u.state[k] > 0) u.state[k]--;
+      if (b.round >= u.state.ultAt && u.ap >= D.ult.ap) { u.state.ultAt = b.round + D.ult.every; b.enemySpend(u, D.ult.ap); await this.ult(b, u); }
+      let guard = 0;
+      while (u.ap > 0 && u.alive && !b.dead && b.phase !== "over" && guard++ < 10) {
+        if (u.state.stunUntil >= b.round) break;
+        const t = b.aggroTarget(u) || b.player, d = R.dist(u.x, u.y, t.x, t.y);
+        this.face(u, t);
+        if (!(u.state.spinCd > 0) && u.ap >= D.spin.ap && d <= D.spin.radius - 10) { u.state.spinCd = D.spin.cooldown + 1; b.enemySpend(u, D.spin.ap); await this.spin(b, u, D.spin.reaction); }
+        else if (!(u.state.dashCd > 0) && u.ap >= D.dash.ap && (d > 220 || Math.random() < 0.35)) { u.state.dashCd = D.dash.cooldown + 1; b.enemySpend(u, D.dash.ap); await this.dash(b, u, t); }
+        else if (u.ap >= D.poke.ap && d <= D.poke.length + (t.r || 20)) { b.enemySpend(u, D.poke.ap); await this.poke(b, u, t, D.poke.hits); }
+        else if (!(u.state.throwCd > 0) && u.ap >= D.throw.ap && d > 300 && d <= D.throw.length) { u.state.throwCd = D.throw.cooldown + 1; b.enemySpend(u, D.throw.ap); await this.throwSpear(b, u, t); }
+        else if (!(u.state.orbCd > 0) && u.ap >= D.orbs.ap) { u.state.orbCd = D.orbs.cooldown + 1; b.enemySpend(u, D.orbs.ap); await this.orbs(b, u, t); }
+        else if (!b.enemyMoveToward(u, t, D.poke.length * 0.7)) break;
+        b.emit();
+        if (u.ap > 0) await b.wait(b.cfg.aiDelay * 0.7);
+      }
+      u.ap = 0;
+    },
+    async spin(b, u, reaction) {
+      const S = u.def.spin;
+      this.pose(b, u, "spin", reaction + 0.6);
+      b.say(`${u.name}：迴旋斬擊`);
+      await b.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: S.radius, reaction, follow: u }, { base: S.base, sound: S.sound, label: `${u.name} 的${S.name}`, onAny: this.flaw(b, u) });
+    },
+    async poke(b, u, t, n) {
+      const P = u.def.poke;
+      b.say(`${u.name}：槍尖連戳`);
+      for (let i = 0; i < n && u.alive && !b.dead; i++) {
+        this.face(u, t);
+        const ang = u.facing + (i - 1) * 0.12;
+        this.pose(b, u, "poke", 0.9);
+        await b.telegraph(u, { shape: "rect", x: u.x + Math.cos(ang) * u.r * 0.6, y: u.y + Math.sin(ang) * u.r * 0.6, ang, length: P.length, width: P.width, reaction: i ? P.reaction * 0.6 : P.reaction, lunge: true }, { base: P.base, sound: P.sound, label: `${u.name} 的${P.name}`, quiet: i > 0, onAny: this.flaw(b, u) });
+      }
+    },
+    // 噴射突刺：預告一路到房間邊緣的長框；途中可能迴旋斬或連戳；撞上能量水晶就停下來暈眩
+    async dash(b, u, t) {
+      const Dd = u.def.dash, A = b.cfg.arena, ang = Math.atan2(t.y - u.y, t.x - u.x), dx = Math.cos(ang), dy = Math.sin(ang);
+      u.facing = ang;
+      const tx = dx > 0 ? (A.w - u.r - u.x) / dx : dx < 0 ? (u.r - u.x) / dx : Infinity, ty = dy > 0 ? (A.h - u.r - u.y) / dy : dy < 0 ? (u.r - u.y) / dy : Infinity;
+      let len = Math.max(60, Math.min(tx, ty)), hitC = null;
+      for (const c of b.crystals || []) {
+        if (c.broken) continue;
+        const along = (c.x - u.x) * dx + (c.y - u.y) * dy, off = Math.abs((c.x - u.x) * dy - (c.y - u.y) * dx);
+        if (along > 0 && off < c.r + Dd.width / 2 && along - c.r - u.r < len) { len = Math.max(40, along - c.r - u.r * 0.6); hitC = c; }
+      }
+      this.pose(b, u, "dash", Dd.reaction + 1.2);
+      b.say(`${u.name} 的雙肩往後噴出雷射——「${Dd.name}」！`);
+      await b.telegraph(u, { shape: "rect", x: u.x, y: u.y, ang, length: len + u.r, width: Dd.width, reaction: Dd.reaction }, { base: Dd.base, sound: Dd.sound, label: `${u.name} 的${Dd.name}`, onAny: this.flaw(b, u) });
+      if (!u.alive || b.dead) return;
+      u.state.busy = true;
+      const go = async (k) => { const from = { x: u.x, y: u.y }, to = { x: u.x + dx * len * k, y: u.y + dy * len * k }; b.emit({ type: "leap", unit: u, from, to, duration: 0.18 }); await b.wait(0.18); u.x = to.x; u.y = to.y; b.emit({ type: "move", unit: u }); };
+      const mid = Math.random();
+      if (len > 260 && mid < 0.55) {
+        await go(0.5); len *= 0.5;
+        if (mid < 0.3) await this.spin(b, u, 0.6); else await this.poke(b, u, t, 1);
+      }
+      if (!u.alive || b.dead) { u.state.busy = false; return; }
+      await go(1);
+      u.state.busy = false;
+      if (hitC) {
+        hitC.broken = true;
+        const S = u.def.stun;
+        u.state.stunUntil = b.round + S.rounds; u.state.vulnUntil = b.round + S.rounds;
+        b.say(`${u.name} 撞碎了能量水晶！暈眩了（${S.rounds} 回合，受到 ${S.mult} 倍傷害）`);
+        b.emit({ type: "crystalBreak", x: hitC.x, y: hitC.y, unit: u });
+        b.emit({ type: "buff", unit: u, text: "暈眩！", color: "#f0c800" });
+        u.ap = 0;
+      }
+    },
+    async throwSpear(b, u, t) {
+      const T = u.def.throw, ang = Math.atan2(t.y - u.y, t.x - u.x);
+      u.facing = ang; this.pose(b, u, "throw", T.reaction + 0.6);
+      b.say(`${u.name} 擲出了雙刃長槍！`);
+      await b.telegraph(u, { shape: "rect", x: u.x + Math.cos(ang) * u.r * 0.6, y: u.y + Math.sin(ang) * u.r * 0.6, ang, length: T.length, width: T.width, reaction: T.reaction, shot: true }, { base: T.base, sound: T.sound, label: `${u.name} 的${T.name}`, onAny: this.flaw(b, u) });
+    },
+    async orbs(b, u, t) {
+      const O = u.def.orbs, A = b.cfg.arena;
+      this.pose(b, u, "orbs", O.reaction + 0.4);
+      b.say(`${u.name} 的雙肩亮起——肩炮光彈！`);
+      const spots = [{ x: t.x, y: t.y }];
+      for (let i = 0; spots.length < O.count && i < 30; i++) { const a = Math.random() * Math.PI * 2, r = O.spread * (0.6 + Math.random() * 0.5), x = t.x + Math.cos(a) * r, y = t.y + Math.sin(a) * r; if (x > 40 && y > 40 && x < A.w - 40 && y < A.h - 40) spots.push({ x, y }); }
+      await Promise.all(spots.map((s, i) => b.wait(i * 0.12).then(() => b.telegraph(u, { shape: "circle", x: s.x, y: s.y, radius: O.radius, reaction: O.reaction }, { base: O.base, sound: i ? null : O.sound, label: "肩炮光彈", quiet: i > 0, onAny: this.flaw(b, u) }))));
+    },
+    // 大招：執行-徹底清除（橫條紅框分兩波掃過房間）
+    async ult(b, u) {
+      const U = u.def.ult, A = b.cfg.arena, H = A.h / U.bands;
+      u.state.busy = true;
+      this.pose(b, u, "plunge", U.reaction * 2 + 1.6);
+      b.say(`${u.name} 把槍尖戳進地面——「${U.name}」`);
+      b.emit({ type: "bossUlt", unit: u, text: U.name });
+      await b.wait(0.7);
+      const first = Math.random() < 0.5 ? 0 : 1;
+      for (const w of [first, 1 - first]) {
+        const bands = []; for (let i = w; i < U.bands; i += 2) bands.push(i);
+        await Promise.all(bands.map((i, k) => b.telegraph(u, { shape: "rect", x: 0, y: H * i + H / 2, ang: 0, length: A.w, width: H - 6, reaction: U.reaction }, { base: U.base, sound: k ? null : U.sound, label: U.name, quiet: k > 0, onAny: this.flaw(b, u) })));
+        if (!u.alive || b.dead) break;
+      }
+      b.emit({ type: "bossUltEnd" });
+      u.state.busy = false;
     },
   };
 
@@ -837,19 +1164,21 @@
       let guard = 0;
       while (u.ap > 0 && u.alive && !b.dead && b.phase !== "over" && guard++ < 8) {
         const t = b.aggroTarget(u), d = R.dist(u.x, u.y, t.x, t.y);
-        const crew = b.mainEnemies().filter((e) => e.kind === "pirate").length;
+        const callKind = D.call.kind || "pirate";
+        const crew = b.mainEnemies().filter((e) => e.kind === callKind).length;
         if (b.round >= u.state.callAt && crew < D.call.max && u.ap >= D.call.ap) {
           b.enemySpend(u, D.call.ap);
           u.state.callAt = b.round + D.call.every;
-          b.say(`${u.name}：「上啊！把他們扔進海裡！」`);
-          const sh = b.room.pirateShip;
-          b.summonEnemy("pirate", sh.x + 40 + Math.random() * 60, sh.y + 40 + Math.random() * (sh.h - 80));
+          b.say(D.call.line ? `${u.name}：「${D.call.line}」` : `${u.name}：「上啊！把他們扔進海裡！」`);
+          const sh = b.room.pirateShip, A = b.cfg.arena;
+          if (sh) b.summonEnemy(callKind, sh.x + 40 + Math.random() * 60, sh.y + 40 + Math.random() * (sh.h - 80));
+          else b.summonEnemy(callKind, Math.random() < 0.5 ? 90 : A.w - 90, 120 + Math.random() * (A.h * 0.45));
         } else if (!(u.state.sweepCd > 0) && u.ap >= D.sweep.ap && d <= D.sweep.radius - 10) {
           u.state.sweepCd = D.sweep.cooldown + 1;
-          await b.enemySpin(u, D.sweep, "橫掃");
+          await b.enemySpin(u, D.sweep, D.sweep.name || "橫掃");
         } else if (!(u.state.shotCd > 0) && u.ap >= D.shot.ap && d <= D.shot.length) {
           u.state.shotCd = D.shot.cooldown + 1;
-          await b.enemyLunge(u, t, D.shot, "火槍", false);
+          await b.enemyLunge(u, t, D.shot, D.shot.name || "火槍", false);
         } else if (!b.enemyMoveToward(u, t, D.sweep.radius * 0.6)) break;
         b.emit();
         if (u.ap > 0) await b.wait(b.cfg.aiDelay);

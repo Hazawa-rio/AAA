@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112021356" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -86,10 +86,12 @@
       const ps = this.room.playerStart;
       // 成長系統：等級、數值、技能強化（沒有成長系統或固定角色就用原始數值）
       const grow = R.Progress ? R.Progress.forBattle(ch) : { level: 1, stats: ch.stats, upg: {} };
-      this.player = this.add(new Unit("player", ch.id, ch, grow.stats, ps.x, ps.y, cfg.body));
+      this.player = this.add(new Unit("player", ch.id, ch, grow.stats, ps.x, ps.y, cfg.body * (ch.bodyScale || 1)));   // 蒼幽比較小：比較難被打中
       this.player.level = grow.level;
       this.player.upg = grow.upg;          // 例如 { q1: "split", e2: "linger", w1: "dance" }
       this.player.items = grow.items || []; // 寶物欄（最多 6 格）
+      this.crystals = (this.room.crystals || []).map((c) => ({ ...c, broken: false }));   // 例如翁爾貢的房間：邊緣的能量水晶
+      if (R.Items?.onStart) R.Items.onStart(this, this.player);          // 例如天才的1%靈感：投射技能的射程變長
       for (const sp of this.room.wave) this.spawnEnemy(sp);
       // 護送戰：要保護的馬車（會被敵人的攻擊打到，不參與回合）
       this.wards = [];
@@ -169,7 +171,7 @@
     demons() { return this.units.filter((u) => u.demon && u.alive); }
     // 某個玩家角色能攻擊的目標：心魔只有召喚它的角色打得到
     npcs() { return this.units.filter((u) => u.npc && u.alive); }
-    targetsFor(u) { return [...this.enemies(), ...this.cages(), ...this.demons().filter((d) => d.owner === u), ...this.npcs()]; }
+    targetsFor(u) { return [...this.enemies().filter((e) => !e.state?.dived), ...this.cages(), ...this.demons().filter((d) => d.owner === u), ...this.npcs()]; }
     // 困住玩家的聖牢籠
     cageOf(u) { return this.cages().find((c) => c.holds === u) || null; }
     inCage(c, x, y, margin = 0) { return Math.abs(x - c.x) <= c.size / 2 - margin && Math.abs(y - c.y) <= c.size / 2 - margin; }
@@ -236,15 +238,75 @@
       return null;
     }
     // 能站的範圍：例如海上的戰鬥，玩家只能在船上（room.walk 長方形）
+    // 房間裡的障礙物（例如理性倉庫的貨架）：誰都不能站上去
+    onObstacle(u, x, y) {
+      const O = this.room.obstacles;
+      if (!O || u.def?.fly) return false;          // 會飛的（例如古代巡弋機關）不受柱子影響
+      const r = (u.r || this.cfg.body) * 0.85;
+      return O.some((o) => x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h);
+    }
+    // 掩體：兩點之間的直線有沒有被障礙物擋住
+    coverBetween(a, b) {
+      const O = this.room.obstacles;
+      if (!O) return false;
+      const d = dist(a.x, a.y, b.x, b.y), n = Math.ceil(d / 8);
+      for (let i = 1; i < n; i++) { const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n; if (O.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) return true; }
+      return false;
+    }
+    // 矮牆（小掩體）：走得過去、投擲物飛得過去，只擋得住敵人的射擊
+    lowCoverBetween(a, b) {
+      const O = this.room.lowWalls;
+      if (!O?.length) return false;
+      const d = dist(a.x, a.y, b.x, b.y), n = Math.ceil(d / 8);
+      for (let i = 1; i < n; i++) { const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n; if (O.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) return true; }
+      return false;
+    }
+    // 古代遺跡的機關（回合開始時）：地刺偶數回合刺出來、雷射一直開著
+    spikesOut() { return !!this.room.spikes?.length && this.round % 2 === 0; }
+    laserPaths() {
+      const A = { x: 0, y: 0, w: 1280, h: 720 };
+      return (this.room.lasers || []).map((L) => R.Ruins.laserPath(L.x, L.y, L.dx, L.dy, this.room.mirrors, A));
+    }
+    roomHazards() {
+      if (!R.Ruins || !(this.room.spikes?.length || this.room.lasers?.length)) return;
+      const src = { atk: 16, team: "hazard", name: "機關", state: {}, def: {} };
+      const paths = this.laserPaths();
+      for (const u of this.units.filter((x) => x.alive && !x.part && !x.ward)) {
+        const r = u.r || this.cfg.body;
+        if (this.spikesOut() && !u.def?.fly && this.room.spikes.some((o) => u.x + r * 0.5 > o.x && u.x - r * 0.5 < o.x + o.w && u.y + r * 0.5 > o.y && u.y - r * 0.5 < o.y + o.h)) {
+          this.say(`地刺刺了出來！`); this.emit({ type: "buff", unit: u, text: "地刺", color: "#8a8478" }); this.damage(src, u, 10, 1, "（地刺）");
+        }
+        if (u.alive && paths.some((pts) => R.Ruins.distToPath(u.x, u.y, pts) < r * 0.7)) { this.emit({ type: "buff", unit: u, text: "雷射", color: "#e8262c" }); this.damage(src, u, 9, 1, "（雷射）"); }
+      }
+      this.checkEnd();
+    }
     walkOk(u, x, y) {
+      if (this.onObstacle(u, x, y)) return false;
       const w = this.room.walk;
       if (!w || u.team !== "player") return true;
-      const m = (u.r || this.cfg.body) * 0.7;
+      const m = (u.r || this.cfg.body) * 0.7 * (this.char.drawScale || 1);     // 霍夫曼的方塊比較大：離船邊也要遠一點
       return x >= w.x + m && x <= w.x + w.w - m && y >= w.y + m && y <= w.y + w.h - m;
+    }
+    // 站在不能站的地方（例如船外的海上）：移到最近能站的位置
+    unstick(u) {
+      if (this.walkOk(u, u.x, u.y)) return;
+      if (this.onObstacle(u, u.x, u.y)) {        // 卡在貨架上：移到旁邊最近的空地
+        for (let r = 8; r < 300; r += 8) for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2, x = u.x + Math.cos(a) * r, y = u.y + Math.sin(a) * r;
+          if (!this.onObstacle(u, x, y)) { u.x = x; u.y = y; return; }
+        }
+        return;
+      }
+      const w = this.room.walk;
+      if (!w) return;
+      const m = (u.r || this.cfg.body) * 0.7 * (this.char.drawScale || 1) + 1;
+      u.x = Math.min(Math.max(u.x, w.x + m), w.x + w.w - m);
+      u.y = Math.min(Math.max(u.y, w.y + m), w.y + w.h - m);
+      this.say(`${u.name} 回到了船上`);
     }
     blocked(u, x, y) {
       if (!this.walkOk(u, x, y)) return true;
-      return this.units.some((o) => o !== u && o.alive && !o.cage && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
+      return this.units.some((o) => o !== u && o.alive && !o.cage && !o.state?.dived && dist(o.x, o.y, x, y) < (u.r || this.cfg.body) + o.r);
     }
     // 近戰距離：從邊緣算，大型目標不用貼到中心
     reach(a, t) { return dist(a.x, a.y, t.x, t.y) - (t.r - this.cfg.body); }
@@ -320,6 +382,7 @@
     newRound() {
       this.round++;
       this.say(`── 第 ${this.round} 回合 ──`);
+      this.roomHazards();
       if (this.round === 1 && !this.fixedOrder) {
         // 行動順序只在第一回合決定：1d20 + 速度，高的先動；同分比速度，再同分玩家先
         const die = this.cfg.initiativeDie;
@@ -376,6 +439,14 @@
         return;
       }
       this.tickZones(u);
+      // 有自己回合的召喚物（例如蒼幽的魚群）：交給角色檔行動，做完換下一位
+      if (u.summon && u !== this.player && this.char.summonTurn) {
+        this.phase = "summon";
+        this.emit({ type: "turn", unit: u });
+        Promise.resolve(this.char.summonTurn(this, u)).catch((e) => console.error(e)).then(() => { if (this.phase !== "over" && !this.dead) { this.emit(); this.nextTurn(); } });
+        return;
+      }
+      if (u.team === "player") this.unstick(u);
       if (u.team === "player") {
         this.phase = "player";
         this.emit({ type: "turn", unit: u });
@@ -489,6 +560,7 @@
       const mp = st.mp || 0;                     // 魔力消耗
       if (u.mp < mp) throw new ActionError(`魔力不足（需要 ${mp}）`);
       this.currentSkill = id;           // 讓 NPC 知道被哪一招打到
+      this.skillSeq = (this.skillSeq || 0) + 1;
       // 有智力的敵人看得出攻擊會打到自己，會在結算前花行動點閃避
       if (sk.predict) {
         const hits = sk.predict(this, u, arg, st);           // 不合法會丟 ActionError，此時什麼都還沒扣
@@ -552,7 +624,7 @@
       for (const k of Object.keys(u.cd)) if (u.cd[k] > 0 && !u._cdSet.has(k)) u.cd[k]--;
       u._cdSet.clear();
       const ult = u.def.ultimate;
-      if (ult && actionId !== ult) u.charge = Math.min(u.def.skills[ult].charge, u.charge + 1);
+      if (ult && actionId !== ult && !this.char.noCharge?.(this, u, actionId)) u.charge = Math.min(u.def.skills[ult].charge, u.charge + 1);
     }
     setCooldown(u, key, n) { u.cd[key] = n; u._cdSet.add(key); }
 
@@ -567,6 +639,7 @@
       const d = dist(u.x, u.y, x, y);
       if (d > this.moveRadius(u) + 0.5) throw new ActionError("超出移動範圍");
       if (d < 1) throw new ActionError("位置沒有改變");
+      if (this.onObstacle(u, x, y)) throw new ActionError("那裡有貨架");
       if (this.blocked(u, x, y)) throw new ActionError("那裡有其他單位");
       const cage = this.cageOf(u);
       if (cage && !this.inCage(cage, x, y, B * 0.6)) throw new ActionError(`被聖牢籠困住了！攻擊牢籠 ${cage.hp} 次才能出去`);
@@ -583,6 +656,9 @@
       // 教學 NPC：不受傷，只會講話
       if (dst.npc) { this.tutorial?.onNpcHit?.(this.currentSkill, src); return 0; }
       // 演出中的無敵（例如受難之日變身）
+      if (dst.state.dived) return 0;                 // 潛到地底（例如大白鯊的深海狂潛）：打不到，也不會露出位置
+      // 格擋（例如翁爾貢：正面的投射物被旋轉的雙刃擋下）
+      if (dst.def.blockHit?.(this, dst, src)) { this.say(`${dst.name} 在面前旋轉雙刃，擋下了攻擊！`); this.emit({ type: "miss", x: dst.x, y: dst.y, text: "格擋" }); return 0; }
       if (dst.state.invuln) { this.emit({ type: "miss", x: dst.x, y: dst.y, text: "無效" }); return 0; }
       // 聖牢籠：不看傷害，每被打一次扣 1
       if (dst.cage) {
@@ -615,7 +691,9 @@
         this.emit({ type: "blocked", unit: dst });
         return 0;
       }
-      if (k !== 1) note += `（立場 ×${k}）`;
+      if (k !== 1) note += dst.def.incomingNote ? dst.def.incomingNote(k) : `（立場 ×${k}）`;
+      // 破綻（例如被翁爾貢打到）：受到的傷害變多
+      if (dst.state.flawUntil >= this.round) { mult *= dst.state.flawMult || 1.3; note += "（破綻）"; }
       // 玩家角色的增傷（例如業障纏身）
       if (src === this.player && this.char.outgoingMult) {
         const ex = this.char.outgoingMult(this, src, dst);
@@ -624,6 +702,8 @@
       // 虛弱的攻擊者：傷害變低
       const wk = src ? this.weakOf(src) : 1;
       if (wk !== 1) { mult *= wk; note += "（虛弱）"; }
+      // 寶物的增傷（例如奇幻燒瓶）
+      if (src?.team === "player" && src.items?.length && R.Items) mult *= R.Items.dmgMult(this, src, dst);
       // 角色的增傷（例如觀知命：從吉位打兇位）
       if (src?.team === "player" && src.def.positionMult) {
         const ex = src.def.positionMult(this, src, dst);
@@ -645,6 +725,9 @@
       this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1 });
       if (dst === this.player && dst.alive) this.bark(dst, "hurt");          // 受傷台詞（角色有設定才會跳）
       if (dst.def.ai && dst.alive) R.AI[dst.def.ai]?.onHurt?.(this, dst);
+      if (dst.summon && dst.alive && R.Items) R.Items.onSummonHurt(this, dst, src);
+      if (dst === this.player && dst.alive && dst.items?.length && R.Items) R.Items.onHurt(this, dst, src);
+      if (src === this.player && dst !== src && src.items?.length && R.Items) R.Items.onHit(this, src, dst);       // 例如凡塔黑
       if (dst.summon && dst.alive) this.char.onSummonHurt?.(this, dst, src);   // 例如胞子潑灑    // 例如受難之日扣到一定生命就變身
       if (dst.hp <= 0 && dst.def.noDeath) { this.tutorial?.onNpcDefeated?.(dst); return amount; }   // 血條打光但不會倒下
       if (!dst.alive) this.onDeath(dst);
@@ -652,6 +735,8 @@
     }
 
     onDeath(u) {
+      // Boss 倒下時，它生出來的小怪一起消失（例如彈跳噩夢的粉色史萊姆）
+      if (u.def?.meltOnDeath) for (const e of this.units) if (e.alive && u.def.meltOnDeath.includes(e.kind)) { e.hp = 0; e.alive = false; this.say(`${e.name} 融化了`); this.emit({ type: "death", unit: e }); }
       if (u.ward) {
         const left = this.wards.filter((w) => w.alive).length;
         this.say(`${u.name}被破壞了！（還剩 ${left} 輛）`);
@@ -722,6 +807,15 @@
     }
 
     // 生成心魔這類特殊單位（不參與回合、不算勝利條件）
+    // 把新單位排進行動順序：排在 after 後面（同一個 after 後面的依召喚順序排）
+    joinOrder(u, after) {
+      if (!this.order.length || this.order.includes(u)) return;
+      let i = this.order.indexOf(after);
+      if (i < 0) { this.order.push(u); return; }
+      while (this.order[i + 1]?.owner === after) i++;
+      this.order.splice(i + 1, 0, u);
+      if (i + 1 <= this.idx) this.idx++;
+    }
     spawnSpecial(team, kind, def, x, y, extra) {
       const u = this.add(new Unit(team, kind, def, def, x, y, def.r || this.cfg.body));
       Object.assign(u, extra);
@@ -789,7 +883,7 @@
     // 先顯示範圍、等 reaction 秒，再判定玩家有沒有在範圍內
     // 回傳 "hit" / "miss"，被中斷時回傳 false。noDamage：只判定不扣血（教學示範用）
     // quiet：沒打中時不顯示 MISS、不寫紀錄（一次放很多發的攻擊用）
-    async telegraph(owner, t, { base, sound, label, missText, hitText, mult = 1, onHit, noDamage, quiet } = {}) {
+    async telegraph(owner, t, { base, sound, label, missText, hitText, mult = 1, onHit, onAny, noDamage, quiet } = {}) {
       t.owner = owner;
       t.total = t.reaction;
       t.deadline = performance.now() + t.reaction * 1000;
@@ -806,17 +900,22 @@
       this.emit({ type: "strike", ...t, sound });
       const p = this.player;
       let result = "miss";
-      if (p.alive && this.hitTest(t, p)) {
+      // 躲在貨架後面：直線的攻擊（長方形）被擋住
+      const covered = t.shape === "rect" && this.coverBetween(owner, p) && this.coverBetween({ x: t.x, y: t.y }, p);
+      const lowCovered = t.shape === "rect" && t.shot && this.lowCoverBetween(owner, p);           // 矮牆擋射擊
+      if ((covered || lowCovered) && p.alive && this.hitTest(t, p)) { this.say(`${p.name} 躲在${lowCovered && !covered ? "矮牆" : this.room.terrain === "ruins" ? "柱子" : "貨架"}後面，${label || "攻擊"}被擋住了！`); this.emit({ type: "miss", x: p.x, y: p.y, text: "掩護" }); }
+      else if (p.alive && this.hitTest(t, p)) {
         if (noDamage) { result = "hit"; this.emit({ type: "miss", x: p.x, y: p.y, text: hitText || "被打中了" }); onHit?.(p); }
         else {
           const amount = this.damage(owner, p, base, mult);
           if (amount > 0) result = "hit";
           if (amount > 0 && p.alive) onHit?.(p);     // 被打中才有的附加效果（擊退、扣行動點…）
+          if (amount > 0) onAny?.(p);
         }
       }
       else if (!quiet) { this.say(missText || `${label || "攻擊"}落空了！`); this.emit({ type: "miss", x: p.x, y: p.y }); }
       // 我方召喚物也會被打到
-      if (!noDamage) for (const a of this.allies()) if (this.hitTest(t, a)) this.damage(owner, a, base, mult);
+      if (!noDamage) for (const a of this.allies()) if (this.hitTest(t, a) && this.damage(owner, a, base, mult) > 0) onAny?.(a);
       this.checkEnd();
       return result;
     }
@@ -957,8 +1056,10 @@
       if (dv) { ang += dv; this.say(`${u.name} 的攻擊方向偏掉了（大凶之兆）`); this.emit({ type: "buff", unit: u, text: "方向偏了", color: "#8a1a24" }); }
       u.facing = ang;
       this.say(`${u.name} 準備${label}！`);
-      const t = { shape: "rect", x: u.x + Math.cos(ang) * B * 0.6, y: u.y + Math.sin(ang) * B * 0.6, ang, length: spec.length, width: spec.width, reaction: spec.reaction, lunge: !spec.ranged, shot: !!spec.ranged };
+      if (u.def.rex || u.def.paw) u.pose = { k: "lunge", t0: performance.now(), ang, hit: 0 };          // 霸王龍：整隻往後仰、再往前撲（畫圖用）
+      const t = { shape: "rect", x: u.x + Math.cos(ang) * B * 0.6, y: u.y + Math.sin(ang) * B * 0.6, ang, length: spec.length, width: spec.width, reaction: spec.reaction, lunge: !spec.ranged, shot: !!spec.ranged, words: this.pickWords(u, spec) };
       const res = await this.telegraph(u, t, { base: spec.base, sound: spec.sound || u.def.sounds?.ram, label: `${u.name} 的${label}`, quiet: target !== this.player });
+      if (u.pose) u.pose.hit = performance.now();
       if (dash && res !== false && u.alive && !this.dead && this.phase !== "over") {
         const A = this.cfg.arena, from = { x: u.x, y: u.y };
         let to = null;
@@ -974,11 +1075,21 @@
       }
       return res;
     }
+    // 會噴出文字的攻擊（例如午夜郵局的情緒煙霧）：從 spec.words 隨機挑一句，說出來、打出去
+    pickWords(u, spec) {
+      if (!spec.words?.length) return null;
+      const w = spec.words[Math.floor(Math.random() * spec.words.length)];
+      this.say(`${u.name}：「${w}」`);
+      return w;
+    }
     // 以自己為中心的圓形攻擊（有預告）
     async enemySpin(u, spec, label) {
       this.enemySpend(u, spec.ap);
       this.say(`${u.name} 準備${label}！`);
-      return this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}` });
+      if (u.def.rex || u.def.paw) u.pose = { k: "spin", t0: performance.now(), hit: 0 };                   // 霸王龍：蹲低蓄力、再整隻轉一圈
+      const res = await this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u, words: this.pickWords(u, spec) }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}` });
+      if (u.pose) u.pose.hit = performance.now();
+      return res;
     }
     // 戰鬥中叫來的敵人：排在行動順序最後面
     summonEnemy(kind, x, y) {

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fishing.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fishing.js": "20261112021356" });
 // 海上釣魚（#CI00001 奇儂鎮「釣條大魚」）
 // 跟著老伯恩的船出海釣一次魚：選魚餌 → 下竿 → 30 秒內會有魚上鉤（水面出現水波）
 // → 「快拉！」時快速點擊、「停！」時停手，交替累積進度，進度滿就釣起來
@@ -30,6 +30,7 @@
       const T = TIERS[c.tier];
       let w = T.weight / CATCH.filter((x) => x.tier === c.tier).length;
       if (c.tier !== "common" && ((bait === "wolfMeat" && c.fish) || (bait === "slimeGel" && !c.fish))) w *= BAIT_BOOST;
+      if (bait === "vivMushroom") w *= c.tier === "treasure" ? BAIT_BOOST : c.tier === "rare" ? 0 : 1;     // 薇薇拉的蘑菇：珍品容易、稀有釣不到
       return { c, w };
     });
     let r = Math.random() * list.reduce((a, x) => a + x.w, 0);
@@ -44,17 +45,20 @@
     for (const c of CATCH) {
       let w = TIERS[c.tier].weight / CATCH.filter((x) => x.tier === c.tier).length;
       if (c.tier !== "common" && ((bait === "wolfMeat" && c.fish) || (bait === "slimeGel" && !c.fish))) w *= BAIT_BOOST;
+      if (bait === "vivMushroom") w *= c.tier === "treasure" ? BAIT_BOOST : c.tier === "rare" ? 0 : 1;
       sum[c.tier] += w; all += w;
     }
     return Object.entries(sum).map(([k, v]) => `${TIERS[k].name} ${Math.round((v / all) * 100)}%`).join("・");
   }
 
   // ===== 釣魚畫面 =====
-  function start({ host, bait, onDone }) {
+  // theme（可選）：別的時空的釣魚（例如蒙德里安的理想國的黃色水面）
+  //   { title, label, roll() → 漁獲, per(漁獲), drawBg(ctx, now, W, H), result(漁獲) → HTML, button, castText }
+  function start({ host, bait, onDone, theme }) {
     const wrap = document.createElement("div");
     wrap.className = "fish";
-    wrap.innerHTML = `<canvas width="1280" height="720" aria-label="海上釣魚"></canvas>
-      <div class="fish-hud"><b class="fish-title">北碼頭外的海上・老伯恩的漁船</b><span class="fish-msg" role="status"></span></div>
+    wrap.innerHTML = `<canvas width="1280" height="720" aria-label="${theme?.label || "海上釣魚"}"></canvas>
+      <div class="fish-hud"><b class="fish-title">${theme?.title || "北碼頭外的海上・老伯恩的漁船"}</b><span class="fish-msg" role="status"></span></div>
       <div class="fish-phase" aria-live="polite"></div>
       <div class="fish-bar hidden" aria-label="進度"><i></i></div>
       <button type="button" class="fish-btn hidden">拉竿！</button>
@@ -63,12 +67,12 @@
     const cv = wrap.querySelector("canvas"), ctx = cv.getContext("2d");
     const msg = wrap.querySelector(".fish-msg"), phaseEl = wrap.querySelector(".fish-phase"), bar = wrap.querySelector(".fish-bar"), barI = bar.querySelector("i");
     const btn = wrap.querySelector(".fish-btn"), res = wrap.querySelector(".fish-result");
-    const catchIt = roll(bait);
-    const per = catchIt.jelly ? 3 : TIERS[catchIt.tier].per;
+    const catchIt = theme ? theme.roll() : roll(bait);
+    const per = theme ? theme.per(catchIt) : catchIt.jelly ? 3 : TIERS[catchIt.tier].per;
     // 30 秒內上鉤（偏向 5～15 秒）
     const waitMs = (3 + Math.pow(Math.random(), 1.5) * 27) * 1000;
     const st = { mode: "cast", t0: performance.now(), biteAt: performance.now() + 900 + waitMs, prog: 0, phase: "pull", phaseEnd: 0, shake: 0, done: false };
-    msg.textContent = "下竿了……等魚上鉤（30 秒內）";
+    msg.textContent = theme?.castText || "下竿了……等魚上鉤（30 秒內）";
 
     function newPhase(now) {
       st.phase = st.phase === "pull" ? "stop" : "pull";
@@ -91,7 +95,9 @@
     function finish() {
       st.mode = "caught";
       btn.classList.add("hidden"); bar.classList.add("hidden"); phaseEl.textContent = "";
-      if (catchIt.jelly) {
+      if (theme) {
+        res.innerHTML = `${theme.result(catchIt)}<button type="button" class="primary" data-go>${theme.button || "收竿"}</button>`;
+      } else if (catchIt.jelly) {
         res.innerHTML = `<h3 class="legend">稀世珍品</h3><p class="fish-name">${catchIt.name}！</p>
           <p>水面炸開一大片泡沫——拉上來的不是魚，而是頭頂長著紅色硬殼的巨大水母！牠甩開魚線，攀上了船邊。</p>
           <button type="button" class="primary" data-go>迎戰！</button>`;
@@ -106,14 +112,37 @@
       res.querySelector("[data-go]").addEventListener("click", () => {
         st.done = true;
         wrap.remove();
-        onDone(catchIt.jelly ? { jelly: true, name: catchIt.name } : { name: catchIt.name, tier: catchIt.tier, tierName: TIERS[catchIt.tier].name, gold: TIERS[catchIt.tier].gold });
+        onDone(theme ? catchIt : catchIt.jelly ? { jelly: true, name: catchIt.name } : { name: catchIt.name, tier: catchIt.tier, tierName: TIERS[catchIt.tier].name, gold: TIERS[catchIt.tier].gold });
       });
     }
 
     // 畫面
     const bob = { x: 760, y: 410 };
+    function drawLine(now) {
+      // 浮標
+      let bx = bob.x, by = bob.y + Math.sin(now / 400) * 4;
+      if (st.mode === "bite") { by += Math.sin(now / 60) * 5; bx += (now < st.shake ? Math.sin(now / 20) * 6 : 0); }
+      if (st.mode === "bite" || (st.mode === "cast" && now > st.biteAt - 1500 && now < st.biteAt)) {
+        for (let i = 0; i < 3; i++) {
+          const k = ((now / 900 + i / 3) % 1);
+          ctx.strokeStyle = theme ? `rgba(29,29,31,${0.8 * (1 - k)})` : `rgba(255,255,255,${0.7 * (1 - k)})`; ctx.lineWidth = theme ? 5 : 3;
+          if (theme) ctx.strokeRect(bx - 20 - k * 90, by + 6 - 6 - k * 26, 40 + k * 180, 12 + k * 52);         // 方塊的水波
+          else { ctx.beginPath(); ctx.ellipse(bx, by + 6, 20 + k * 90, 6 + k * 26, 0, 0, Math.PI * 2); ctx.stroke(); }
+        }
+      }
+      // 釣線
+      ctx.strokeStyle = now < st.shake ? "#e53935" : theme ? "#1d1d1f" : "rgba(255,255,255,.85)"; ctx.lineWidth = theme ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.moveTo(1020, 330); ctx.quadraticCurveTo(900, st.mode === "bite" ? 360 : 400, bx, by - 8); ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(bx, by, 8, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = "#e53935"; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI); ctx.fill();
+      if (theme) {
+        ctx.strokeStyle = "#1d1d1f"; ctx.lineWidth = 10; ctx.lineCap = "butt";
+        ctx.beginPath(); ctx.moveTo(1220, 640); ctx.lineTo(1020, 330 + (st.mode === "bite" && st.phase === "pull" ? Math.sin(now / 50) * 6 : 0)); ctx.stroke();
+      }
+    }
     function draw(now) {
       const W = 1280, H = 720, hz = 250;
+      if (theme) { theme.drawBg(ctx, now, W, H); drawLine(now); return; }
       const sky = ctx.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, "#9fd0f0"); sky.addColorStop(1, "#e4f3fb");
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hz);
       ctx.fillStyle = "#fff8e0"; ctx.beginPath(); ctx.arc(1080, 90, 46, 0, Math.PI * 2); ctx.fill();
@@ -126,21 +155,7 @@
         const o = Math.sin(now / 800 + x * 0.03 + y * 0.05) * 14;
         ctx.beginPath(); ctx.moveTo(x + o, y); ctx.quadraticCurveTo(x + 20 + o, y - 7, x + 40 + o, y); ctx.stroke();
       }
-      // 浮標
-      let bx = bob.x, by = bob.y + Math.sin(now / 400) * 4;
-      if (st.mode === "bite") { by += Math.sin(now / 60) * 5; bx += (now < st.shake ? Math.sin(now / 20) * 6 : 0); }
-      if (st.mode === "bite" || (st.mode === "cast" && now > st.biteAt - 1500 && now < st.biteAt)) {
-        for (let i = 0; i < 3; i++) {
-          const k = ((now / 900 + i / 3) % 1);
-          ctx.strokeStyle = `rgba(255,255,255,${0.7 * (1 - k)})`; ctx.lineWidth = 3;
-          ctx.beginPath(); ctx.ellipse(bx, by + 6, 20 + k * 90, 6 + k * 26, 0, 0, Math.PI * 2); ctx.stroke();
-        }
-      }
-      // 釣線
-      ctx.strokeStyle = now < st.shake ? "#e53935" : "rgba(255,255,255,.85)"; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(1020, 330); ctx.quadraticCurveTo(900, st.mode === "bite" ? 360 : 400, bx, by - 8); ctx.stroke();
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(bx, by, 8, Math.PI, 0); ctx.fill();
-      ctx.fillStyle = "#e53935"; ctx.beginPath(); ctx.arc(bx, by, 8, 0, Math.PI); ctx.fill();
+      drawLine(now);
       // 釣竿、船頭
       ctx.strokeStyle = "#6b4a2a"; ctx.lineWidth = 8; ctx.lineCap = "round";
       ctx.beginPath(); ctx.moveTo(1200, 620); ctx.lineTo(1020, 330 + (st.mode === "bite" && st.phase === "pull" ? Math.sin(now / 50) * 6 : 0)); ctx.stroke();

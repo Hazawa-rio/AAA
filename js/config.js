@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112021356" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -42,6 +42,28 @@ RPG.CONFIG = {
       drops: [{ item: "slimeGel", chance: 0.7 }],   // 打倒後掉落（地圖戰鬥才有）
     },
 
+    // 彈跳噩夢：會動的布丁進了微波爐變成的小 Boss（史萊姆的變體，越彈越大）
+    nightmare: {
+      name: "彈跳噩夢", ai: "nightmare", bigBar: true, meltOnDeath: ["pinkSlime"], color: "#e87aa8", fill: "rgba(244,160,192,.16)",
+      hp: 220, atk: 17, df: 4, spd: 8, ap: 4, r: 40,       // 暫定（Lv 1～10 單人打得過）
+      // 泡泡糖：往四周噴出好幾團泡泡糖（紅色圓圈），黏在地上的會變成粉色史萊姆
+      gum: { ap: 2, every: 3, first: 2, count: 5, range: 330, radius: 58, base: 10, reaction: 1.1, spawn: 2, max: 3 },
+      moveCost: 1,
+      ram: { ap: 1, length: 130, width: 80, base: 9, reaction: 1.0 },
+      slam: { ap: 2, range: 420, radius: 140, base: 14, cooldown: 1 },
+      sounds: { ram: "sounds/slime-ram.mp3", slam: "sounds/slime-slam.mp3", move: "sounds/slime-move.mp3" },
+      drops: [{ item: "slimeGel", chance: 1, n: 2 }],
+    },
+
+    // 粉色史萊姆：彈跳噩夢噴出來的泡泡糖黏在地上變成的
+    pinkSlime: {
+      name: "粉色史萊姆", ai: "slime", lowIntel: true, color: "#e86aa0", fill: "rgba(244,160,192,.25)",
+      hp: 26, atk: 11, df: 1, spd: 6, ap: 2, moveCost: 1,
+      ram: { ap: 1, length: 100, width: 60, base: 7, reaction: 1.0 },
+      slam: { ap: 2, range: 300, radius: 100, base: 10, cooldown: 3 },
+      sounds: { ram: "sounds/slime-ram.mp3", slam: "sounds/slime-slam.mp3", move: "sounds/slime-move.mp3" },
+    },
+
   // ===== 海盜（追查搶劫漁船的海盜） =====
     // 海盜：沿用魔狼的 AI（成群包抄、貼身揮刀、遠距離跳幫）
     pirate: {
@@ -59,6 +81,120 @@ RPG.CONFIG = {
       bite: { name: "「哇！」", ap: 1, length: 90, width: 80, base: 10, reaction: 0.9, sound: "sounds/ilshu-demon.mp3" },
       pounce: { name: "飄過來", ap: 2, length: 260, width: 70, base: 12, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-move.mp3" },
       flank: 0.9,
+      sounds: { move: "sounds/slime-move.mp3" },
+    },
+    // ===== 萬聖節旅館的扮演者們（旅館的戰鬥是互相嚇唬：傷害＝驚嚇值） =====
+    werewolfActor: {
+      name: "狼人扮演者", ai: "wolf", lowIntel: true, color: "#7a5a3a",
+      hp: 46, atk: 13, df: 2, spd: 10, ap: 3, moveCost: 1, r: 30,      // 暫定
+      bite: { name: "對著臉嚎叫", ap: 1, length: 95, width: 80, base: 11, reaction: 0.9, sound: "sounds/wolf-howl-short.mp3", words: ["嗷嗚——！"] },
+      pounce: { name: "四腳著地撲過來", ap: 2, length: 270, width: 70, base: 13, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+      flank: 0.9, sounds: { move: "sounds/wolf-move.mp3" },
+    },
+    mummyActor: {
+      name: "木乃伊扮演者", ai: "wolf", lowIntel: true, color: "#b89a5a",
+      hp: 56, atk: 12, df: 3, spd: 6, ap: 3, moveCost: 1, r: 30,
+      bite: { name: "繃帶甩過來", ap: 1, length: 120, width: 70, base: 11, reaction: 1.0, sound: "sounds/ilshu-slash.mp3", words: ["還——給——我——"] },
+      pounce: { name: "拖著腳逼近", ap: 2, length: 190, width: 80, base: 12, reaction: 1.2, cooldown: 2, sound: "sounds/slime-move.mp3" },
+      flank: 0.6, sounds: { move: "sounds/slime-move.mp3" },
+    },
+    zombieActor: {
+      name: "喪屍住戶", ai: "wolf", lowIntel: true, color: "#5a8a4a",
+      hp: 40, atk: 12, df: 2, spd: 6, ap: 3, moveCost: 1, r: 28,
+      bite: { name: "「蛋糕……」", ap: 1, length: 90, width: 80, base: 10, reaction: 1.0, sound: "sounds/wolf-bite.mp3", words: ["蛋——糕——"] },
+      pounce: { name: "撲向蛋糕", ap: 2, length: 200, width: 80, base: 12, reaction: 1.2, cooldown: 3, sound: "sounds/wolf-pounce.mp3" },
+      flank: 1.1, sounds: { move: "sounds/slime-move.mp3" },
+    },
+    bat: {
+      name: "蝙蝠眷屬", ai: "wolf", lowIntel: true, color: "#4a3a5a",
+      hp: 16, atk: 9, df: 1, spd: 12, ap: 3, moveCost: 1, r: 20,
+      bite: { name: "吱吱亂叫", ap: 1, length: 80, width: 60, base: 7, reaction: 0.8, sound: "sounds/wolf-bite.mp3", words: ["吱！"] },
+      pounce: { name: "俯衝", ap: 2, length: 260, width: 50, base: 9, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+      flank: 1.2, sounds: { move: "sounds/wolf-move.mp3" },
+    },
+    // 302 號房的吸血伯爵：披風一甩、蝙蝠群、叫來蝙蝠眷屬
+    vampire: {
+      name: "吸血伯爵", ai: "captain", bigBar: true, color: "#8a1a2a",
+      hp: 200, atk: 16, df: 5, spd: 9, ap: 4, moveCost: 1, r: 32,      // 暫定（C 級）
+      sweep: { name: "披風一甩", ap: 2, radius: 135, base: 14, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-slash-strong.mp3", words: ["跪下吧！"] },
+      shot: { name: "放出蝙蝠群", ranged: true, ap: 2, length: 600, width: 46, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-pounce.mp3", words: ["吾乃夜之伯爵！", "陽光？不存在的！"] },
+      call: { kind: "bat", ap: 2, every: 3, max: 2, line: "飛吧，我的孩子們！" },
+      sounds: { move: "sounds/wolf-move.mp3" },
+    },
+    // 午夜嚇人比賽的三位 Boss（連戰，各別都不算很強）
+    samuraiArmor: {
+      name: "武士盔甲", ai: "samurai", bigBar: true, color: "#3a3a48",
+      hp: 120, atk: 15, df: 7, spd: 7, ap: 4, moveCost: 1, r: 32,      // 暫定：黑馬選手，盔甲很硬、動作慢
+      bite: { name: "斬", ap: 1, length: 110, width: 70, base: 11, reaction: 0.9, sound: "sounds/ilshu-slash.mp3" },
+      spin: { name: "迴旋斬", ap: 2, radius: 135, base: 13, reaction: 1.1, cooldown: 1, sound: "sounds/alpha-spin.mp3", words: ["喝！"] },
+      rend: { name: "居合・一閃", ap: 2, length: 380, width: 46, base: 15, reaction: 1.0, cooldown: 2, sound: "sounds/ilshu-slash-strong.mp3", words: ["一閃。"] },
+      // 收刀呼氣：這一回合不再動作；被打就立刻反擊「鬼一文字」
+      stance: { name: "收刀呼氣", ap: 1, every: 3, range: 520, sound: "sounds/firsler-smoke.mp3" },
+      counter: { name: "鬼一文字", length: 760, width: 300, base: 24, reaction: 0.55, sound: "sounds/ilshu-slash-strong.mp3" },
+      sounds: { move: "sounds/robot-move.mp3" },
+    },
+    greatWhite: {
+      name: "大白鯊", ai: "shark", bigBar: true, color: "#5a7a98",
+      hp: 130, atk: 16, df: 3, spd: 11, ap: 4, moveCost: 1, r: 36,     // 暫定：熱門選手，又快又兇
+      bite: { name: "大口一咬", ap: 1, length: 110, width: 90, base: 12, reaction: 0.9, sound: "sounds/wolf-bite.mp3", words: ["噹噹——噹噹——"] },
+      spin: { name: "甩尾", ap: 2, radius: 140, base: 12, reaction: 1.0, cooldown: 1, sound: "sounds/alpha-spin.mp3" },
+      rend: { name: "破地衝出", ap: 2, length: 460, width: 90, base: 15, reaction: 1.1, cooldown: 2, sound: "sounds/alpha-rend.mp3", words: ["噹噹噹噹！"] },
+      // 深海狂潛：潛進地底（打不到、看不到），地上留下預告圓圈，下次輪到牠時從那裡衝出來
+      dive: { name: "深海狂潛", ap: 2, every: 3, radius: 120, base: 18, sound: "sounds/slime-slam.mp3" },
+      sounds: { move: "sounds/slime-move.mp3" },
+    },
+    reaper: {
+      name: "死神", ai: "reaper", bigBar: true, color: "#9a4aa0",
+      hp: 170, atk: 16, df: 4, spd: 9, ap: 4, moveCost: 1, r: 36,      // 暫定：衛冕選手
+      sweep: { name: "揮動鐮刀", ap: 2, radius: 150, base: 14, reaction: 1.1, cooldown: 1, sound: "sounds/ilshu-slash-strong.mp3" },
+      shot: { name: "地獄火", ap: 2, length: 620, width: 44, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/firsler-burst.mp3" },
+      mark: { name: "你是下一個！", ap: 1, every: 3, last: 3, sound: "sounds/ilshu-demon.mp3" },
+      ult: { name: "你的靈魂歸我所有！", warn: "哈哈哈哈哈哈！墮入地獄吧！！", count: 12, radius: 85, base: 14, reaction: 1.3, sound: "sounds/ilshu-demon.mp3" },
+      call: { kind: "ghostActor", ap: 2, every: 3, max: 2, line: "來吧，迷途的亡魂。" },
+      sounds: { move: "sounds/wolf-move.mp3" },
+    },
+
+    // ===== 午夜郵局：信裡夾帶的情緒變成的煙霧（會噴出文字攻擊） =====
+    selfBlame: {
+      name: "自責", ai: "gunner", color: "#6a5a8a",
+      hp: 34, atk: 12, df: 2, spd: 7, ap: 3, moveCost: 1, r: 28, keep: 190,       // 暫定
+      shot: { name: "喃喃自語", ranged: true, ap: 2, length: 520, width: 34, base: 11, reaction: 1.1, sound: "sounds/ilshu-demon.mp3", words: ["都是我的錯", "我不夠好", "又搞砸了", "對不起"] },
+      sounds: { move: "sounds/slime-move.mp3" },
+    },
+    regret: {
+      name: "悔恨", ai: "wolf", color: "#8a2a3a",
+      hp: 48, atk: 15, df: 3, spd: 7, ap: 3, moveCost: 1, r: 32,
+      bite: { name: "沉重的嘆息", ap: 1, length: 100, width: 90, base: 13, reaction: 1.0, sound: "sounds/slime-ram.mp3", words: ["要是那時候……", "為什麼沒說出口"] },
+      pounce: { name: "壓上來", ap: 2, length: 230, width: 84, base: 14, reaction: 1.1, cooldown: 2, sound: "sounds/slime-slam.mp3", words: ["早知道就……"] },
+      flank: 0.7, sounds: { move: "sounds/slime-move.mp3" },
+    },
+    longing: {
+      name: "思念", ai: "gunner", color: "#3a6ab0",
+      hp: 30, atk: 12, df: 2, spd: 8, ap: 3, moveCost: 1, r: 26, keep: 260,
+      shot: { name: "寄不出去的話", ranged: true, ap: 2, length: 660, width: 26, base: 11, reaction: 1.0, sound: "sounds/guan-chime.mp3", words: ["好想你", "你過得好嗎", "再見一面就好"] },
+      sounds: { move: "sounds/slime-move.mp3" },
+    },
+    joy: {
+      name: "快樂", ai: "wolf", color: "#d9a01a",
+      hp: 28, atk: 9, df: 1, spd: 11, ap: 3, moveCost: 1, r: 24,
+      bite: { name: "笑聲", ap: 1, length: 90, width: 70, base: 8, reaction: 0.9, sound: "sounds/slime-ram.mp3", words: ["哈哈哈！"] },
+      pounce: { name: "蹦過來", ap: 2, length: 260, width: 60, base: 9, reaction: 1.0, cooldown: 2, sound: "sounds/slime-slam.mp3", words: ["好開心！", "今天真好！"] },
+      flank: 1.2, sounds: { move: "sounds/slime-move.mp3" },
+    },
+    regretBig: {
+      name: "信裡的悔恨", ai: "captain", bigBar: true, color: "#8a2a3a",
+      hp: 210, atk: 16, df: 4, spd: 8, ap: 4, moveCost: 1, r: 44,     // 暫定（C 級 Boss）
+      sweep: { name: "後悔的漩渦", ap: 2, radius: 150, base: 14, reaction: 1.1, cooldown: 1, sound: "sounds/slime-slam.mp3", words: ["對不起"] },
+      shot: { name: "沒說出口的話", ranged: true, ap: 2, length: 620, width: 44, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-demon.mp3", words: ["我不該那樣說", "原諒我", "那天我錯了"] },
+      call: { kind: "selfBlame", ap: 2, every: 3, max: 2, line: "……都是我的錯。" },
+      sounds: { move: "sounds/slime-move.mp3" },
+    },
+    longingBig: {
+      name: "堆積的思念", ai: "captain", bigBar: true, color: "#3a6ab0",
+      hp: 190, atk: 15, df: 4, spd: 8, ap: 4, moveCost: 1, r: 44,
+      sweep: { name: "沉積的回憶", ap: 2, radius: 150, base: 13, reaction: 1.1, cooldown: 1, sound: "sounds/slime-slam.mp3", words: ["還記得嗎"] },
+      shot: { name: "寄不到的信", ranged: true, ap: 2, length: 660, width: 40, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/guan-chime.mp3", words: ["收件人不詳", "查無此人", "請轉交給……"] },
+      call: { kind: "longing", ap: 2, every: 3, max: 2, line: "還有好多話沒說。" },
       sounds: { move: "sounds/slime-move.mp3" },
     },
     // 火槍手：保持距離開火（很長很細的紅框）
@@ -323,6 +459,101 @@ RPG.CONFIG = {
           playerStart: { x: 640, y: 600 },
           wave: [{ kind: "ghostActor", x: 480, y: 160 }, { kind: "ghostActor", x: 800, y: 160 }],
         },
+        werewolf: {
+          name: "太入戲的狼人", desc: "櫃檯前不肯排隊的狼人扮演者", xp: 50, gold: [10, 16], retreat: null,
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "werewolfActor", x: 640, y: 170 }],
+        },
+        mummy: {
+          name: "抱著床單的木乃伊", desc: "不肯交出床單的木乃伊扮演者", xp: 55, gold: [10, 16],
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "mummyActor", x: 640, y: 170 }],
+        },
+        zombies: {
+          name: "聞到蛋糕的喪屍", desc: "衝向腦漿蛋糕的喪屍住戶", xp: 60, gold: [8, 14],
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "zombieActor", x: 500, y: 160 }, { kind: "zombieActor", x: 780, y: 180 }],
+        },
+        vampire: {
+          name: "302 號房的吸血伯爵", desc: "302 號房的吸血伯爵", xp: 260, gold: [50, 70], retreat: null,
+          bgm: "sounds/boss-bgm.mp3",
+          playerStart: { x: 640, y: 620 },
+          wave: [{ kind: "vampire", x: 640, y: 190 }, { kind: "bat", x: 460, y: 230 }],
+          help: "<b>吸血伯爵</b>：披風一甩（自己周圍的圓）、放出蝙蝠群（很長的紅框，伯爵不會衝出去）、叫來蝙蝠眷屬。把他嚇到滿意為止",
+        },
+        // 午夜嚇人比賽：連續四場（不能撤退；驚嚇值會延續到下一場）
+        contest1: {
+          intro: "骷骷：「喀喀喀！午夜嚇人比賽，預賽開始！參賽者有點多，評審請自求多福！」",
+          name: "午夜嚇人比賽・預賽", desc: "一波報名的小怪", xp: 90, gold: [16, 24], retreat: null,
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "ghostActor", x: 420, y: 170 }, { kind: "werewolfActor", x: 640, y: 140 }, { kind: "ghostActor", x: 860, y: 170 }, { kind: "zombieActor", x: 640, y: 280 }],
+          help: "<b>連續戰鬥</b>：四場比賽中間不回地圖，驚嚇值會延續到下一場，也不能撤退",
+        },
+        contest2: {
+          intro: "骷骷：「黑馬選手——武士盔甲！聽說它收刀呼氣的時候，千萬別出手！」",
+          name: "黑馬選手・武士盔甲", desc: "戴著頭盔、拿著刀的方塊", xp: 120, gold: [20, 30], retreat: null,
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "samuraiArmor", x: 640, y: 190 }],
+          help: "<b>武士盔甲</b>：盔甲很硬、動作慢。迴旋斬（自己周圍的圓）、居合・一閃（很長很細的紅框，砍完會衝過去）",
+        },
+        contest3: {
+          intro: "骷骷：「熱門選手——大白鯊！咦，牠跑哪去了？評審，小心腳下！」",
+          name: "熱門選手・大白鯊", desc: "從地板裡衝出來的大白鯊", xp: 130, gold: [20, 30], retreat: null,
+          playerStart: { x: 640, y: 600 },
+          wave: [{ kind: "greatWhite", x: 640, y: 190 }],
+          help: "<b>大白鯊</b>：又快又兇。甩尾（自己周圍的圓）、破地衝出（很長很寬的紅框，衝過去）",
+        },
+        contest4: {
+          intro: "骷骷：「衛冕選手——死神！連勝七千多年的傳說！被他指到的人……喀、喀喀……」",
+          name: "衛冕選手・死神", desc: "會把住戶移到「地獄」的死神", xp: 180, gold: [30, 45], retreat: null,
+          bgm: "sounds/boss-bgm.mp3",
+          playerStart: { x: 640, y: 620 },
+          wave: [{ kind: "reaper", x: 640, y: 190 }],
+          help: "<b>死神</b>：鐮刀橫掃（自己周圍的圓）、勾魂（很長的紅框）、叫來亡魂（幽靈扮演者）",
+        },
+      },
+    },
+    // 午夜郵局：信裡夾帶的情緒變成的煙霧
+    post: {
+      name: "午夜郵局", desc: "午夜郵局的戰鬥", hidden: true,
+      terrain: "post", bgm: "sounds/bgm-battle.mp3",
+      retreat: { min: 0.15, max: 0.9, near: 120, far: 650 },
+      help: "<b>情緒煙霧</b>會噴出文字攻擊。<b>自責</b>、<b>思念</b>：保持距離噴字（很長的紅框）・<b>悔恨</b>：貼身的嘆息、壓上來・<b>快樂</b>：又快又吵",
+      variants: {
+        selfBlame: { name: "自責", desc: "兩團自責", xp: 60, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "selfBlame", x: 460, y: 170 }, { kind: "selfBlame", x: 820, y: 170 }] },
+        regret: { name: "悔恨", desc: "悔恨和自責", xp: 70, gold: [12, 20], playerStart: { x: 640, y: 600 }, wave: [{ kind: "regret", x: 640, y: 180 }, { kind: "selfBlame", x: 900, y: 150 }] },
+        longing: { name: "思念", desc: "兩團思念", xp: 60, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "longing", x: 380, y: 150 }, { kind: "longing", x: 900, y: 150 }] },
+        joy: { name: "快樂", desc: "三團快樂", xp: 55, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "joy", x: 420, y: 180 }, { kind: "joy", x: 640, y: 140 }, { kind: "joy", x: 860, y: 180 }] },
+        letterRegret: {
+          name: "信裡的悔恨", desc: "道歉信裡夾帶的悔恨", xp: 240, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3",
+          playerStart: { x: 640, y: 620 }, wave: [{ kind: "regretBig", x: 640, y: 200 }],
+          help: "<b>信裡的悔恨</b>：後悔的漩渦（自己周圍的圓）、沒說出口的話（很長的紅框）、叫來自責",
+        },
+        hoard: {
+          name: "堆積的思念", desc: "黑貓藏寶處的思念", xp: 220, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3",
+          playerStart: { x: 640, y: 620 }, wave: [{ kind: "longingBig", x: 640, y: 200 }],
+          help: "<b>堆積的思念</b>：沉積的回憶（自己周圍的圓）、寄不到的信（很長的紅框）、叫來思念",
+        },
+      },
+    },
+    // 美食研究所：微波爐室裡的戰鬥
+    lab: {
+      name: "微波爐室", desc: "美食研究所的戰鬥", hidden: true,
+      bgm: "sounds/bgm-battle.mp3",
+      variants: {
+        nightmare: {
+          name: "彈跳噩夢", desc: "會動的布丁在微波爐裡變成的小 Boss，蹦進了理性倉庫", xp: 260, gold: [60, 80], treasure: "horrorGel",
+          bgm: "sounds/boss-bgm.mp3", terrain: "warehouse",
+          // 理性倉庫的貨架：不能站上去，可以躲在後面擋住直線的攻擊（撞擊）
+          obstacles: [
+            { x: 230, y: 360, w: 230, h: 48 }, { x: 820, y: 360, w: 230, h: 48 },
+            { x: 560, y: 470, w: 160, h: 44 },
+            { x: 110, y: 540, w: 48, h: 150 }, { x: 1122, y: 540, w: 48, h: 150 },
+          ],
+          playerStart: { x: 640, y: 620 },
+          wave: [{ kind: "nightmare", x: 640, y: 200 }],
+          help: "<b>理性倉庫</b>：貨架不能站上去，<b>躲在貨架後面可以擋住撞擊</b>（直線的紅框）。<b>彈跳噩夢</b>：撞擊、壓制（遠處的大圓，下次輪到它時跳過去）、<b>噴泡泡糖</b>（周圍好幾個紅圈，黏在地上的會變成粉色史萊姆，最多 3 隻）。打倒後得到稀有寶物「恐怖黏液」",
+        },
       },
     },
     jellyfish: {
@@ -390,11 +621,281 @@ RPG.CONFIG = {
   },
 };
 
+// ===== 衍生的敵人和房間（用現有的敵人改數值） =====
+(function (C) {
+  const E = C.enemies, Rm = C.rooms;
+  // #RU20314 古代遺跡科考隊：森林裡的魔物（B 級時空，比草原的強）
+  E.mossSlime = Object.assign({}, E.slime, { name: "苔蘚史萊姆", color: "#4a7a3a", fill: "rgba(90,140,70,.22)", hp: 95, atk: 20, df: 5, spd: 7 });       // 暫定
+  E.forestWolf = Object.assign({}, E.wolf, { name: "林狼", hp: 85, atk: 19, df: 4, spd: 10 });                                                       // 暫定
+  Rm.ruinsWild = Object.assign({}, Rm.encounter, {
+    name: "遺跡外的森林", desc: "古代遺跡外的森林",
+    variants: {
+      mossSlimes: { name: "森林的魔物", desc: "三隻苔蘚史萊姆", xp: 140, gold: [30, 45], playerStart: { x: 640, y: 600 }, wave: [{ kind: "mossSlime", x: 330, y: 170 }, { kind: "mossSlime", x: 640, y: 120 }, { kind: "mossSlime", x: 950, y: 170 }] },
+      forestWolves: { name: "林狼群", desc: "三隻林狼", xp: 170, gold: [35, 50], playerStart: { x: 640, y: 600 }, wave: [{ kind: "forestWolf", x: 360, y: 170 }, { kind: "forestWolf", x: 640, y: 120 }, { kind: "forestWolf", x: 920, y: 170 }], help: WOLF_HELP },
+    },
+  });
+  // 森林外圍也有奇儂鎮常見的魔狼和史萊姆（同一個物種，圖鑑會在兩個時空都列出來）
+  Rm.ruinsWild.variants.edgeWolves = Object.assign({}, Rm.encounter.variants.wolfPack, { name: "森林邊的魔狼", desc: "從奇儂鎮那邊也看得到的魔狼" });
+  Rm.ruinsWild.variants.edgeSlimes = Object.assign({}, Rm.encounter.variants.slimePack, { name: "森林邊的史萊姆", desc: "草地上的史萊姆" });
+
+  // ===== #MD01921 蒙德里安的理想國：被「看成」別的東西的色塊 =====
+  // 色塊野獸：被看成野獸的色塊（外觀還是原本的色塊）
+  const BEAST = { ai: "wolf", hp: 70, atk: 16, df: 4, spd: 9, ap: 3, moveCost: 1, r: 30, flank: 0.9,          // 暫定（B 級）
+    bite: { name: "撞上來", ap: 1, length: 100, width: 80, base: 13, reaction: 0.9, sound: "sounds/slime-ram.mp3" },
+    pounce: { name: "撲擊", ap: 2, length: 260, width: 76, base: 15, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" } };
+  for (const [k, name, color] of [["Red", "紅色", "#e8262c"], ["Blue", "藍色", "#1a3ae8"], ["Yellow", "黃色", "#f0d800"], ["White", "白色", "#f4f4f0"]]) {
+    E[`blockBeast${k}`] = Object.assign({}, BEAST, { name: `${name}的色塊野獸`, color, block: true, species: "blockBeast" });
+  }
+  E.blockBird = { name: "方塊鳥", ai: "wolf", lowIntel: true, color: "#1d1d1f", hp: 42, atk: 14, df: 2, spd: 12, ap: 3, moveCost: 1, r: 22, flank: 1.3,
+    bite: { name: "啄", ap: 1, length: 90, width: 56, base: 11, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "俯衝", ap: 2, length: 300, width: 50, base: 13, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/wolf-move.mp3" } };
+  // 霸王龍：看大家怎麼看它
+  E.rexBlock = { name: "3×5 的黑色方形", ai: "slime", color: "#1d1d1f", fill: "rgba(29,29,31,.12)", hp: 70, atk: 14, df: 3, spd: 6, ap: 3, moveCost: 1, r: 34, block: true,
+    ram: { ap: 1, length: 110, width: 80, base: 10, reaction: 1.0 }, slam: { ap: 2, range: 320, radius: 110, base: 13, cooldown: 3 },
+    sounds: { ram: "sounds/slime-ram.mp3", slam: "sounds/slime-slam.mp3", move: "sounds/slime-move.mp3" } };
+  E.rexDoubt = { name: "自我懷疑的暗黑霸王龍", ai: "alphaWolf", bigBar: true, color: "#1d1d1f", rex: true,
+    hp: 420, atk: 24, df: 7, spd: 10, ap: 4, moveCost: 1, r: 26,                                                  // 暫定（B 級 Boss；體型小很多）
+    bite: { name: "咬", ap: 1, length: 120, width: 90, base: 16, reaction: 0.9, sound: "sounds/wolf-bite.mp3" },
+    spin: { name: "甩尾", ap: 2, radius: 160, base: 18, reaction: 1.0, cooldown: 1, sound: "sounds/alpha-spin.mp3" },
+    rend: { name: "衝撞", ap: 2, length: 420, width: 100, base: 20, reaction: 1.1, cooldown: 2, sound: "sounds/dino-roar.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" } };
+  E.rexKing = { name: "十分恐怖的暗黑霸王龍之王", ai: "alphaWolf", boss: false, bigBar: true, color: "#0a0a0c", rex: true, king: true,
+    hp: 3000, atk: 56, df: 14, spd: 14, ap: 7, moveCost: 1, r: 52,                                               // 暫定：數值接近 S 級的受難之日
+    bite: { name: "吞噬", ap: 1, length: 150, width: 120, base: 38, reaction: 0.9, sound: "sounds/wolf-bite.mp3" },
+    spin: { name: "毀滅甩尾", ap: 2, radius: 230, base: 44, reaction: 1.0, cooldown: 1, sound: "sounds/alpha-spin.mp3" },
+    rend: { name: "王者衝撞", ap: 3, length: 640, width: 170, base: 54, reaction: 1.1, cooldown: 2, sound: "sounds/dino-roar.mp3" },
+    howl: { ap: 3, every: 3, max: 2, kind: "rexBlock", line: "畫布上的黑色方形都站了起來！", sound: "sounds/wolf-howl-short.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" } };
+  const canvasBase = { name: "蒙德里安的理想國", desc: "畫布上的戰鬥", hidden: true, terrain: "canvas", bgm: "sounds/bgm-battle.mp3",
+    retreat: { min: 0.15, max: 0.9, near: 120, far: 650 } };
+  const beast = (k) => ({ name: "色塊野獸", desc: "被看成野獸的色塊", xp: 150, gold: [30, 45], playerStart: { x: 640, y: 600 }, wave: [{ kind: `blockBeast${k}`, x: 640, y: 170 }] });
+  Rm.canvas = Object.assign({}, canvasBase, {
+    variants: {
+      beastRed: beast("Red"), beastBlue: beast("Blue"), beastYellow: beast("Yellow"), beastWhite: beast("White"),
+      predators: { name: "毛毛蟲的天敵", desc: "三隻方塊鳥", xp: 200, gold: [35, 50], retreat: null, playerStart: { x: 640, y: 600 },
+        wave: [{ kind: "blockBird", x: 380, y: 150 }, { kind: "blockBird", x: 640, y: 110 }, { kind: "blockBird", x: 900, y: 150 }],
+        help: "<b>保護毛毛蟲</b>：把三隻方塊鳥趕走，毛毛蟲才能安心結繭" },
+      rexBlock: { name: "3×5 的黑色方形", desc: "大家都不再認為它是霸王龍了", xp: 160, gold: [30, 45], retreat: null, playerStart: { x: 640, y: 620 }, wave: [{ kind: "rexBlock", x: 640, y: 200 }] },
+      rexDoubt: { name: "自我懷疑的暗黑霸王龍", desc: "還有人認為它是霸王龍", xp: 520, gold: [80, 110], retreat: null, bgm: "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 620 }, wave: [{ kind: "rexDoubt", x: 640, y: 200 }],
+        help: "<b>自我懷疑的暗黑霸王龍</b>：咬、甩尾（自己周圍的圓）、衝撞（很長很寬的紅框）。說服更多居民，它就會更弱" },
+      rexKing: { name: "十分恐怖的暗黑霸王龍之王", desc: "所有人都深信它是霸王龍", xp: 2400, gold: [400, 500], retreat: null, treasure: "vantaBlack", bgm: "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 640 }, wave: [{ kind: "rexKing", x: 640, y: 200 }],
+        help: "<b>十分恐怖的暗黑霸王龍之王</b>：沒有人改變看法時的完全體，強度接近 S 級的受難之日。吞噬、毀滅甩尾、王者衝撞、叫來黑色方形。打倒後得到傳奇寶物「凡塔黑」" },
+    },
+  });
+  // #RT00317 午夜郵局：堆積如山的帳單
+  E.anxiety = {
+    name: "焦慮", ai: "gunner", color: "#c8702a",
+    hp: 32, atk: 12, df: 2, spd: 9, ap: 3, moveCost: 1, r: 26, keep: 220,         // 暫定
+    shot: { name: "催繳", ranged: true, ap: 2, length: 560, width: 30, base: 11, reaction: 1.0, sound: "sounds/ilshu-demon.mp3", words: ["逾期未繳", "請立即繳納", "最後期限：昨天"] },
+    sounds: { move: "sounds/slime-move.mp3" },
+  };
+  E.finalNotice = {
+    name: "最後通知", ai: "captain", bigBar: true, color: "#b8321e",
+    hp: 230, atk: 16, df: 5, spd: 8, ap: 4, moveCost: 1, r: 44,                   // 暫定（C 級 Boss）
+    sweep: { name: "滯納金", ap: 2, radius: 150, base: 14, reaction: 1.1, cooldown: 1, sound: "sounds/slime-slam.mp3", words: ["利息", "滯納金"] },
+    shot: { name: "催繳單", ranged: true, ap: 2, length: 640, width: 44, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-demon.mp3", words: ["最後通知", "金額：一顆小行星", "收件人：未來的你"] },
+    call: { kind: "anxiety", ap: 2, every: 3, max: 2, line: "還有下一張。永遠還有下一張。" },
+    sounds: { move: "sounds/slime-move.mp3" },
+  };
+  Rm.post.variants.anxiety = { name: "焦慮", desc: "兩團焦慮", xp: 60, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "anxiety", x: 460, y: 170 }, { kind: "anxiety", x: 820, y: 170 }] };
+  Rm.post.variants.finalNotice = {
+    name: "最後通知", desc: "堆積如山的帳單黏成的怪物", xp: 250, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3",
+    playerStart: { x: 640, y: 620 }, wave: [{ kind: "finalNotice", x: 640, y: 200 }],
+    help: "<b>最後通知</b>：滯納金（自己周圍的圓）、催繳單（很長的紅框）、叫來焦慮",
+  };
+
+  // ===== C 級時空（燈塔小鎮、不停歇的月台、黑原市、巨人的生態盒）=====
+  const C_RETREAT = { min: 0.15, max: 0.9, near: 120, far: 650 };
+  const cRoom = (name, desc, terrain, bgm, variants, help) => ({ name, desc, hidden: true, terrain, bgm: bgm || "sounds/bgm-battle.mp3", retreat: C_RETREAT, help, variants });
+  // #SN00512 燈塔小鎮：熊（森林裡的熊，在這裡長成了方塊）
+  E.blockBear = { name: "熊", ai: "wolf", paw: true, color: "#7a4a2a", hp: 58, atk: 15, df: 3, spd: 8, ap: 3, moveCost: 1, r: 30, flank: 0.7,      // 暫定（C 級）
+    bite: { name: "熊掌拍", ap: 1, length: 95, width: 80, base: 12, reaction: 0.9, sound: "sounds/bear-roar.mp3" },
+    pounce: { name: "撲倒", ap: 2, length: 240, width: 76, base: 14, reaction: 1.0, cooldown: 2, sound: "sounds/bear-roar.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "snowPelt", chance: 0.6 }] };
+  E.blockBearMom = { name: "被吵醒的熊媽媽", ai: "alphaWolf", bigBar: true, paw: true, color: "#5a3218", hp: 280, atk: 17, df: 5, spd: 8, ap: 4, moveCost: 1, r: 46,   // 暫定（C 級 Boss）
+    bite: { name: "熊掌拍", ap: 1, length: 120, width: 96, base: 13, reaction: 0.9, sound: "sounds/bear-roar.mp3" },
+    spin: { name: "熊掌橫掃", ap: 2, radius: 160, base: 15, reaction: 1.1, cooldown: 1, sound: "sounds/bear-roar.mp3" },
+    rend: { name: "冰面滑撞", ap: 2, length: 380, width: 110, base: 17, reaction: 1.1, cooldown: 2, sound: "sounds/bear-roar.mp3" },
+    howl: { ap: 2, every: 4, max: 2, kind: "blockBear", line: "熊媽媽吼了一聲，雪堆裡鑽出一隻熊！", sound: "sounds/bear-roar.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "snowPelt", chance: 1, n: 2 }] };
+  Rm.snowWild = cRoom("燈塔小鎮的雪地", "暴風雪裡的戰鬥", "snow", null, {
+    bears: { name: "熊", desc: "兩隻熊", xp: 60, gold: [14, 22], playerStart: { x: 640, y: 600 }, wave: [{ kind: "blockBear", x: 480, y: 170 }, { kind: "blockBear", x: 800, y: 170 }] },
+    bears3: { name: "熊群", desc: "三隻熊", xp: 90, gold: [20, 32], playerStart: { x: 640, y: 600 }, wave: [{ kind: "blockBear", x: 340, y: 170 }, { kind: "blockBear", x: 640, y: 120 }, { kind: "blockBear", x: 940, y: 170 }] },
+    bearMom: { name: "被吵醒的熊媽媽", desc: "冰鈴草旁邊冬眠的熊媽媽", xp: 240, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 620 }, wave: [{ kind: "blockBearMom", x: 640, y: 200 }],
+      help: "<b>被吵醒的熊媽媽</b>：熊掌拍（貼身紅框）、熊掌橫掃（自己周圍的圓）、冰面滑撞（很長的紅框，撞完會滑到終點）、吼叫叫來熊" },
+  }, "<b>熊</b>：熊掌拍＝貼身紅框・撲倒＝很長的紅框，撲完會衝到終點");
+  // #TR00088 不停歇的月台：流浪的剪票機器人、逃票客
+  E.ticketBot = { name: "流浪的剪票機", ai: "slime", color: "#5a6a7a", fill: "rgba(90,106,122,.15)", hp: 52, atk: 14, df: 4, spd: 6, ap: 3, moveCost: 1, r: 28, block: true,    // 暫定
+    ram: { name: "剪票", ap: 1, length: 100, width: 70, base: 10, reaction: 1.0 }, slam: { name: "閘門落下", ap: 2, range: 300, radius: 100, base: 12, cooldown: 3 },
+    sounds: { ram: "sounds/firsler-load.mp3", slam: "sounds/slime-slam.mp3", move: "sounds/robot-move.mp3" }, drops: [{ item: "oldTicket", chance: 0.7 }] };
+  E.dodger = { name: "逃票客", ai: "wolf", lowIntel: true, color: "#6a6a72", hp: 34, atk: 13, df: 2, spd: 11, ap: 3, moveCost: 1, r: 22, flank: 1.2,       // 暫定
+    bite: { name: "推擠", ap: 1, length: 80, width: 64, base: 10, reaction: 0.8, sound: "sounds/firsler-kick.mp3" },
+    pounce: { name: "跳閘", ap: 2, length: 260, width: 56, base: 12, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" } };
+  E.dodgerBoss = { name: "逃票客老大・跳閘的傑克", ai: "captain", bigBar: true, color: "#b8321e", hp: 240, atk: 16, df: 5, spd: 11, ap: 4, moveCost: 1, r: 32,   // 暫定（C 級 Boss）
+    sweep: { name: "迴旋踢", ap: 2, radius: 130, base: 14, reaction: 1.0, cooldown: 1, sound: "sounds/firsler-kick.mp3" },
+    shot: { name: "彈硬幣", ranged: true, ap: 2, length: 600, width: 30, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/coin-toss.mp3" },
+    call: { kind: "dodger", ap: 2, every: 3, max: 2, line: "傑克吹了聲口哨：「兄弟們，這節車廂沒人剪票！」" },
+    sounds: { move: "sounds/slime-move.mp3" } };
+  Rm.train = cRoom("不停歇的列車", "車廂裡的戰鬥", "train", null, {
+    ticketBots: { name: "流浪的剪票機", desc: "兩台離開崗位的剪票機", terrain: "platform", xp: 60, gold: [14, 22], playerStart: { x: 640, y: 560 }, wave: [{ kind: "ticketBot", x: 460, y: 200 }, { kind: "ticketBot", x: 820, y: 200 }] },
+    dodgerBoss: { name: "逃票客老大", desc: "跳閘的傑克", xp: 240, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 560 }, wave: [{ kind: "dodgerBoss", x: 640, y: 220 }],
+      help: "<b>跳閘的傑克</b>：迴旋踢（自己周圍的圓）、彈硬幣（很長的紅框）、叫來逃票客" },
+  });
+  // #BC00003 黑原市：失控的無人機、以為自己是觀光巴士的導航系統
+  E.rogueDrone = { name: "失控的巡邏無人機", ai: "gunner", color: "#3a5a7a", hp: 32, atk: 13, df: 2, spd: 10, ap: 3, moveCost: 1, r: 24, keep: 220,     // 暫定
+    shot: { name: "警示雷射", ranged: true, ap: 2, length: 560, width: 26, base: 11, reaction: 1.0, sound: "sounds/boss-laser.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "droneChip", chance: 0.6 }] };
+  E.tourNav = { name: "以為自己是觀光巴士的導航系統", ai: "captain", bigBar: true, color: "#e8b81e", hp: 250, atk: 16, df: 5, spd: 10, ap: 4, moveCost: 1, r: 40,   // 暫定（C 級 Boss）
+    sweep: { name: "急轉彎", ap: 2, radius: 150, base: 14, reaction: 1.1, cooldown: 1, sound: "sounds/robot-move.mp3", words: ["前方右轉", "前方……再右轉"] },
+    shot: { name: "導覽廣播", ranged: true, ap: 2, length: 620, width: 40, base: 13, reaction: 1.0, cooldown: 1, sound: "sounds/boss-electric.mp3", words: ["左手邊是黑原市立博物館！", "右手邊是全市最高的紅綠燈！", "本次導覽延長三天！"] },
+    call: { kind: "rogueDrone", ap: 2, every: 3, max: 2, line: "「各位旅客，請看左手邊——我們的導覽無人機！」" },
+    sounds: { move: "sounds/robot-move.mp3" } };
+  Rm.city = cRoom("黑原市的街道", "城市裡的戰鬥", "city", null, {
+    drones: { name: "失控的無人機", desc: "兩台巡邏無人機", xp: 60, gold: [14, 22], playerStart: { x: 640, y: 600 }, wave: [{ kind: "rogueDrone", x: 460, y: 170 }, { kind: "rogueDrone", x: 820, y: 170 }] },
+    drones3: { name: "失控的無人機群", desc: "三台巡邏無人機", xp: 90, gold: [20, 32], playerStart: { x: 640, y: 600 }, wave: [{ kind: "rogueDrone", x: 340, y: 170 }, { kind: "rogueDrone", x: 640, y: 120 }, { kind: "rogueDrone", x: 940, y: 170 }] },
+    tourNav: { name: "失控的無人計程車", desc: "以為自己是觀光巴士的導航系統", xp: 240, gold: [40, 60], retreat: null, bgm: "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 620 }, wave: [{ kind: "tourNav", x: 640, y: 200 }],
+      help: "<b>導航系統</b>：急轉彎（自己周圍的圓）、導覽廣播（很長的紅框）、叫來導覽無人機" },
+  });
+  // #KT33233 巨人的生態盒：跳蛛、蚜蟲（大魔王打不了，所以不在這裡）
+  E.jumpSpider = { name: "跳蛛", ai: "wolf", color: "#2a2a30", hp: 40, atk: 15, df: 2, spd: 12, ap: 3, moveCost: 1, r: 22, flank: 1.0,       // 暫定
+    bite: { name: "咬", ap: 1, length: 80, width: 60, base: 11, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "大跳躍", ap: 2, length: 340, width: 60, base: 14, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/wolf-move.mp3" } };
+  E.aphid = Object.assign({}, E.slime, { name: "蚜蟲", color: "#6aa83a", fill: "rgba(120,190,70,.2)", hp: 30, atk: 12, df: 1, spd: 7, r: 22, species: "aphid" });
+  Rm.soil = cRoom("生態盒的土壤上", "落葉和土壤之間的戰鬥", "soil", null, {
+    spiders: { name: "跳蛛", desc: "兩隻跳蛛", xp: 60, gold: [14, 22], playerStart: { x: 640, y: 600 }, wave: [{ kind: "jumpSpider", x: 480, y: 170 }, { kind: "jumpSpider", x: 800, y: 170 }] },
+    aphids: { name: "蚜蟲群", desc: "三隻蚜蟲", xp: 50, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "aphid", x: 340, y: 170 }, { kind: "aphid", x: 640, y: 120 }, { kind: "aphid", x: 940, y: 170 }] },
+  });
+
+  // ===== #RU20314 古代遺跡內部：守衛機關（能量槌矛）、巡弋機關（會飛、射雷射） =====
+  E.ruinGuard = { name: "古代守衛機關", ai: "alphaWolf", color: "#5a5e66", hp: 120, atk: 20, df: 8, spd: 8, ap: 4, moveCost: 1, r: 32,      // 暫定（B 級）
+    bite: { name: "能量槌矛・刺", ap: 1, length: 170, width: 56, base: 15, reaction: 0.9, sound: "sounds/ilshu-thrust.mp3" },
+    spin: { name: "能量槌矛・掃", ap: 2, radius: 150, base: 16, reaction: 1.1, cooldown: 1, sound: "sounds/boss-electric.mp3" },
+    rend: { name: "槌擊衝鋒", ap: 2, length: 320, width: 90, base: 18, reaction: 1.1, cooldown: 2, sound: "sounds/robot-move.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "ruinCore", chance: 0.5 }] };
+  E.ruinCruiser = { name: "古代巡弋機關", ai: "gunner", fly: true, color: "#6a6e78", hp: 70, atk: 18, df: 5, spd: 12, ap: 3, moveCost: 1, r: 26, keep: 260,   // 暫定
+    shot: { name: "巡弋雷射", ranged: true, ap: 2, length: 660, width: 28, base: 14, reaction: 1.0, sound: "sounds/boss-laser.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "ruinCore", chance: 0.4 }] };
+  const RUIN_HELP = "<b>柱子</b>（大掩體）：不能站，躲在後面擋得住攻擊・<b>矮牆</b>（小掩體）：走得過去、投擲物飛得過去，但擋得住敵人的射擊・<b>地刺</b>：偶數回合開始時刺出來・<b>雷射</b>：回合開始時站在光線上會受傷（會被鏡子反射）";
+  Rm.ruins = cRoom("古代遺跡", "遺跡裡的戰鬥", "ruins", null, {
+    ruinGuards: { name: "古代守衛機關", desc: "兩台守衛機關", xp: 180, gold: [35, 55], randomLayout: true, playerStart: { x: 640, y: 620 }, wave: [{ kind: "ruinGuard", x: 460, y: 170 }, { kind: "ruinGuard", x: 820, y: 170 }] },
+    ruinCruisers: { name: "古代巡弋機關", desc: "三台巡弋機關", xp: 170, gold: [35, 55], randomLayout: true, playerStart: { x: 640, y: 620 }, wave: [{ kind: "ruinCruiser", x: 340, y: 150 }, { kind: "ruinCruiser", x: 640, y: 110 }, { kind: "ruinCruiser", x: 940, y: 150 }] },
+    ruinMixed: { name: "遺跡的守衛", desc: "守衛機關和巡弋機關", xp: 200, gold: [40, 60], randomLayout: true, playerStart: { x: 640, y: 620 }, wave: [{ kind: "ruinGuard", x: 640, y: 170 }, { kind: "ruinCruiser", x: 360, y: 130 }, { kind: "ruinCruiser", x: 920, y: 130 }] },
+  }, RUIN_HELP);
+
+  // ===== #RU20314 古代遺跡的秘密寶庫：試煉 Boss「超古代兵器・翁爾貢」 =====
+  // 雙肩是能量炮（雷射、光彈）、武器是能量雙刃長槍。速度和行動點很多、擅長閃避；正面受到投射物攻擊會在面前旋轉雙刃擋下來
+  // 傷害不算太高，但被打到會掛上 2 回合的「破綻」（受到的傷害變多）
+  // 弱點：引誘它用「噴射突刺」撞上房間邊緣的能量水晶 → 暈眩 1 回合，那一回合受到 1.5 倍傷害
+  E.ongergon = {
+    name: "超古代兵器・翁爾貢", ai: "ongergon", bigBar: true, color: "#7a7e86",
+    hp: 900, atk: 22, df: 10, spd: 18, ap: 8, moveCost: 1, r: 42,                                  // 暫定（試煉 Boss）
+    dodge: { near: 60, far: 400, minChance: 0.2, maxChance: 0.75, fatigue: 0.6, minSharp: 0.4, maxSharp: 0.85 },
+    flaw: { rounds: 2, mult: 1.3 },                                                                // 破綻：2 回合，受到的傷害 ×1.3
+    stun: { rounds: 1, mult: 1.5 },                                                                // 撞上能量水晶：暈眩 1 回合，受到 1.5 倍傷害
+    blockDeg: 75,                                                                                  // 正面幾度以內的投射物會被旋轉的雙刃擋下
+    spin: { name: "迴旋斬擊", ap: 2, radius: 175, base: 12, reaction: 1.0, cooldown: 1, sound: "sounds/alpha-spin.mp3" },
+    poke: { name: "槍尖連戳", ap: 2, length: 250, width: 54, base: 7, hits: 3, reaction: 0.75, sound: "sounds/ilshu-thrust.mp3" },
+    dash: { name: "噴射突刺", ap: 3, width: 110, base: 14, reaction: 1.3, cooldown: 2, sound: "sounds/hoffman-jet.mp3" },
+    throw: { name: "投擲長槍", ranged: true, ap: 2, length: 760, width: 40, base: 13, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    orbs: { name: "肩炮光彈", ap: 2, count: 3, radius: 62, spread: 170, base: 9, reaction: 1.0, cooldown: 1, sound: "sounds/boss-bullet.mp3" },
+    ult: { name: "執行-徹底清除", ap: 3, firstRound: 3, every: 4, bands: 6, base: 12, reaction: 1.25, sound: "sounds/boss-laser.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" },
+    // 正面的投射物：旋轉雙刃擋下（暈眩時擋不了）
+    blockHit(b, u, src) {
+      if (!src || src.team !== "player" || u.state.stunUntil >= b.round) return false;
+      const sk = b.currentSkill && b.char.skills[b.currentSkill];
+      if (!sk?.tags?.includes("projectile")) return false;
+      let d = Math.abs(Math.atan2(src.y - u.y, src.x - u.x) - (u.facing ?? Math.PI / 2)) % (Math.PI * 2); if (d > Math.PI) d = Math.PI * 2 - d;
+      if (d > (this.blockDeg * Math.PI) / 180) return false;
+      u.state.blockT = performance.now();
+      return true;
+    },
+    incomingMult(b, u) { return u.state.vulnUntil >= b.round ? this.stun.mult : 1; },
+    incomingNote(k) { return `（暈眩 ×${k}）`; },
+  };
+  Rm.boss.variants.ongergon = {
+    name: "超古代兵器・翁爾貢", desc: "試煉 Boss：古代遺跡的秘密寶庫", level: "建議 Lv 30 上下", trial: true,
+    xp: 2400, coins: 200, terrain: "ruins", retreat: null,
+    crystals: [{ x: 60, y: 190, r: 30 }, { x: 1220, y: 190, r: 30 }, { x: 60, y: 560, r: 30 }, { x: 1220, y: 560, r: 30 }, { x: 640, y: 36, r: 30 }],
+    playerStart: { x: 640, y: 620 }, wave: [{ kind: "ongergon", x: 640, y: 250 }],
+    bgm: "sounds/bgm-ongergon.mp3",
+    help: "<b>超古代兵器・翁爾貢</b>：速度和行動點很多、擅長閃避；<b>正面</b>的投射物會被旋轉的雙刃擋下，從側面或背後打。被它打到會掛上 2 回合的<b>破綻</b>（受到的傷害變多）<br><b>噴射突刺</b>：雙肩往後噴雷射，一路衝到房間的邊緣——站在<b>能量水晶</b>前面引誘它撞上去，它會暈眩 1 回合、受到 1.5 倍傷害<br>大招<b>「執行-徹底清除」</b>：槍尖戳進地面，雙肩的雷射分兩波掃過房間（橫條紅框）",
+  };
+})(RPG.CONFIG);
+
 // 房間設定：有 variants 的房間（Boss 測試房）用選到的 Boss 覆蓋
 RPG.resolveRoom = function (cfg, roomId, variant) {
   const base = cfg.rooms[roomId] || Object.values(cfg.rooms)[0];
   if (!base.variants) return base;
   const keys = Object.keys(base.variants);
   const v = base.variants[variant] ? variant : keys[0];
-  return Object.assign({}, base, base.variants[v], { variant: v, roomName: base.name });
+  const out = Object.assign({}, base, base.variants[v], { variant: v, roomName: base.name });
+  // 隨機的戰鬥場地（例如古代遺跡：柱子、矮牆、地刺、雷射）：同一頁只抽一次，戰鬥規則和畫面才會一樣
+  if (out.randomLayout && RPG.Ruins) Object.assign(out, RPG._ruinLayout = RPG._ruinLayout || RPG.Ruins.battleLayout(out));
+  return out;
+};
+
+// ===== 古代遺跡的共用工具：雷射的反射路線、戰鬥場地的隨機配置 =====
+RPG.Ruins = {
+  // 從 (x, y) 朝 (dx, dy) 射出的雷射：碰到鏡子（線段）就反射，碰到 box 的邊就停。回傳折線的點
+  laserPath(x, y, dx, dy, mirrors, box, maxBounce = 5) {
+    const pts = [{ x, y }];
+    let last = null;
+    for (let k = 0; k <= maxBounce; k++) {
+      let best = null, bt = Infinity;
+      for (const m of mirrors || []) {
+        if (m === last) continue;
+        const ex = m.x2 - m.x1, ey = m.y2 - m.y1, den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const t = ((m.x1 - x) * ey - (m.y1 - y) * ex) / den, u = ((m.x1 - x) * dy - (m.y1 - y) * dx) / den;
+        if (t > 0.5 && u >= 0 && u <= 1 && t < bt) { bt = t; best = m; }
+      }
+      // 到 box 的邊
+      const tx = dx > 0 ? (box.x + box.w - x) / dx : dx < 0 ? (box.x - x) / dx : Infinity;
+      const ty = dy > 0 ? (box.y + box.h - y) / dy : dy < 0 ? (box.y - y) / dy : Infinity;
+      const tb = Math.min(tx, ty);
+      if (!best || bt >= tb) { pts.push({ x: x + dx * tb, y: y + dy * tb }); break; }
+      x += dx * bt; y += dy * bt; pts.push({ x, y });
+      // 反射：d − 2(d·n)n
+      let nx = -(best.y2 - best.y1), ny = best.x2 - best.x1; const nl = Math.hypot(nx, ny); nx /= nl; ny /= nl;
+      const dot = dx * nx + dy * ny; dx -= 2 * dot * nx; dy -= 2 * dot * ny;
+      last = best;
+    }
+    return pts;
+  },
+  // 點到折線的距離
+  distToPath(px, py, pts) {
+    let best = Infinity;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], vx = b.x - a.x, vy = b.y - a.y, L = vx * vx + vy * vy || 1;
+      const t = Math.max(0, Math.min(1, ((px - a.x) * vx + (py - a.y) * vy) / L));
+      best = Math.min(best, Math.hypot(px - (a.x + vx * t), py - (a.y + vy * t)));
+    }
+    return best;
+  },
+  // 戰鬥場地：柱子（大掩體，不能站、擋攻擊）、矮牆（小掩體：可以走過去、投擲物飛得過去，但擋得住敵人的射擊）、地刺（偶數回合刺出來）、雷射（一直開著）
+  battleLayout(room) {
+    const W = 1280, H = 720, rnd = Math.random, keep = [room.playerStart, ...(room.wave || [])];
+    const free = (x, y, w, h, pad = 70) => keep.every((p) => p.x < x - pad || p.x > x + w + pad || p.y < y - pad || p.y > y + h + pad);
+    const out = { obstacles: [], lowWalls: [], spikes: [], lasers: [], mirrors: [] };
+    const all = () => [...out.obstacles, ...out.lowWalls, ...out.spikes];
+    const clear = (x, y, w, h) => all().every((o) => x > o.x + o.w + 40 || x + w < o.x - 40 || y > o.y + o.h + 40 || y + h < o.y - 40);
+    const place = (list, w, h, tries = 40) => { for (let i = 0; i < tries; i++) { const x = 120 + rnd() * (W - 240 - w), y = 110 + rnd() * (H - 230 - h); if (free(x, y, w, h) && clear(x, y, w, h)) { list.push({ x: Math.round(x), y: Math.round(y), w, h }); return true; } } return false; };
+    const n = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+    for (let i = n(1, 3); i > 0; i--) place(out.obstacles, 70, 70);                                    // 柱子
+    for (let i = n(1, 3); i > 0; i--) rnd() < 0.5 ? place(out.lowWalls, 150, 26) : place(out.lowWalls, 26, 130);   // 矮牆
+    for (let i = n(0, 2); i > 0; i--) place(out.spikes, 120, 120);                                      // 地刺
+    if (rnd() < 0.6) {                                                                                   // 雷射發射器（牆上），有時候有一面鏡子
+      const left = rnd() < 0.5, y = 160 + rnd() * 300;
+      const L = { x: left ? 18 : W - 18, y: Math.round(y), dx: left ? 1 : -1, dy: (rnd() - 0.5) * 0.5 };
+      const l = Math.hypot(L.dx, L.dy); L.dx /= l; L.dy /= l;
+      out.lasers.push(L);
+      if (rnd() < 0.6) { const mx = W / 2 + (rnd() - 0.5) * 300, my = L.y + L.dy / L.dx * (mx - L.x); if (my > 120 && my < H - 120) out.mirrors.push({ x1: mx - 40, y1: my - 40, x2: mx + 40, y2: my + 40 * (rnd() < 0.5 ? 1 : -1) }); }
+    }
+    return out;
+  },
 };
