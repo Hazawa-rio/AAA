@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/version-check.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/version-check.js": "20261112030517" });
 // 版本檢查：每個 js / css 檔都登記了自己的版本，跟 html 的 <meta name="build"> 比對
 // 有檔案不一樣（上傳時漏掉、瀏覽器快取到舊檔、檔案不見）就在畫面最上方顯示紅色提示
 // 這個檔案要放在所有 <script> 的最後

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112030517" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -713,12 +713,16 @@
     if (n) { save(); setTimeout(() => toast(`附近有 ${n} 處可疑的痕跡（已標在地圖上）`), 900); }
   }
   function say(t, dur = 2200) { bubble = { text: t, t: performance.now(), dur }; }
+  // 角色在特定事件說的話（地圖資料的 barks：{ 事件: { 角色 id: 台詞 } }），例如抓到逃票客、坐上飛天車
+  function bark(key, dur = 2600) { const t = MAP.barks?.[key]?.[CH.id]; if (t) say(t, dur); return !!t; }
   // 這輪冒險的旗標（這一趟的 trip.flags＋之前帶回酒館的 adventure.flags）
   const hasFlag = (k) => !!(trip.flags?.[k] || R.Adventure.get()?.flags?.[k]);
   const setFlag = (k) => { trip.flags = { ...(trip.flags || {}), [k]: true }; save(); };
   // 角色在這輪冒險第一次抵達這個時空時說的話（地圖資料的 arrival）
-  if (MAP.arrival?.[CH.id] && !hasFlag(`arrive:${trip.world}:${CH.id}`)) {
-    setFlag(`arrive:${trip.world}:${CH.id}`);
+  // 場景（例如列車車廂）有自己的 arrival 時，用場景分開記
+  const arriveKey = `arrive:${trip.world}${trip.scene ? "/" + trip.scene : ""}:${CH.id}`;
+  if (MAP.arrival?.[CH.id] && !hasFlag(arriveKey)) {
+    setFlag(arriveKey);
     setTimeout(() => say(MAP.arrival[CH.id], 3600), 700);
   }
   // 角色專屬對話選項：quest＝只有接了這位 NPC 的委託、還沒完成時才出現；gold＝這輪冒險第一次問的時候拿到金幣
@@ -1003,7 +1007,16 @@
       const fk = `ask:${n.id}:${CH.id}:${b.dataset.i}`;
       let got = "";
       if (x.gold && !hasFlag(fk)) { setFlag(fk); run.gold += x.gold; save(); renderHud(); got = `<p class="tv-note">${esc(CH.name)} 得到了 ${x.gold} 金幣</p>`; }
-      openPanel(n.name, dlgHtml(n, x.a, `<div class="dlg-said" style="border-color:${CH.color}"><b style="color:${CH.color}">${esc(CH.name)}</b>：「${esc(x.q)}」</div>${got}<button type="button" class="ghost" data-act="askBack">繼續聊</button>`), { dlg: true });
+      openPanel(n.name, dlgHtml(n, x.a, `<div class="dlg-said" style="border-color:${CH.color}"><b style="color:${CH.color}">${esc(CH.name)}</b>：「${esc(x.q)}」</div>${got}${x.back ? `<button type="button" class="primary" data-act="askMore" data-i="${b.dataset.i}">繼續</button>` : `<button type="button" class="ghost" data-act="askBack">繼續聊</button>`}`), { dlg: true });
+      panel.dataset.npc = n.id;
+      return;
+    }
+    // 角色再回一句（asks 的 back）
+    if (a === "askMore") {
+      const n = MAP.npcs.find((x) => x.id === panel.dataset.npc), x = n?.asks?.[CH.id]?.[Number(b.dataset.i)];
+      if (!x) return;
+      say(x.back, 2600);
+      openPanel(n.name, dlgHtml(n, x.a, `<div class="dlg-said" style="border-color:${CH.color}"><b style="color:${CH.color}">${esc(CH.name)}</b>：「${esc(x.back)}」</div><button type="button" class="ghost" data-act="askBack">繼續聊</button>`), { dlg: true });
       panel.dataset.npc = n.id;
       return;
     }
@@ -1616,7 +1629,7 @@
 
   // 各時空自己的玩法
   if (R.WorldHooks?.[trip.world]) HOOK = R.WorldHooks[trip.world]({
-    R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
+    R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
     ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
   });
   document.title = `${W0.code} ${W0.name}`;

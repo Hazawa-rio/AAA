@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fishing.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fishing.js": "20261112030517" });
 // 海上釣魚（#CI00001 奇儂鎮「釣條大魚」）
 // 跟著老伯恩的船出海釣一次魚：選魚餌 → 下竿 → 30 秒內會有魚上鉤（水面出現水波）
 // → 「快拉！」時快速點擊、「停！」時停手，交替累積進度，進度滿就釣起來
