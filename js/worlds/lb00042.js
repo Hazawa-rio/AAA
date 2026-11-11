@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261110175453" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261112021356" });
 // #LB00042 美食研究所：地圖探索裡的專屬玩法
 // - 理性倉庫：貨架上的素材只有「採購清單」上的拿得起來
 // - 電腦：玩家通不過驗證，只能在委託中協助研究員操作；完成夠多委託後才開放玩家自己做實驗（之後再做）
@@ -204,7 +204,7 @@
           BAG.add(run.items, "failRecipe", 1);
           if (stage()?.type === "labEgg") CM.advance(trip, QID);
           save();
-          openPanel("窒礙難行0號", `<p class="wx-p">0 號的螢幕閃了閃，從身體裡吐出一張紙：「<b>必定失敗的配方</b>」。上面的每一行都被劃掉了。</p><p class="tv-note">難蛋的事解決了。去電腦輸入雞蛋的採購清單吧。</p>`);
+          openPanel("窒礙難行0號", `<p class="wx-p">0 號的螢幕閃了閃，從身體裡吐出一張紙：「<b>絕對失敗的配方</b>」。上面的每一行都被劃掉了。</p><p class="tv-note">難蛋的事解決了。去電腦輸入雞蛋的採購清單吧。</p>`);
         }
       }
       // 1 號：在倉庫裡直線暴衝，撞牆就換方向；撞三次會暈眩
@@ -326,7 +326,9 @@
       text("手稿", dk.x + dk.w / 2, dk.y + dk.h + 14, "#6b4a2a", 12, 900);
       if (qd().result === "epicEgg") { ctx.fillStyle = "#f6efe0"; ctx.beginPath(); ctx.ellipse(dk.x + dk.w - 20, dk.y + 20, 12, 15, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#8a7a5a"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.moveTo(dk.x + dk.w - 28, dk.y + 16); ctx.lineTo(dk.x + dk.w - 22, dk.y + 22); ctx.lineTo(dk.x + dk.w - 16, dk.y + 14); ctx.lineTo(dk.x + dk.w - 12, dk.y + 22); ctx.stroke(); }
       const mw = MAP.microwave, shake = exp ? Math.sin(now / 30) * 3 : 0;
-      ctx.save(); ctx.translate(shake, 0);
+      const mf = MAP.mwFx?.(now) || {};          // 實驗失敗的事件：微波爐變大、跳起來（js/worlds/lb00042-exp.js）
+      ctx.save(); ctx.translate(shake + (mf.dx || 0), mf.dy || 0);
+      if (mf.s) { const cx = mw.x + mw.w / 2, cy = mw.y + mw.h; ctx.translate(cx, cy); ctx.scale(mf.s, mf.s); ctx.translate(-cx, -cy); }
       ctx.fillStyle = "#9aa0aa"; ctx.fillRect(mw.x, mw.y, mw.w, mw.h); ctx.strokeStyle = "#4a4f58"; ctx.lineWidth = 3; ctx.strokeRect(mw.x, mw.y, mw.w, mw.h);
       ctx.fillStyle = exp ? `rgba(255,${180 + 60 * Math.sin(now / 80)},80,.9)` : "#5a5f68"; ctx.fillRect(mw.x + 12, mw.y + 18, 46, 54);
       ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2;
