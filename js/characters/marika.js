@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261112133137" });
 // 角色：瑪莉卡（索德綜合學院埃里托德分校的優秀畢業生，用蛇腹劍）
 // 魔力角色：只有在「燃火狀態」下，普攻和所有技能才會花魔力
 // 被動「烈火之舞」：燃火狀態下，所有攻擊都會在攻擊範圍留下火焰；敵人在火焰裡移動、或回合開始時站在火焰裡，就會被燒傷（傷害隨攻擊力提高）
@@ -41,7 +41,20 @@
     field: {
       basicRange: 190,
       // 探索技能：伸出燃燒的蛇腹劍，在遠處點燃一簇火，把附近的魔物嚇跑（也能點燃機關）
-      q: { name: "遠距離點火", type: "ignite", sound: WHIP, fireSound: FIRE, cd: 25, range: 360, radius: 70, scare: 110, duration: 8, desc: "伸出燃燒的蛇腹劍，在遠處點燃一簇火（8 秒）：附近的魔物會被嚇跑，一陣子不敢追人" },
+      q: { name: "遠距離點火", type: "ignite", scareSay: "退縮可是我們學院的禁忌！", sound: WHIP, fireSound: FIRE, cd: 25, range: 360, radius: 70, scare: 110, duration: 8, desc: "伸出燃燒的蛇腹劍，在遠處點燃一簇火（8 秒）：附近的魔物會被嚇跑，一陣子不敢追人" },
+    },
+    // 個性台詞（使用者提供）
+    barks: {
+      whip: { chance: 0.3, lines: ["接招！"] },
+      ignite: { chance: 0.85, lines: ["燃起來了啊！"] },
+      extend: { chance: 0.75, lines: ["還沒有結束！"] },
+      fireWhip: { chance: 0.4, lines: ["哈哈！熱血沸騰的感覺啊！"] },
+      grab: { chance: 0.6, lines: ["給我過來吧！"] },
+      grabHeavy: { chance: 0.8, lines: ["被擋開了？"] },
+      out: { chance: 0.85, lines: ["我的烈火可還沒燒完！"] },
+      ult: { chance: 0.95, lines: ["感受吧！埃里托德蛇腹劍派的最終奧義！烈火蠑螈－薩拉曼達！"] },
+      hurt: { chance: 0.3, lines: ["有意思...！"] },
+      burn: { chance: 0.3, lines: ["這會很燙的！"] },
     },
     basic: "whip",
     ultimate: "salamander",
@@ -101,7 +114,7 @@
       const c = this.fireCost(u, base);
       if (u.mp >= c) return true;
       u.state.fireTurns = 0;
-      b.say(`${u.name} 的魔力不夠了，劍上的火熄了`); b.emit({ type: "buff", unit: u, text: "火熄了", color: "#8a8478" });
+      b.say(`${u.name} 的魔力不夠了，劍上的火熄了`); b.emit({ type: "buff", unit: u, text: "火熄了", color: "#8a8478" }); b.bark(u, "out", 0.4);
       return false;
     },
     // 烈火之舞：在攻擊範圍留下火焰
@@ -115,6 +128,7 @@
       if (z.burned[key]) return;
       z.burned[key] = 1;
       b.emit({ type: "buff", unit: e, text: "燒傷", color: "#e8781e" });
+      if (b.player.alive) b.bark(b.player, "burn", 0.3);
       b.damage(b.player, e, z.base, 1, "（烈火之舞・燒傷）");
     },
     inFire(b, x, y, r) { return b.zones.filter((z) => z.type === "fire" && R.dist(z.x, z.y, x, y) <= z.r + r * 0.5); },
@@ -125,7 +139,7 @@
     },
     onTurnStart(b, unit) {
       if (unit === b.player) {
-        if (ablaze(unit)) { unit.state.fireTurns--; if (!unit.state.fireTurns) { b.say(`${unit.name} 劍上的火熄了`); b.emit({ type: "buff", unit, text: "火熄了", color: "#8a8478" }); } }
+        if (ablaze(unit)) { unit.state.fireTurns--; if (!unit.state.fireTurns) { b.bark(unit, "out", 0.4); b.say(`${unit.name} 劍上的火熄了`); b.emit({ type: "buff", unit, text: "火熄了", color: "#8a8478" }); } }
         return;
       }
       if (unit.team === "enemy" && unit.alive) for (const z of this.inFire(b, unit.x, unit.y, unit.r)) this.burn(b, z, unit);
@@ -137,13 +151,16 @@
       ["烈火之舞 火焰傷害", "passive", "base", 1, 30, 1],
       ["烈火之舞 火焰半徑", "passive", "radius", 20, 160, 2],
       ["鞭打 距離", "whip", "radius", 80, 400, 10],
-      ["鞭打 每下傷害", "whip", "base", 1, 30, 1],
-      ["火舌折磨 每下傷害", "whip", "fireBase", 1, 30, 1],
+      ["鞭打 每下基礎", "whip", "base", 0, 30, 0.5],
+      ["鞭打 攻擊力加成", "whip", "atkScale", 0, 1, 0.01],
+      ["火舌折磨 每下基礎", "whip", "fireBase", 0, 30, 0.5],
+      ["火舌折磨 攻擊力加成", "whip", "fireScale", 0, 1, 0.01],
       ["火舌折磨 魔力", "whip", "mp", 0, 40, 1],
       ["抓取 距離", "grab", "range", 100, 600, 10],
       ["燃起火焰 魔力", "ignite", "mp", 0, 80, 1],
       ["燃起火焰 回合", "ignite", "turns", 1, 6, 1],
-      ["薩拉曼達 每下傷害", "salamander", "base", 1, 20, 1],
+      ["薩拉曼達 每下基礎", "salamander", "base", 0, 20, 0.5],
+      ["薩拉曼達 攻擊力加成", "salamander", "atkScale", 0, 1, 0.01],
     ],
 
     skills: {
@@ -151,8 +168,8 @@
       whip: {
         name: "鞭打", slot: "普攻", key: "a", sound: WHIP, fireSound: FIRE,
         tags: ["melee"],
-        ap: 1, radius: 210, halfDeg: 13, base: 7, hits: 2,
-        fireName: "火舌折磨", fireRadius: 240, fireHalfDeg: 30, fireBase: 6, fireHits: 4, mp: 8,
+        ap: 1, radius: 210, halfDeg: 13, base: 3, atkScale: 0.24, hits: 2,       // 每下基礎＝base＋攻擊力×atkScale（初始打史萊姆每下約 6）
+        fireName: "火舌折磨", fireRadius: 240, fireHalfDeg: 30, fireBase: 2.6, fireScale: 0.21, fireHits: 4, mp: 8,   // 火舌折磨每下約 5
         desc: "甩動蛇腹劍，打到細長扇形範圍裡的敵人兩次。燃火狀態下變成「火舌折磨」：範圍更大，一次揮打四次（消耗魔力）",
         lit(b, u) { return ablaze(u) && u.mp >= C.fireCost(u, this.mp); },
         shape(b, u, arg) {
@@ -175,12 +192,15 @@
           const fire = C.useFire(b, u, this.mp), sec = this.shape(b, u, arg), n = fire ? this.fireHits : this.hits;
           u.facing = sec.ang;
           b.say(`${u.name} ${fire ? "甩動燃燒的蛇腹劍——「火舌折磨」" : "甩動蛇腹劍「鞭打」"}`);
+          b.bark(u, fire ? "fireWhip" : "whip");
           lashSounds(b, n);
           if (fire) b.emit({ type: "sfx", sound: this.fireSound });
           b.emit({ type: "lash", x: u.x, y: u.y, ang: sec.ang, half: sec.half, radius: sec.radius, hits: n, fire });
           const hits = b.targetsFor(u).filter((e) => R.geo.inSector(e.x, e.y, sec, e.r));
           if (!hits.length) { b.say("……揮空了"); b.emit({ type: "miss", x: u.x + Math.cos(sec.ang) * sec.radius * 0.7, y: u.y + Math.sin(sec.ang) * sec.radius * 0.7 }); }
-          for (let i = 0; i < n; i++) for (const e of hits) if (e.alive) b.damage(u, e, fire ? this.fireBase : this.base, 1, n > 1 ? `（第 ${i + 1} 下）` : "");
+          // 每一下的傷害數字跟著動畫一下一下跳出來
+          for (let i = 0; i < n; i++) { b.hitDelay = i * 0.26 + 0.12; for (const e of hits) if (e.alive) b.damage(u, e, fire ? this.fireBase + u.atk * this.fireScale : this.base + u.atk * this.atkScale, 1, n > 1 ? `（第 ${i + 1} 下）` : ""); }
+          b.hitDelay = 0;
           if (fire) for (const k of [0.45, 0.85]) C.leaveFire(b, u, u.x + Math.cos(sec.ang) * sec.radius * k, u.y + Math.sin(sec.ang) * sec.radius * k, 0.8);
         },
       },
@@ -215,6 +235,7 @@
           if (!p.hit) { b.say(`${u.name} 伸長蛇腹劍——什麼都沒勾到`); b.emit({ type: "miss", x: p.to.x, y: p.to.y }); return; }
           const e = p.hit;
           b.say(`${u.name} 伸長蛇腹劍「抓取」${e.name}！`);
+          b.bark(u, heavy(e) ? "grabHeavy" : "grab", 0.3);
           if (!heavy(e)) {
             // 勾到面前：沿著直線往回拉，停在第一個能站的位置
             const from = { x: e.x, y: e.y }, want = u.r + e.r + 12;
@@ -249,6 +270,7 @@
         use(b, u) {
           const ext = ablaze(u);
           u.state.fireTurns = (ext ? u.state.fireTurns : 0) + this.turns;
+          b.bark(u, ext ? "extend" : "ignite");
           b.say(ext ? `${u.name} 往劍上添了一把火：燃火延長到 ${u.state.fireTurns} 回合` : `${u.name} 的蛇腹劍燃起了烈火！（燃火 ${this.turns} 回合）`);
           b.emit({ type: "sfx", sound: this.sound });
           b.emit({ type: "buff", unit: u, text: ext ? "火焰延續" : "燃火！", color: "#e8781e" });
@@ -260,7 +282,9 @@
       salamander: {
         name: "薩拉曼達", slot: "W", key: "w", ultimate: true, sound: WHIP, fireSound: FIRE,
         tags: ["area", "melee"],
-        ap: 2, charge: 5, dist: 160, radius: 130, base: 4, hits: 8, dozenBase: 3, mp: 20,
+        // 每下傷害＝base＋攻擊力×atkScale（多段攻擊的基礎值太小時，攻擊力幾乎沒影響，所以讓攻擊力直接加進基礎值）
+        // 初始攻擊 16、打防禦 2 的敵人：每下約 5；十二連鞭每下約 4
+        ap: 2, charge: 5, dist: 160, radius: 130, base: 3, atkScale: 0.19, hits: 8, dozenBase: 2.4, dozenScale: 0.15, mp: 20,
         desc: "對前方的圓形範圍連續揮鞭八下",
         n(u) { return upg(u).w1 === "dozen" ? 12 : this.hits; },
         circle(u, arg) { const d = dirOf(u, arg); return { shape: "circle", x: u.x + d.dx * this.dist, y: u.y + d.dy * this.dist, radius: this.radius, ang: d.ang }; },
@@ -273,14 +297,19 @@
         preview(b, u, arg) { const c = this.circle(u, arg); return { shapes: [c], hits: this.predict(b, u, arg) }; },
         areaCenter(b, u, arg) { const c = this.circle(u, arg); return { x: c.x, y: c.y }; },
         use(b, u, arg) {
-          const fire = C.useFire(b, u, this.mp), c = this.circle(u, arg), n = this.n(u), base = n > this.hits ? this.dozenBase : this.base;
+          const fire = C.useFire(b, u, this.mp), c = this.circle(u, arg), n = this.n(u), base = n > this.hits ? this.dozenBase + u.atk * this.dozenScale : this.base + u.atk * this.atkScale;
           u.charge = 0; u.facing = c.ang;
           b.say(`${u.name}：「薩拉曼達」！`);
+          b.bark(u, "ult");
           lashSounds(b, n);
           if (fire) b.emit({ type: "sfx", sound: this.fireSound });
-          b.emit({ type: "lash", x: u.x, y: u.y, ang: c.ang, half: 0.7, radius: this.dist + this.radius, hits: n, fire, circle: c });
+          // 跳到空中，同時甩出三條蛇腹劍
+          const air = 0.26 * n + 0.24;
+          b.emit({ type: "leap", unit: u, from: { x: u.x, y: u.y }, to: { x: u.x, y: u.y }, duration: air, height: 64 });
+          b.emit({ type: "lash", x: u.x, y: u.y, ang: c.ang, half: 0.7, radius: this.dist + this.radius, hits: n, fire, circle: c, multi: 3, lift: 64 });
           const hits = this.predict(b, u, arg);
-          for (let i = 0; i < n; i++) for (const e of hits) if (e.alive) b.damage(u, e, base, 1, `（第 ${i + 1} 下）`);
+          for (let i = 0; i < n; i++) { b.hitDelay = i * 0.26 + 0.12; for (const e of hits) if (e.alive) b.damage(u, e, base, 1, `（第 ${i + 1} 下）`); }
+          b.hitDelay = 0;
           if (fire || upg(u).w1 === "stage") C.leaveFire(b, u, c.x, c.y, (c.radius / C.passive.radius) * (fire ? 1 : 0.75));
         },
       },

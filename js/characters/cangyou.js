@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261112133137" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血
@@ -50,7 +50,20 @@
     field: {
       basicRange: 260,
       // 探索技能：放出小魚去探路，附近的魔物會跟著小魚走一段距離
-      q: { name: "放小魚探路", type: "lure", sound: SND.bubble, cd: 30, range: 520, speed: 170, radius: 210, follow: 420, linger: 2.5, desc: "朝指定方向放出一隻幽靈小魚。小魚附近的魔物會被吸引，跟著小魚走一段距離（之後一陣子不會追人）" },
+      q: { name: "放小魚探路", type: "lure", lureSay: "帶著他們走吧...小魚兒...", sound: SND.bubble, cd: 30, range: 520, speed: 170, radius: 210, follow: 420, linger: 2.5, desc: "朝指定方向放出一隻幽靈小魚。小魚附近的魔物會被吸引，跟著小魚走一段距離（之後一陣子不會追人）" },
+    },
+    // 個性台詞（使用者提供）
+    barks: {
+      foam: { chance: 0.3, lines: ["來吧～來吧～"] },
+      school: { chance: 0.85, lines: ["一起上吧...小魚們。"] },
+      evolve1: { chance: 0.9, lines: ["快快長大～"] },
+      evolve2: { chance: 1, lines: ["好像...有趣起來了！"] },
+      fishDie: { chance: 0.8, lines: ["阿...結束了嗎？"] },
+      seahorseSelf: { chance: 0.85, lines: ["請...請保護我..."] },
+      seahorseAlly: { chance: 0.85, lines: ["跟...跟上他吧..."] },
+      ult: { chance: 0.95, lines: ["別想傷害...我的夥伴...！"] },
+      hurt: { chance: 0.35, lines: ["好痛！"] },
+      placebo: { chance: 0.25, lines: ["總感覺心神安定阿..."] },
     },
     basic: "foam",
     ultimate: "manta",
@@ -158,7 +171,7 @@
       f.eaten += n;
       f.munch = now();
       const per = upg(u).q2 === "sugar" ? 2 : this.passive.heal;
-      if (per > 0 && u.hp < u.maxHp) b.heal(u, n * per, `（安慰劑：${STAGES[f.stage].name}吃了 ${n} 顆泡泡）`);
+      if (per > 0 && u.hp < u.maxHp) { b.heal(u, n * per, `（安慰劑：${STAGES[f.stage].name}吃了 ${n} 顆泡泡）`); b.bark(u, "placebo", 0.3); }
       // 一次只進化一階（不會一口氣從小魚跳成虎鯨）：同一回合進化過就等下一回合
       if (f.stage < 2 && f.eaten >= this.need(u, f.stage) && f.evoRound !== b.round) {
         f.evoRound = b.round;
@@ -167,6 +180,7 @@
         const S = STAGES[f.stage], mx = Math.max(5, Math.round(u.maxHp * S.hp));
         f.hp += mx - f.maxHp; f.maxHp = mx; f.r = S.r; f.name = S.name; f.maxAp = S.ap;      // 進化：變大、生命上限變高（多出來的直接補上）、行動點變多
         b.say(`${old}進化成了${S.name}！`);
+        b.bark(u, f.stage === 2 ? "evolve2" : "evolve1", 0.4);
         b.emit({ type: "buff", unit: f, text: `進化：${S.name}`, color: "#3a7bd5" });
         b.emit({ type: "fishEvolve", x: f.x, y: f.y, stage: f.stage });
         if (f.stage === 2) b.emit({ type: "sfx", sound: SND.whale });
@@ -185,6 +199,13 @@
       if (!to) return;
       f.x = to.x; f.y = to.y;
       b.emit({ type: "leap", unit: f, from, to, duration: dur, height: 4 });
+    },
+    // 被魚打到的怪物（不管智力高低）會反擊：下一次行動把那隻魚當成攻擊對象（b.aggroTarget 會先看 provokedBy）
+    provoke(b, f, e, amount) {
+      if (!amount || !e.alive || !f.alive) return;
+      const was = e.state.provokedBy === f && e.state.provokedUntil >= b.round;
+      e.state.provokedBy = f; e.state.provokedUntil = b.round + 1;
+      if (!was) { b.emit({ type: "buff", unit: e, text: `盯上${f.name}`, color: "#c0392b" }); b.say(`${e.name} 被${f.name}惹火了，下次會先打牠`); }
     },
     // 魚的一個動作，回傳花掉的行動點（0＝沒事做）。ap＝現在還有幾點
     fishAct(b, u, f, i, ap = 9) {
@@ -208,7 +229,7 @@
         f.cd = S.ink.cd; f.face = Math.atan2(e.y - f.y, e.x - f.x);
         b.say(`${S.name}朝 ${e.name} 噴墨！`);
         b.emit({ type: "ink", x1: f.x, y1: f.y, x2: e.x, y2: e.y });
-        b.damage(u, e, S.ink.base, mult, "（噴墨）");
+        this.provoke(b, f, e, b.damage(u, e, S.ink.base, mult, "（噴墨）"));
         if (e.alive) { e.state.slowUntil = b.round + 1; e.state.slowMult = S.ink.slow; b.emit({ type: "buff", unit: e, text: "麻痺", color: "#2a2a4a" }); }
         return 2;
       }
@@ -222,14 +243,14 @@
         b.say(`${S.name}衝刺啃咬 ${e.name}！`);
         b.emit({ type: "sfx", sound: SND.whale, rate: 1.6 });
         b.emit({ type: "bite", x: e.x, y: e.y, delay: 0.3 });
-        b.damage(u, e, S.bite.base, mult, "（衝刺啃咬）");
+        this.provoke(b, f, e, b.damage(u, e, S.bite.base, mult, "（衝刺啃咬）"));
         return 2;
       }
       // 已經貼著敵人：撞擊，1 點
       if (d <= near + 6) {
         f.face = Math.atan2(e.y - f.y, e.x - f.x);
         b.emit({ type: "fishRam", x: e.x, y: e.y });
-        b.damage(u, e, S.ram, mult, `（${S.name}撞擊）`);
+        this.provoke(b, f, e, b.damage(u, e, S.ram, mult, `（${S.name}撞擊）`));
         return 1;
       }
       // 游過去（第二、三隻魚從旁邊繞過去，不會疊在一起），1 點
@@ -279,6 +300,7 @@
       const u = b.player;
       u.state.fish = fishOf(u);
       b.say(`${f.name}被打散了……（吃掉的泡泡 ${f.eaten} 顆，要重新養）`);
+      if (u.alive) b.bark(u, "fishDie", 0.3);
     },
 
     // ===== 海馬先生 =====
@@ -333,6 +355,7 @@
           const { d, out } = this.rays(u, arg);
           u.facing = d.ang;
           b.say(`${u.name}「泡沫散射」`);
+          b.bark(u, "foam");
           b.emit({ type: "sfx", sound: this.sound });
           const n = C.shootBubbles(b, u, out, this.base, "（泡泡破裂）");
           if (!n) b.say("泡泡飄在空中……");
@@ -364,6 +387,7 @@
           let n = 0;
           for (const [ox, oy] of spots) if (fishOf(u).length < slots && !fishOf(u).some((f) => R.dist(f.x, f.y, u.x + ox, u.y + oy) < 30)) { const f = C.spawnFish(b, u, u.x + ox, u.y + oy); if (f) { n++; b.emit({ type: "summon", unit: f }); } }
           b.say(have ? `${u.name}「召喚魚群」：補了 ${n} 隻小魚` : `${u.name}「召喚魚群」：幽靈魚游了出來`);
+          b.bark(u, "school");
         },
       },
 
@@ -391,6 +415,7 @@
           u.state.seahorse = { follow: t, turns: this.turns + (upg(u).e2 === "loyal" ? 2 : 0), born: now() };
           b.emit({ type: "sfx", sound: this.sound });
           b.say(`${u.name} 丟出了海馬先生${t === u ? "" : `，跟著 ${t.name}`}`);
+          b.bark(u, t === u ? "seahorseSelf" : "seahorseAlly");
           // 丟出去的時候先吐一次
           const amt = Math.round((this.shield + u.atk * 0.3) * (upg(u).e1 === "thick" ? 1.5 : 1));
           b.emit({ type: "seaPuff", unit: t });
@@ -420,6 +445,7 @@
           const p = this.path(u, arg), hits = this.predict(b, u, arg);
           u.charge = 0; u.facing = p.d.ang;
           b.say(`${u.name}「蝠鱝夫人」！`);
+          b.bark(u, "ult");
           b.emit({ type: "sfx", sound: SND.whale });
           b.emit({ type: "manta", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2 });
           for (const e of hits) if (e.alive) b.damage(u, e, this.base, 1, "（蝠鱝撞擊）");
