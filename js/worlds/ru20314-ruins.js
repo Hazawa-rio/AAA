@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261113040753" });
 // #RU20314 古代遺跡科考隊：隱藏的石門開關、皮普的行跡、遺跡內部（場景 RU20314/ruins）
 // 森林：跟著皮普一路掉的東西走，一定找得到藏在森林裡的石門開關（不跟也有機會自己撞見）
 //       找到之後：特寫石門，符文一個一個變成紅色，石門打開 → 走進石門就是遺跡

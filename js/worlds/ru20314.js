@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314.js": "20261113040753" });
 // #RU20314 古代遺跡科考隊：森林、營地、石門的繪圖，C 級委託「森林外的魔物痕跡」
 //   ruTraces  在森林外的草地調查魔物痕跡（每趟隨機 5 處，金屬碎片一定在；找到 need 處就完成）
 (function () {

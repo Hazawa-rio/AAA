@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261113040753" });
 // #LB00042 美食研究所：地圖探索裡的專屬玩法
 // - 理性倉庫：貨架上的素材只有「採購清單」上的拿得起來
 // - 電腦：玩家通不過驗證，只能在委託中協助研究員操作；完成夠多委託後才開放玩家自己做實驗（之後再做）
@@ -116,6 +116,7 @@
       save();
       const n = MAP.npcs[0];
       if (r === "chick") {
+        api.setFlag?.("prometheusChick");          // 這輪冒險孵出了普羅米修斯小雞（傳說的道路「代罰」會用到）
         chickObj = { x: 1600, y: 1140, tx: 1300, ty: 1000, wait: 1.2, via: [{ x: 1400, y: 1045 }, { x: 1320, y: 1045 }] };
         api.dlgSeq("實驗結果", [
           { n: NARR, text: "微波爐「叮」的一聲——門一打開，一隻小雞搖搖晃晃地走了出來，雞冠上燃著一簇小小的火苗。牠拍拍翅膀跳上觀察窗，從窗口鑽進了研究室。" },
