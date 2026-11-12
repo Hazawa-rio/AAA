@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261113040753" });
 // 魔物圖鑑（酒館桌上的那本書）：以時空分類列出會戰鬥的生物
 // 遇到過＝顯示名字；完成一次戰鬥（打贏）＝顯示技能和數值
 // 同一個物種可以出現在好幾個時空（例如奇儂鎮和科考隊森林邊的魔狼）；遇到、打贏的紀錄是全部時空共用的
@@ -22,12 +22,42 @@
     TR00088: ["ticketBot", "dodger", "dodgerBoss"],
     BC00003: ["rogueDrone", "tourNav"],
     KT33233: ["jumpSpider", "aphid"],
-    TRIAL: ["matrixBoss", "matrixNode", "passion", "cultist", "pope"],
+    CO00756: ["skyCatcher", "catcherBoss"],
+    ER00119: ["stitched", "surgeonBoss"],
+    MM22330: ["sporeMole", "sporeKing"],
+    BH03278: ["looter", "instigator"],
+    CD02016: ["eraAgent", "eraCaptain"],
+    MJ44444: ["grudge", "grudgeSpirit"],
+    LI44444: ["paperMan", "xiBone", "xiFlesh"],
+    KN59810: ["pixelJet", "pixelGrunt"],
+    LG00412: ["bronzeBird", "centaur", "prideLion", "dionysus"],
+    TRIAL: ["matrixBoss", "matrixNode", "passion", "cultist", "pope", "xiBone", "xiFlesh"],
   };
   // 物種的代表（species 指到一組敵人時，用哪一隻的資料）
   const REP = { blockBeast: "blockBeastRed" };
   const NAME = { blockBeast: "色塊野獸", matrixNode: "能量矩陣" };
   const DESC = {
+    dionysus: "酒神狄俄倪索斯。頭戴葡萄藤冠，走路永遠搖搖晃晃。打不倒——要贏祂，只能比祂先喝滿十杯。輸的人明天負責洗杯子。",
+    pixelJet: "克亞貝魯巴斯諾裡的像素敵機。照著固定路線飛，子彈一排一排地撒下來。",
+    pixelGrunt: "像素小兵。走路的時候一格一格地跳，撞到人會發出「嗶」的聲音。",
+    bronzeBird: "斯廷法羅斯的怪鳥。羽毛是青銅做的，會像箭一樣射出來。",
+    centaur: "傳說的道路荒野裡的半人馬。手上永遠拿著酒壺，喝醉了就會衝過來踢人。",
+    prideLion: "眾神考驗裡的獅子。牠說自己從來沒輸過——三個勇士都把牠打趴了，牠趴在地上還是說牠沒輸。全身像大理石一樣白，沒有臉。被說動搖之前，毛皮硬得像青銅。",
+    paperMan: "李家大宅裡的紙紮人。臉上畫著笑，兩團胭脂紅得像血。子時抬著喜轎，平時在院子裡飄來飄去。",
+    xiBone: "試煉 Boss「囍」的骨：王小妹的骨骸，披著紅紗，坐在子時的喜轎上。李家的小妹為了還二哥的債，被嫁去王家換聘金，在王家被家暴致死。娘家賣了她、婆家打死她，兩個家都不要她，所以她誰也不嫁——骨頭嫁給皮肉。",
+    xiFlesh: "試煉 Boss「囍」的皮肉：王小妹的皮肉，從後門外的土丘裡爬出來。和骨同生共死：其中一個倒下，另一個會把它拉回來。",
+    skyCatcher: "開船到雲端上的海洋盜採深海雲朵的人。深海的雲蓬鬆、乾淨，賣到別的時空可以做枕頭。",
+    catcherBoss: "天空捕手的頭目霍克。扛著吸雲機，堅信這片海的雲都是他的。",
+    stitched: "只是來看個小病，卻被「完美縫合」到停不下來的病人。多出來的手臂針腳整齊得嚇人。他們還記得自己是誰。",
+    surgeonBoss: "有點偏執的急診室的首席外科醫師。技術無可挑剔，只是從不停手。每一針都精準到小數點第五位。",
+    sporeMole: "被毒蘑菇寄生的鼴鼠。蘑菇借牠的身體在礦道裡四處散播孢子。",
+    sporeKing: "寄生在發光菇群上的巨大毒菇。把整片菇群的光吸走，用來長大自己。",
+    looter: "趁比爾哈頓廣場的混亂，打算洗劫精品店的暴民。抗議喊的口號，他們一句也沒在聽。",
+    instigator: "在廣場上煽動洗劫的人。手上拿著兩年前的購物收據，嘴裡說的卻跟那張收據一點關係也沒有。",
+    eraAgent: "時代蓋世太保的臥底。混進黑市，記下每一個還在懷念過去的人。",
+    eraCaptain: "時代蓋世太保的隊長。他的信念是「過去已經過去了」——說的時候，聲音有一點點抖。",
+    grudge: "死者生前斷不開的怨念。沒有剪斷它，死者就沒辦法辦完輪迴的手續。",
+    grudgeSpirit: "纏了一百年的怨念。早就忘了當初在恨什麼，只記得不能原諒。",
     slime: "奇儂鎮草原上最常見的魔物。會撞人，也會跳起來壓下來。其實沒什麼敵意，只是漫無目的地亂跳。",
     wolf: "成群行動的魔狼。看到人就會追，會繞到側面撲咬。",
     alphaWolf: "狼群的首領。會嚎叫叫來更多魔狼。",

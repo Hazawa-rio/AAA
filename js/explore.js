@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261113040753" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -75,6 +75,7 @@
     if (!bgm) { bgm = new Audio(MAP.bgm + "?v=" + (document.querySelector("meta[name=build]")?.content || "")); bgm.loop = true; bgm.volume = R.CONFIG.bgmVolume; }
     if (bgm.paused) bgm.play().catch(() => {});
   }
+  window.addEventListener("rpg:volume", () => { if (bgm) bgm.volume = R.CONFIG.bgmVolume; });
   function sfx(src) { if (muted || !src) return; const a = new Audio(src); a.volume = R.CONFIG.volume; a.play().catch(() => {}); }
   window.addEventListener("pointerdown", startBgm);
   window.addEventListener("keydown", startBgm);
@@ -1123,7 +1124,7 @@
         const cnt = st?.type === "kill" ? `（${trip.qcount[id] || 0} / ${st.need}）` : "";
         return `<article class="slip${done ? " taken" : ""}" style="--wc:${W0.color}">
           <header><span class="stamp">${W0.code}</span><span class="wn">${esc(c.client)}</span>${done ? '<span class="got">完成</span>' : c.wip ? '<span class="got wip">玩法設計中</span>' : ""}</header>
-          <h3>${esc(c.title)}</h3><p class="wx-p">${esc(c.content)}</p>
+          <h3>${esc(c.title)}</h3><p class="wx-p">${esc(CM.contentOf(c, { ...(R.Adventure.get()?.flags || {}), ...(trip.flags || {}) }))}</p>
           <div class="wx-prog" aria-label="進度 ${k} / ${n}">${Array.from({ length: n }, (_, i) => `<i class="${i < k ? "on" : ""}"></i>`).join("")}<span>${done ? "完成" : st ? `下一步：${esc(stText(id, st))}${cnt}` : `進度 ${k} / ${n}`}</span></div>
           <footer><span class="rw">報酬：${esc(CM.rewardText(c.reward))}</span>${done ? "" : `<span><button type="button" class="ghost" data-act="step" data-id="${id}">（測試）推進</button> <button type="button" class="ghost" data-act="done" data-id="${id}">（測試）完成</button></span>`}</footer>
         </article>`;
@@ -1291,7 +1292,7 @@
         text(inside ? "1 / 1" : "站進圓圈", z.x, z.y + z.r + 12, inside ? "#2e7a46" : "#7a5a00", 11, 900);
       }
       rr(n.x - 16, n.y - 16, 32, 32, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = n.color; ctx.stroke();
-      text(n.name[0], n.x, n.y + 1, n.color, 14, 900);
+      text(n.face || n.name[0], n.x, n.y + 1, n.color, 14, 900);
       text(n.name, n.x, n.y - 28, "#3a2a1a", 12, 700);
       if (active) { ctx.fillStyle = "#f2c200"; ctx.beginPath(); ctx.arc(n.x + 16, n.y - 16, 7, 0, Math.PI * 2); ctx.fill(); text("!", n.x + 16, n.y - 15, "#5a3a00", 10, 900); }
     }
@@ -1687,10 +1688,11 @@
   // 時空程式初始化失敗時，顯示真正的錯誤訊息（不然瀏覽器只會說 Script error.），遊戲照樣能走
   if (R.WorldHooks?.[trip.world]) try { HOOK = R.WorldHooks[trip.world]({
     R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, dlg, dlgSeq, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
-    ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
+    ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, pauseBgm: () => bgm?.pause(), resumeBgm: () => startBgm(), isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
   }) || {}; } catch (e) { console.error(e); showError(`時空程式（${trip.world}${trip.scene ? "/" + trip.scene : ""}）：${e?.message || e}`); HOOK = {}; }
   document.title = `${W0.code} ${W0.name}`;
   renderMute();
+  R.VolumeUI?.mount($("#muteBtn"));
   renderHud();
   if (trip.lastResult) { toast(trip.lastResult); delete trip.lastResult; save(); }
   if (run.scared && !run.scaredSeen) {

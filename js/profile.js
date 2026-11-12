@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/profile.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/profile.js": "20261113040753" });
 // 玩家資料（局外）：名字、時空幣、手上的特調
 // 測試版存在瀏覽器（localStorage）；線上版之後改成帳號資料
 (function () {

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261113040753" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -61,6 +61,7 @@
 
   // ---------- 音效 ----------
   let muted = store.get("rpg.muted") === "1";
+  window.addEventListener("rpg:volume", () => { if (bgm) bgm.volume = C.bgmVolume; });
   const audioCache = new Map();
   function audio(src) {
     let a = audioCache.get(src);
@@ -96,6 +97,7 @@
     if (muted) bgm?.pause(); else startBgm();
   });
   renderMute();
+  R.VolumeUI?.mount($("#muteBtn"));
 
   // ---------- 背景音樂（Boss 房） ----------
   // 瀏覽器規定要使用者點過頁面才能播放，所以播放失敗時等第一次點擊或按鍵再試
@@ -521,6 +523,8 @@
           }
         }
         if (ev.burst) { fx.push({ k: "splash", x: ev.x, y: ev.y, r: ev.radius, t, dur: 800 }); shakeUntil = t + 300; }
+        // 噴血的攻擊（例如囍的皮肉）：血沿著攻擊範圍噴出去
+        if (ev.blood) fx.push({ k: "blood", shape: ev.shape, x: ev.shape === "circle" ? ev.x : ev.owner.x, y: ev.shape === "circle" ? ev.y : ev.owner.y, ang: ev.ang, length: ev.length, width: ev.width, r: ev.radius, seed: Math.random() * 100, t, dur: 900 });
         if (ev.words) fx.push(ev.shape === "circle" ? { k: "wordRing", x: ev.x, y: ev.y, r: ev.radius, text: ev.words, color: ev.owner.def.color || "#5a3a8a", t, dur: 700 }
           : { k: "words", x: ev.owner.x, y: ev.owner.y, ang: ev.ang, length: ev.length, text: ev.words, color: ev.owner.def.color || "#5a3a8a", t, dur: 650 });
         break;
@@ -528,6 +532,7 @@
         fx.push({ k: "shield", unit: ev.unit, t, dur: 500 });
         fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - ev.unit.r - 18, text: "立場阻擋", color: "#3d7fe0", t });
         break;
+      case "web": fx.push({ k: "web", x: ev.unit.x, y: ev.unit.y, r: ev.radius, n: ev.spokes, color: ev.color || "#e8262c", t, dur: ev.dur || 900 }); break;
       case "bulletHit": fx.push({ k: "ring", x: ev.x, y: ev.y, r: 14, color: "#e8262c", t, dur: 250 }); break;
       case "pulse": for (const m of ev.units) fx.push({ k: "ring", x: m.x, y: m.y, r: 60, color: "#e8262c", t, dur: 400 }); break;
       case "enemyDodge":
@@ -545,7 +550,7 @@
       case "bark": {
         // 個性台詞：依機率出現，同一個角色 2.5 秒內不重複跳（比較特別的台詞可以蓋掉）
         const set = ev.unit.def.barks?.[ev.key];
-        if (!set || !ev.unit.alive) break;
+        if (!set || !set.lines?.length || !ev.unit.alive) break;     // 還沒填台詞的事件不說話
         if (Math.random() >= (set.chance ?? 0.4)) break;
         const last = lastBark.get(ev.unit.id);
         const at = t + (ev.delay || 0) * 1000;
@@ -1644,6 +1649,15 @@
   // 光彈：紅色膠囊形，沿飛行方向
   function drawProjectiles() {
     for (const b of B.projectiles) {
+      // 文字彈（例如百年的怨念的「怨恨的文字」）：字本身就是投射物
+      if (b.text) {
+        ctx.save(); ctx.translate(b.x, b.y);
+        ctx.fillStyle = "rgba(90,0,20,.35)"; ctx.beginPath(); ctx.arc(0, 0, b.r * 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.font = `900 ${Math.round(b.r * (b.text.length > 1 ? 1.15 : 1.9))}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.lineWidth = 4; ctx.strokeStyle = "#1a0006"; ctx.strokeText(b.text, 0, 1);
+        ctx.fillStyle = b.color || "#ff3a4a"; ctx.fillText(b.text, 0, 1);
+        ctx.restore(); continue;
+      }
       ctx.save();
       ctx.translate(b.x, b.y); ctx.rotate(b.ang);
       ctx.fillStyle = "rgba(232,38,44,.18)";
@@ -2436,10 +2450,11 @@
     } else if (inBush(u)) ctx.globalAlpha = 0.6;     // 躲在草叢裡
     if (u.team === "player") {
       const S = BD * (CH.drawScale || 1);     // 霍夫曼的方塊比較大
+      const LK = (u === B.player && CH.look?.(B, u)) || {};      // 角色換樣子（例如悠魘變身成魘：紅底灰字）
       roundRect(p.x - S, p.y - S, S * 2, S * 2, 8);
-      ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = CH.color || "#1d1d1f"; ctx.stroke();
-      ctx.fillStyle = CH.color || "#1d1d1f"; ctx.font = `bold ${Math.round(16 * (CH.drawScale || 1))}px 'Noto Sans TC', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(CH.letter || CH.name[0], p.x, p.y + 1);
+      ctx.fillStyle = LK.fill || "#fff"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = LK.color || CH.color || "#1d1d1f"; ctx.stroke();
+      ctx.fillStyle = LK.ink || CH.color || "#1d1d1f"; ctx.font = `bold ${Math.round(16 * (CH.drawScale || 1))}px 'Noto Sans TC', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(LK.letter || CH.letter || CH.name[0], p.x, p.y + 1);
       // 霍夫曼的超壓縮穿梭：0.77 秒前（照著走過的路慢一拍）和 0.66 秒後的自己
       if (u.state.clones) {
         posHist.push({ t: now, x: p.x, y: p.y });
@@ -2527,6 +2542,20 @@
       ctx.globalAlpha = 1 - k;
       switch (f.k) {
         case "ring": circle(f.x, f.y, f.r * (0.4 + k * 0.6), f.color, null, 4); break;
+        case "web": {
+          // 紅線展開成網：輻射線往外長，再一圈一圈連起來
+          const g = Math.min(1, k * 1.6), R0 = f.r * g;
+          ctx.save(); ctx.globalAlpha = k > 0.8 ? (1 - k) * 5 : 1; ctx.strokeStyle = f.color; ctx.lineWidth = 2;
+          for (let i = 0; i < f.n; i++) { const a = (i / f.n) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + Math.cos(a) * R0, f.y + Math.sin(a) * R0); ctx.stroke(); }
+          for (let ring = 1; ring <= 4; ring++) {
+            const rr0 = (f.r * ring) / 4; if (rr0 > R0) break;
+            ctx.beginPath();
+            for (let i = 0; i <= f.n; i++) { const a = (i / f.n) * Math.PI * 2, sag = i % 2 ? 0.92 : 1; const x = f.x + Math.cos(a) * rr0 * sag, y = f.y + Math.sin(a) * rr0 * sag; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+            ctx.stroke();
+          }
+          ctx.restore();
+          break;
+        }
         case "shape": drawShape(f.shape, f.color, f.color, 0.35); break;
         case "char": ctx.save(); CH.drawFx?.(ctx, f.ev, k, now, { circle, line, label }); ctx.restore(); break;
         case "lash": {   // 蛇腹劍：劍柄在角色手上，劍刃一節一節沿著弧線甩出去（大招：跳到空中，同時甩出好幾條）
@@ -2805,6 +2834,21 @@
           ctx.restore();
           break;
         }
+        case "blood": {    // 噴血：一團一團的血沫往外噴，落地留下血跡
+          ctx.save();
+          const n = 26, sp = Math.min(1, k * 1.7);
+          for (let i = 0; i < n; i++) {
+            const r1 = Math.sin(f.seed + i * 12.9898) * 0.5 + 0.5, r2 = Math.sin(f.seed + i * 78.233) * 0.5 + 0.5;
+            let x, y;
+            if (f.shape === "circle") { const a = (i / n) * Math.PI * 2 + r1; x = f.x + Math.cos(a) * f.r * sp * (0.4 + 0.6 * r2); y = f.y + Math.sin(a) * f.r * sp * (0.4 + 0.6 * r2); }
+            else { const along = f.length * sp * (0.2 + 0.8 * r1), side = (r2 - 0.5) * f.width * (0.3 + sp); x = f.x + Math.cos(f.ang) * along - Math.sin(f.ang) * side; y = f.y + Math.sin(f.ang) * along + Math.cos(f.ang) * side; }
+            ctx.globalAlpha = k < 0.6 ? 0.95 : (1 - k) * 2.4;
+            ctx.fillStyle = i % 3 ? "#a0060f" : "#5a0006";
+            ctx.beginPath(); ctx.ellipse(x, y, 4 + r2 * 7 * (1 + k), 3 + r1 * 4, (f.ang || 0) + r1, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.restore();
+          break;
+        }
         case "wordRing": { // 圓形攻擊：文字往四周散開
           ctx.save(); ctx.globalAlpha = 1 - k; ctx.font = "900 16px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + k, rr = f.r * (0.3 + 0.7 * k); ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.strokeText(f.text, f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x + Math.cos(a) * rr, f.y + Math.sin(a) * rr); }
@@ -3054,6 +3098,7 @@
       }
       // 角色場上的東西（例如蒼幽的泡泡、幽靈魚、海馬先生）
       if (CH.drawBattle) { ctx.save(); CH.drawBattle(ctx, now, B, { circle, line, label, pos }); ctx.restore(); }
+      if (B.room.drawRoom) { ctx.save(); B.room.drawRoom(ctx, now, B, { circle, line, label, pos }); ctx.restore(); }     // 房間自己畫的東西（例如酒神的酒杯）
       drawFx(now);
       drawThreatLabel(now);
       const key = `${mode}|${mouse.in}|${B.phase}|${B.player.ap}|${mouse.in && unitAt(mouse)?.id}`;

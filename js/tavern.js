@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261113040753" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -271,7 +271,8 @@
   const radio = (() => { try { return JSON.parse(store.get("rpg.radio") || "null") || { on: true, yt: null }; } catch (e) { return { on: true, yt: null }; } })();
   const saveRadio = () => store.set("rpg.radio", JSON.stringify(radio));
   const jazz = new Audio("sounds/tavern-jazz.mp3");
-  jazz.loop = true; jazz.volume = 0.35;
+  jazz.loop = true; jazz.volume = R.Volume ? R.Volume.music(0.35) : 0.35;
+  window.addEventListener("rpg:volume", () => { jazz.volume = R.Volume.music(0.35); });
   let radioMsg = "", gestured = false;
   // 從各種 YouTube 網址取出影片 id（watch?v=、youtu.be/、shorts/、embed/、live/）
   function ytId(url) {
@@ -559,8 +560,10 @@
         <div class="rack-show"><b>掛在名牌架上的名牌</b><span class="muted">（最多 ${RACK_MAX} 位，點一下掛上或取下）</span>
           <div class="rack-chips">${all.filter((c) => P.owns(c.id)).map((c) => { const on = featured().includes(c.id); return `<button type="button" class="rack-chip${on ? " on" : ""}" style="--c:${c.color}" data-act="feature" data-id="${c.id}" aria-pressed="${on}"><span>${esc(c.letter || c.name[0])}</span>${esc(c.name)}</button>`; }).join("")}</div>
           ${rackMsg ? `<p class="tv-note" style="margin:6px 0 0">${esc(rackMsg)}</p>` : ""}</div>
-        ${peekC?.profile ? `<div class="plate-profile" style="--c:${peekC.color}"><b>${esc(peekC.name)}</b>${P.owns(peekC.id) ? "" : '<span class="muted">・尚未觀測到</span>'}<p>${esc(peekC.profile)}</p>
-          ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
+        ${peekC?.profile ? `<div class="plate-profile" style="--c:${peekC.color}"><b>${esc(peekC.name)}</b>${P.owns(peekC.id) ? "" : '<span class="muted">・尚未觀測到</span>'}${peekC.profileHidden && P.owns(peekC.id)
+            ? `<div class="prof-wrap" tabindex="0"><p class="pub">${esc(peekC.profile)}</p><p class="hid">${esc(peekC.profileHidden)}</p></div>`     // 隱藏簡介：滑鼠移上去（或點一下）才看得到
+            : `<p>${esc(peekC.profile)}</p>`}
+          ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag" title="${peekC.awaken ? "覺醒角色：天生就有 Q、W、E，沒有技能強化分支；大招等級解鎖覺醒技 R" : "昇華角色：Q、E、W 可以選強化分支"}">${peekC.awaken ? "覺醒" : "昇華"}</span><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
             <p>${esc(peekC.style.text)}</p>
             <div class="ps-stats">${[["生命", "hp"], ["魔力", "mp"], ["攻擊", "atk"], ["防禦", "df"], ["速度", "spd"], ["行動點", "ap"]].filter(([, k]) => k !== "mp" || peekC.stats.mp).map(([l, k]) => `<span>${l} <b>${peekC.stats[k]}</b></span>`).join("")}</div></div>` : ""}</div>` : ""}
         <p class="tv-note">冒險中的等級、技能強化與寶物只屬於這輪冒險，冒險結束就重新開始。在戰鬥中的「角色成長」調整。</p>`;
@@ -739,7 +742,7 @@
           <h3>${esc(c.title)}</h3>
           <dl>
             <dt>委託人</dt><dd>${esc(c.client)}<small>${esc(c.clientNote || "")}</small></dd>
-            <dt>委託內容</dt><dd>${esc(c.content)}</dd>
+            <dt>委託內容</dt><dd>${esc(R.Commissions.contentOf(c, adv?.flags))}</dd>
             <dt>報酬</dt><dd class="rw">${esc(CM.rewardText(c.reward))}${c.rewardNote ? `（${esc(c.rewardNote)}）` : ""}<small>分 ${CM.steps(c)} 個進度；失敗時照進度拿時空幣${c.extra ? "・額外委託不能單獨接取" : ""}</small></dd>
           </dl>
           <footer>
@@ -957,6 +960,7 @@
     panelOpen = true;
     P.renameDialog($("#tvStage"), () => { panelOpen = false; renderTop(); });
   });
+  R.VolumeUI?.mount($("#tvName"), { note: "收音機的 YouTube 音量請用播放器自己的音量鈕" });
   $("#logoutBtn").addEventListener("click", () => {
     P.logout();
     $("#nameInput").value = ""; $("#nameErr").textContent = "";

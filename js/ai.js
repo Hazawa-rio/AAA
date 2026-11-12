@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261113040753" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -1172,18 +1172,42 @@
   };
 
   // ===== 海盜船長・黑鰭：橫掃、火槍、叫來手下 =====
+  // 網狀彈幕（D.web）：先展開成一張網，再一波一波往四周射出文字彈
+  async function webBurst(b, u, W) {
+    b.enemySpend(u, W.ap);
+    b.say(`${u.name}：${W.line || `${W.name}！`}`);
+    b.emit({ type: "web", unit: u, radius: W.radius || 260, spokes: W.count, color: W.color, dur: (W.reaction || 1) * 1000 });
+    if (W.sound) b.emit({ type: "sfx", sound: W.sound });
+    await b.wait(W.reaction || 1);                        // 網展開的時間＝反應時間
+    for (let w = 0; w < W.waves; w++) {
+      if (!u.alive || b.dead || b.phase === "over") break;
+      const off = (w % 2) * (Math.PI / W.count) + Math.random() * 0.15;     // 每一波錯開半格，留縫可以鑽
+      for (let i = 0; i < W.count; i++) {
+        const a = off + (i / W.count) * Math.PI * 2;
+        b.spawnBullet(u, u.x + Math.cos(a) * u.r, u.y + Math.sin(a) * u.r, a, { speed: W.speed, r: W.r || 12, base: W.base, text: W.words[(i + w * 3) % W.words.length], color: W.color });
+      }
+      if (W.sound) b.emit({ type: "sfx", sound: W.sound });
+      await b.wait(W.interval || 0.6);
+    }
+    await b.waitProjectiles();
+  }
+
   R.AI.captain = {
-    init(b, u) { u.state.callAt = 2; },
+    init(b, u) { u.state.callAt = 2; u.state.webCd = 2; },          // 網狀彈幕最快第二回合才用
     async takeTurn(b, u) {
       const D = u.def;
       if (u.state.sweepCd > 0) u.state.sweepCd--;
       if (u.state.shotCd > 0) u.state.shotCd--;
+      if (u.state.webCd > 0) u.state.webCd--;
       let guard = 0;
       while (u.ap > 0 && u.alive && !b.dead && b.phase !== "over" && guard++ < 8) {
         const t = b.aggroTarget(u), d = R.dist(u.x, u.y, t.x, t.y);
         const callKind = D.call.kind || "pirate";
         const crew = b.mainEnemies().filter((e) => e.kind === callKind).length;
-        if (b.round >= u.state.callAt && crew < D.call.max && u.ap >= D.call.ap) {
+        if (D.web && !(u.state.webCd > 0) && u.ap >= D.web.ap) {
+          u.state.webCd = D.web.cooldown + 1;
+          await webBurst(b, u, D.web);
+        } else if (b.round >= u.state.callAt && crew < D.call.max && u.ap >= D.call.ap) {
           b.enemySpend(u, D.call.ap);
           u.state.callAt = b.round + D.call.every;
           b.say(D.call.line ? `${u.name}：「${D.call.line}」` : `${u.name}：「上啊！把他們扔進海裡！」`);
@@ -1201,6 +1225,56 @@
         if (u.ap > 0) await b.wait(b.cfg.aiDelay);
       }
       u.ap = 0;
+    },
+  };
+
+  // ===== 試煉 Boss「囍」：骨和皮肉（兩個同時存在）=====
+  // 同生共死（一個倒下，另一個 revive.turns 回合後把它拉回來）、形影不離（靠近時骨減傷、皮肉回血，寫在 config）、紅線（骨的回合開始時）
+  R.AI.xi = {
+    partner(b, u) { return b.units.find((x) => x !== u && x.kind === u.def.partnerKind); },
+    init(b, u) { R.AI.captain.init(b, u); if (!u.def.web) u.state.webCd = 999; },
+    onUnitDeath(b, u, dead) {
+      if (!u.alive || dead !== this.partner(b, u)) return;
+      u.state.reviveIn = u.def.revive.turns;
+      b.say(`${u.name}：「……還沒拜完堂。」（${u.def.revive.turns} 回合後，${dead.name} 會被拉回來）`);
+      b.emit({ type: "buff", unit: u, text: `${u.def.revive.turns} 回合後拉回${dead.name}`, color: "#c40a1e" });
+    },
+    async takeTurn(b, u) {
+      const P = this.partner(b, u), D = u.def;
+      // 同生共死
+      if (P && !P.alive && u.state.reviveIn > 0) {
+        u.state.reviveIn--;
+        if (u.state.reviveIn <= 0) {
+          const a = Math.random() * Math.PI * 2;
+          let spot = { x: u.x + Math.cos(a) * 110, y: u.y + Math.sin(a) * 110 };
+          if (b.blocked(P, spot.x, spot.y)) spot = b.randomFreeSpot?.(P.r, 20) || spot;
+          P.x = spot.x; P.y = spot.y;
+          P.hp = Math.round(P.maxHp * D.revive.ratio);
+          P.state = {}; P.cd = {};
+          R.AI[P.def.ai]?.init?.(b, P);
+          b.joinOrder(P, u);
+          b.say(`${u.name} 用紅線把 ${P.name} 拉了回來——「同生共死」`);
+          b.emit({ type: "revive", unit: P, by: u });
+          b.emit({ type: "sfx", sound: "sounds/youyan-grow.mp3" });
+          await b.wait(0.6);
+        } else b.emit({ type: "buff", unit: u, text: `${u.state.reviveIn} 回合後拉回${P.name}`, color: "#c40a1e" });
+      }
+      // 形影不離：皮肉靠著骨頭回血
+      if (D.regen && P?.alive && R.dist(u.x, u.y, P.x, P.y) <= D.near && u.hp < u.maxHp) {
+        const n = Math.round(u.maxHp * D.regen); u.hp = Math.min(u.maxHp, u.hp + n);
+        b.say(`${u.name} 靠著 ${P.name}，傷口慢慢長了回來（+${n}）`);
+        b.emit({ type: "heal", unit: u, amount: n });
+      }
+      // 紅線：骨和皮肉之間拉出一條紅線
+      const T = D.thread;
+      if (T && P?.alive && u.ap >= T.ap && b.player.alive) {
+        const ang = Math.atan2(P.y - u.y, P.x - u.x), len = R.dist(u.x, u.y, P.x, P.y);
+        b.enemySpend(u, T.ap);
+        b.say(`${u.name} 和 ${P.name} 之間，拉出了一條紅線`);
+        await b.telegraph(u, { shape: "rect", x: u.x, y: u.y, ang, length: len, width: T.width, reaction: T.reaction }, { base: T.base, sound: T.sound, label: T.name });
+      }
+      if (!u.alive || b.dead || b.phase === "over") return;
+      await R.AI.captain.takeTurn(b, u);
     },
   };
 })();

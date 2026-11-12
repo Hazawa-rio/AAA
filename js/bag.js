@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261113040753" });
 // 冒險的行囊（道具欄 20 格）：任務道具、消耗品、素材
 // 地圖探索、地圖上的戰鬥、酒館（酒保烤肉）都會用到
 // use：{ hp: 回復最大生命的比例, mp: 回復最大魔力的比例 }；field = 地圖上可以用、battle = 戰鬥中可以用（花 1 行動點）
@@ -37,6 +37,23 @@
     miraGoods: { name: "米拉的貨", desc: "一箱用列車上的報紙包著的貨，要在南月台交給買家", color: "#8a6a3a", icon: "block", stack: 1, quest: true },
     jellyPot: { name: "西瓜蟲們的果凍罐", desc: "比你還大的果凍罐，扛著走得很慢", color: "#e86a8a", icon: "drop", stack: 1, quest: true },
     grain: { name: "一粒糧食", desc: "比你的頭還大的穀粒", color: "#e8c87a", icon: "berry", stack: 9, quest: true },
+    // ===== B 級時空 =====
+    cloudFluff: { name: "深海雲朵", desc: "雲端上的海洋最底層的雲朵。捏得動、Q 彈、有點涼。可以拿來補洞，也可以賣給商店", color: "#e8f4ff", icon: "berry", stack: 20, sell: 14, mat: true },
+    divingCamera: { name: "潛水相機", desc: "雲朵做的防水殼裡裝著一台相機。這片海的魚抓不到，只拍得到", color: "#3a6a9a", icon: "block", stack: 1, quest: true },
+    suture: { name: "完美的縫線", desc: "被完美縫合的病人身上掉下來的縫線，針腳整齊得嚇人。可以賣給商店", color: "#9a7a8a", icon: "block", stack: 20, sell: 14, mat: true },
+    sedative: { name: "訂製的鎮靜針", desc: "精準到小數點第五位的鎮靜針。只適合那一位病人", color: "#2a8a7a", icon: "bottle", stack: 9, quest: true },
+    glowCap: { name: "發光的蘑菇傘", desc: "礦洞裡發光蘑菇的傘蓋。拿在手上能照亮一小塊地方，也可以賣給商店", color: "#9ad8ff", icon: "berry", stack: 20, sell: 14, mat: true },
+    memoryToken: { name: "2016 年的回憶", desc: "黑市裡流通的童年回憶，摸起來是溫的。可以賣給商店", color: "#e8b84a", icon: "berry", stack: 20, sell: 16, mat: true },
+    bronzeFeather: { name: "青銅羽毛", desc: "斯廷法羅斯怪鳥的羽毛，邊緣利得可以削水果。可以賣給商店", color: "#b8863a", icon: "block", stack: 20, sell: 22, mat: true },
+    pixelChip: { name: "像素碎片", desc: "像素敵機掉下來的一格方塊，摸起來是平的。可以賣給商店", color: "#e83a8a", icon: "block", stack: 20, sell: 22, mat: true },
+    bugCode: { name: "除錯碼", desc: "機台裡撿到的三段亂碼，拼起來好像是某個指令", color: "#5aff9a", icon: "block", stack: 3, quest: true },
+    grapes: { name: "一串葡萄", desc: "東邊平原的葡萄藤上摘的，紫得發亮", color: "#6a2a7a", icon: "berry", stack: 1, quest: true },
+    figs: { name: "一籃無花果", desc: "市集攤位買的無花果，甜得黏手", color: "#8a4a8a", icon: "berry", stack: 1, quest: true },
+    wineJar: { name: "一罈葡萄酒", desc: "半人馬克洛斯珍藏的葡萄酒。打開蓋子就醉了一半", color: "#7a3a8a", icon: "bottle", stack: 1, quest: true },
+    oliveBranch: { name: "雅典娜的橄欖枝", desc: "供奉在雅典娜神殿裡的橄欖枝。拿在手上，好像有人在背後看著你", color: "#7a9a4a", icon: "block", stack: 1, quest: true },
+    joss: { name: "燒剩的紙錢", desc: "紙紮人身上掉下來的紙錢，邊緣燒焦了。可以賣給商店", color: "#d8c890", icon: "block", stack: 20, sell: 22, mat: true },
+    baguaMirror: { name: "八卦鏡", desc: "第七位道士留下的八卦鏡。照一下，能看見宅子裡本來看不見的東西（陰氣會上升）", color: "#c8a040", icon: "block", stack: 1, quest: true },
+    lilyPetal: { name: "彼岸花的花瓣", desc: "事務所外面彼岸花田的花瓣。據說能讓人想起已經忘記的事。可以賣給商店", color: "#c40a1e", icon: "berry", stack: 20, sell: 16, mat: true },
     ruinCore: { name: "古代機關的核心", desc: "古代守衛機關、巡弋機關裡拆下來的發光核心。朵拉想要，也可以賣給商店", color: "#5ad0e0", icon: "berry", stack: 20, sell: 18, mat: true },
     weirdBerry: { name: "怪異樹莓", desc: "從草原果樹摘下、泛著紫光的樹莓。委託要交的東西", color: "#7a3fb0", icon: "berry", stack: 1, quest: true },
   };

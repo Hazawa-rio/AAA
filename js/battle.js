@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261113040753" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -199,10 +199,12 @@
     }
 
     // 角色的個性台詞（畫面決定要不要顯示，不會每次都跳）
-    bark(u, key, delay = 0) { this.emit({ type: "bark", unit: u, key, delay }); }
+    bark(u, key, delay = 0) { if (u === this.player) key = this.char.barkKey?.(this, u, key) || key; this.emit({ type: "bark", unit: u, key, delay }); }   // barkKey：角色換事件名（例如魘受傷＝yanHurt）
 
     heal(u, amount, note = "") {
       if (!u.alive || amount <= 0) return 0;
+      // 角色無法回復（例如悠魘變身成魘）
+      if (this.char.noHeal?.(this, u)) { this.emit({ type: "miss", x: u.x, y: u.y, text: "無法回復" }); return 0; }
       const got = Math.min(amount, u.maxHp - u.hp);
       if (got <= 0) return 0;
       u.hp += got;
@@ -321,7 +323,7 @@
     skill(id) { return this.char.skills[id]; }
 
     // ---------- 回合流程 ----------
-    start() { if (this.room.escort) this.startEscort(); else this.nextTurn(); }
+    start() { this.room.onStart?.(this); if (this.room.escort) this.startEscort(); else this.nextTurn(); }      // onStart：房間自己的玩法（例如酒神的酒杯）
 
     // ---------- 護送戰（特殊戰鬥）：沒有回合 ----------
     // 行動點每 apEvery 秒 +1；每 tickEvery 秒算一次「玩家回合開始」（魔力回復、煙霧計時…）
@@ -655,6 +657,7 @@
       u.x = x; u.y = y;
       u.ap -= cost;
       this.emit({ type: "move", unit: u });
+      if (u === this.player) this.room.onPlayerMove?.(this, u);          // 房間自己的玩法（例如走到酒杯上就喝掉）
     }
 
     // base = 技能基礎傷害；mult = 額外倍率（例如穿過煙霧 ×1.5）
@@ -668,6 +671,8 @@
       // 格擋（例如翁爾貢：正面的投射物被旋轉的雙刃擋下）
       if (dst.def.blockHit?.(this, dst, src)) { this.say(`${dst.name} 在面前旋轉雙刃，擋下了攻擊！`); this.emit({ type: "miss", x: dst.x, y: dst.y, text: "格擋" }); return 0; }
       if (dst.state.invuln) { this.emit({ type: "miss", x: dst.x, y: dst.y, text: "無效" }); return 0; }
+      // 角色攔下這次攻擊（例如悠魘的魔導法陣：我方打不到法陣裡的敵人，攻擊打在法陣上）
+      if (this.char.intercept?.(this, src, dst, base, mult)) return 0;
       // 聖牢籠：不看傷害，每被打一次扣 1
       if (dst.cage) {
         dst.hp = Math.max(0, dst.hp - 1);
@@ -702,6 +707,9 @@
       if (k !== 1) note += dst.def.incomingNote ? dst.def.incomingNote(k) : `（立場 ×${k}）`;
       // 破綻（例如被翁爾貢打到）：受到的傷害變多
       if (dst.state.flawUntil >= this.round) { mult *= dst.state.flawMult || 1.3; note += "（破綻）"; }
+      // 角色的格擋（例如巴斯提安「不退之門」：正面受到的傷害變少，擋下來的累積成壓力）
+      let guardK = 0;
+      if (dst === this.player && this.char.guard) { const g = this.char.guard(this, src, dst); if (g && g.mult !== 1) { mult *= g.mult; note += g.note || ""; guardK = g.mult; } }
       // 玩家角色的增傷（例如業障纏身）
       if (src === this.player && this.char.outgoingMult) {
         const ex = this.char.outgoingMult(this, src, dst);
@@ -720,6 +728,7 @@
       const df = this.defOf(dst);
       if (df < dst.df) note += "（破防）";
       let amount = Math.max(1, Math.round(this.cfg.damage(base, src.atk, df) * mult * k));
+      if (guardK > 0) this.char.onGuard?.(this, dst, src, Math.round(amount * (1 - guardK) / guardK));
       // 護盾先吸收
       if (dst.shield > 0) {
         const ab = Math.min(dst.shield, amount);
@@ -730,6 +739,8 @@
       }
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
+      // 生命歸零時角色可以撐住（例如魘：變回一半生命的悠）
+      if (dst === this.player && dst.hp <= 0) this.char.onLethal?.(this, dst);
       this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1, delay: this.hitDelay || 0 });   // hitDelay：連擊時每一下的傷害數字錯開出現
       if (dst === this.player && dst.alive) this.bark(dst, "hurt");          // 受傷台詞（角色有設定才會跳）
       if (dst.def.ai && dst.alive) R.AI[dst.def.ai]?.onHurt?.(this, dst);
@@ -991,7 +1002,7 @@
       this.projectiles.push({
         id: "p" + nextId++, owner, x, y, ang,
         vx: Math.cos(ang) * opt.speed, vy: Math.sin(ang) * opt.speed,
-        r: opt.r, base: opt.base,
+        r: opt.r, base: opt.base, text: opt.text, color: opt.color,
       });
       if (!this._projTimer) {
         let last = performance.now();
@@ -1065,7 +1076,7 @@
       u.facing = ang;
       this.say(`${u.name} 準備${label}！`);
       if (u.def.rex || u.def.paw) u.pose = { k: "lunge", t0: performance.now(), ang, hit: 0 };          // 霸王龍：整隻往後仰、再往前撲（畫圖用）
-      const t = { shape: "rect", x: u.x + Math.cos(ang) * B * 0.6, y: u.y + Math.sin(ang) * B * 0.6, ang, length: spec.length, width: spec.width, reaction: spec.reaction, lunge: !spec.ranged, shot: !!spec.ranged, words: this.pickWords(u, spec) };
+      const t = { shape: "rect", x: u.x + Math.cos(ang) * B * 0.6, y: u.y + Math.sin(ang) * B * 0.6, ang, length: spec.length, width: spec.width, reaction: spec.reaction, lunge: !spec.ranged, shot: !!spec.ranged, words: this.pickWords(u, spec), blood: !!spec.blood };
       const res = await this.telegraph(u, t, { base: spec.base, sound: spec.sound || u.def.sounds?.ram, label: `${u.name} 的${label}`, quiet: target !== this.player });
       if (u.pose) u.pose.hit = performance.now();
       if (dash && res !== false && u.alive && !this.dead && this.phase !== "over") {
@@ -1095,7 +1106,7 @@
       this.enemySpend(u, spec.ap);
       this.say(`${u.name} 準備${label}！`);
       if (u.def.rex || u.def.paw) u.pose = { k: "spin", t0: performance.now(), hit: 0 };                   // 霸王龍：蹲低蓄力、再整隻轉一圈
-      const res = await this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u, words: this.pickWords(u, spec) }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}` });
+      const res = await this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u, words: this.pickWords(u, spec), blood: !!spec.blood }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}` });
       if (u.pose) u.pose.hit = performance.now();
       return res;
     }

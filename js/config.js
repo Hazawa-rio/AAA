@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261113040753" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -826,6 +826,225 @@ RPG.CONFIG = {
     bgm: "sounds/bgm-ongergon.mp3",
     help: "<b>超古代兵器・翁爾貢</b>：速度和行動點很多、擅長閃避；<b>正面</b>的投射物會被旋轉的雙刃擋下，從側面或背後打。被它打到會掛上 2 回合的<b>破綻</b>（受到的傷害變多）<br><b>噴射突刺</b>：雙肩往後噴雷射，一路衝到房間的邊緣——站在<b>能量水晶</b>前面引誘它撞上去，它會暈眩 1 回合、受到 1.5 倍傷害<br>大招<b>「執行-徹底清除」</b>：槍尖戳進地面，雙肩的雷射分兩波掃過房間（橫條紅框）",
   };
+
+  // ================= B 級時空（雲端上的海洋、有點偏執的急診室、或許是魔法森林、比爾哈頓廣場、童年時的黑市、彼岸花盛開的事務所） =================
+  // 數值都是暫定（B 級：Lv 10～20）
+  const W_ = (name, color, o) => Object.assign({ name, ai: "wolf", color, hp: 78, atk: 20, df: 5, spd: 11, ap: 3, moveCost: 1, r: 26, flank: 0.8, sounds: { move: "sounds/slime-move.mp3" } }, o);
+  const G_ = (name, color, o) => Object.assign({ name, ai: "gunner", color, hp: 66, atk: 20, df: 4, spd: 11, ap: 3, moveCost: 1, r: 24, keep: 240, sounds: { move: "sounds/robot-move.mp3" } }, o);
+  const B_ = (name, color, o) => Object.assign({ name, ai: "captain", bigBar: true, color, hp: 620, atk: 22, df: 7, spd: 11, ap: 4, moveCost: 1, r: 44 }, o);
+  const v2 = (kind, name, desc, xp = 150) => ({ name, desc, xp, gold: [30, 46], playerStart: { x: 640, y: 600 }, wave: [{ kind, x: 470, y: 170 }, { kind, x: 810, y: 170 }] });
+  const v3 = (kind, name, desc, xp = 220) => ({ name, desc, xp, gold: [44, 66], playerStart: { x: 640, y: 600 }, wave: [{ kind, x: 340, y: 170 }, { kind, x: 640, y: 120 }, { kind, x: 940, y: 170 }] });
+  const vb = (kind, name, desc, help, bgm) => ({ name, desc, xp: 900, gold: [110, 150], retreat: null, bgm: bgm || "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 620 }, wave: [{ kind, x: 640, y: 210 }], help });
+  // #CO00756 雲端上的海洋：天空捕手（盜採深海雲朵的人）
+  E.skyCatcher = G_("天空捕手", "#3a6a9a", { hp: 70, shot: { name: "捕雲網槍", ranged: true, ap: 2, length: 560, width: 40, base: 16, reaction: 1.0, sound: "sounds/pirate-gun.mp3" }, drops: [{ item: "cloudFluff", chance: 0.6 }] });
+  E.catcherBoss = B_("天空捕手頭目・霍克", "#2a4a7a", {
+    sweep: { name: "吸雲機橫掃", ap: 2, radius: 170, base: 18, reaction: 1.1, cooldown: 1, sound: "sounds/boss-electric.mp3" },
+    shot: { name: "雲朵炮", ranged: true, ap: 2, length: 680, width: 60, base: 20, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-gun.mp3", words: ["這片海的雲是我的！", "深海的雲最值錢！"] },
+    call: { kind: "skyCatcher", ap: 2, every: 3, max: 2, line: "放網！把他也撈起來！" }, sounds: { move: "sounds/robot-move.mp3" } });
+  Rm.skysea = cRoom("雲端上的海洋", "天空色的海裡的戰鬥", "skysea", null, {
+    catchers: v2("skyCatcher", "天空捕手", "兩個天空捕手"), catchers3: v3("skyCatcher", "天空捕手的船隊", "三個天空捕手"),
+    catcherBoss: vb("catcherBoss", "天空捕手頭目", "盜採深海雲朵的頭目", "<b>霍克</b>：吸雲機橫掃（身邊的圓）、雲朵炮（長長的紅框）、叫來手下"),
+  });
+  // #ER00119 有點偏執的急診室：被「完美縫合」的病人、追求完美的主刀醫生
+  E.stitched = W_("被完美縫合的病人", "#9a7a8a", { hp: 84, atk: 19, bite: { name: "多出來的手臂", ap: 1, length: 90, width: 70, base: 15, reaction: 0.85, sound: "sounds/slime-ram.mp3" },
+    pounce: { name: "踉蹌撲倒", ap: 2, length: 260, width: 70, base: 17, reaction: 1.0, cooldown: 2, sound: "sounds/slime-slam.mp3" }, drops: [{ item: "suture", chance: 0.6 }] });
+  E.surgeonBoss = B_("首席外科醫師・完美", "#2a8a7a", {
+    sweep: { name: "手術刀的迴旋", ap: 2, radius: 160, base: 19, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-slash.mp3" },
+    shot: { name: "精準到小數點第五位的注射", ranged: true, ap: 2, length: 640, width: 30, base: 21, reaction: 0.9, cooldown: 1, sound: "sounds/boss-bullet.mp3", words: ["劑量：0.00137 毫升。完美。", "你的姿勢不夠完美。"] },
+    call: { kind: "stitched", ap: 2, every: 3, max: 2, line: "我的作品們，過來。" }, sounds: { move: "sounds/robot-move.mp3" } });
+  Rm.ward = cRoom("有點偏執的急診室", "病房裡的戰鬥", "ward", null, {
+    stitched: v2("stitched", "被完美縫合的病人", "兩位被完美縫合的病人"), stitched3: v3("stitched", "地下室的病人們", "三位被完美縫合的病人"),
+    surgeonBoss: vb("surgeonBoss", "首席外科醫師", "追求完美的主刀醫生", "<b>首席外科醫師</b>：手術刀的迴旋（身邊的圓）、精準的注射（細長的紅框）、叫來被縫合的病人"),
+  });
+  // #MM22330 或許是魔法森林：被毒蘑菇寄生的生物
+  E.sporeMole = W_("被寄生的鼴鼠", "#7a4a8a", { hp: 76, bite: { name: "長滿蘑菇的爪子", ap: 1, length: 90, width: 70, base: 15, reaction: 0.85, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "從土裡竄出", ap: 2, length: 300, width: 70, base: 17, reaction: 1.0, cooldown: 2, sound: "sounds/vivilla-spore.mp3" }, drops: [{ item: "glowCap", chance: 0.6 }] });
+  E.sporeKing = B_("寄生菇王", "#5a2a7a", {
+    sweep: { name: "孢子爆發", ap: 2, radius: 180, base: 18, reaction: 1.1, cooldown: 1, sound: "sounds/vivilla-boom.mp3" },
+    shot: { name: "菌絲鞭", ranged: true, ap: 2, length: 600, width: 50, base: 20, reaction: 1.0, cooldown: 1, sound: "sounds/vivilla-spore.mp3", words: ["……長……出……來……", "孢子……要……散……出……去……"] },
+    call: { kind: "sporeMole", ap: 2, every: 3, max: 2, line: "（地面隆起，一隻長滿蘑菇的鼴鼠鑽了出來）" }, sounds: { move: "sounds/slime-move.mp3" } });
+  Rm.mine = cRoom("發光的礦洞", "蘑菇森林裡的戰鬥", "mine", null, {
+    moles: v2("sporeMole", "被寄生的鼴鼠", "兩隻被寄生的鼴鼠"), moles3: v3("sporeMole", "被寄生的鼴鼠群", "三隻被寄生的鼴鼠"),
+    sporeKing: vb("sporeKing", "寄生菇王", "吸走菇群光芒的寄生菇", "<b>寄生菇王</b>：孢子爆發（身邊的圓）、菌絲鞭（長長的紅框）、叫來被寄生的鼴鼠"),
+  });
+  // #BH03278 比爾哈頓廣場：趁亂洗劫的暴民、煽動者
+  E.looter = W_("趁亂洗劫的暴民", "#8a5a3a", { hp: 74, bite: { name: "球棒", ap: 1, length: 95, width: 70, base: 15, reaction: 0.85, sound: "sounds/slime-ram.mp3" },
+    pounce: { name: "衝撞", ap: 2, length: 280, width: 70, base: 17, reaction: 1.0, cooldown: 2, sound: "sounds/slime-slam.mp3" }, drops: [{ item: "potionHp", chance: 0.3 }] });
+  E.instigator = B_("暴動的煽動者", "#6a3a2a", {
+    sweep: { name: "揮舞鐵管", ap: 2, radius: 160, base: 19, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-slash.mp3" },
+    shot: { name: "扔汽油彈", ranged: true, ap: 2, length: 620, width: 70, base: 20, reaction: 1.1, cooldown: 1, sound: "sounds/vivilla-boom.mp3", words: ["搶啊！反正是他的錢！", "誰在乎真相！"] },
+    call: { kind: "looter", ap: 2, every: 3, max: 2, line: "兄弟們！店門開了！" }, sounds: { move: "sounds/slime-move.mp3" } });
+  Rm.plaza = cRoom("比爾哈頓廣場", "廣場上的混戰", "plaza", null, {
+    looters: v2("looter", "趁亂洗劫的暴民", "兩個暴民"), looters3: v3("looter", "暴民", "三個暴民"),
+    instigator: vb("instigator", "暴動的煽動者", "趁亂煽動洗劫的人", "<b>煽動者</b>：揮舞鐵管（身邊的圓）、扔汽油彈（粗粗的紅框）、叫來暴民"),
+  });
+  // #CD02016 童年時的黑市：時代蓋世太保
+  E.eraAgent = G_("時代蓋世太保的臥底", "#3a3a4a", { hp: 72, shot: { name: "沒收令", ranged: true, ap: 2, length: 580, width: 36, base: 16, reaction: 1.0, sound: "sounds/boss-bullet.mp3" }, drops: [{ item: "memoryToken", chance: 0.5 }] });
+  E.eraCaptain = B_("時代蓋世太保隊長", "#1d1d2a", {
+    sweep: { name: "「過去已經過去了」", ap: 2, radius: 170, base: 19, reaction: 1.0, cooldown: 1, sound: "sounds/boss-electric.mp3" },
+    shot: { name: "全面取締", ranged: true, ap: 2, length: 680, width: 56, base: 21, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-gun.mp3", words: ["緬懷過去是違法的。", "活在現在！這是命令！"] },
+    call: { kind: "eraAgent", ap: 2, every: 3, max: 2, line: "臥底，出來！" }, sounds: { move: "sounds/robot-move.mp3" } });
+  Rm.market = cRoom("童年時的黑市", "黑市窩點裡的戰鬥", "market", null, {
+    agents: v2("eraAgent", "時代蓋世太保", "兩個時代蓋世太保"), agents3: v3("eraAgent", "取締小隊", "三個時代蓋世太保"),
+    eraCaptain: vb("eraCaptain", "時代蓋世太保隊長", "來取締黑市的隊長", "<b>隊長</b>：「過去已經過去了」（身邊的圓）、全面取締（粗粗的紅框）、叫來臥底"),
+  });
+  // #MJ44444 彼岸花盛開的事務所：斷不開的怨念
+  E.grudge = W_("斷不開的怨念", "#8a1a2a", { hp: 72, bite: { name: "纏繞", ap: 1, length: 100, width: 70, base: 15, reaction: 0.85, sound: "sounds/boss-tentacle.mp3" },
+    pounce: { name: "撲上來的恨意", ap: 2, length: 300, width: 70, base: 17, reaction: 1.0, cooldown: 2, sound: "sounds/ilshu-demon.mp3" }, drops: [{ item: "lilyPetal", chance: 0.6 }] });
+  E.grudgeSpirit = B_("百年的怨念", "#5a0a1a", {
+    sweep: { name: "因果的漩渦", ap: 2, radius: 180, base: 19, reaction: 1.1, cooldown: 1, sound: "sounds/ilshu-demon.mp3" },
+    shot: { name: "紅線", ranged: true, ap: 2, length: 700, width: 30, base: 21, reaction: 0.9, cooldown: 1, sound: "sounds/boss-tentacle.mp3", words: ["我不原諒……", "斷不開的……就是斷不開……"] },
+    call: { kind: "grudge", ap: 2, every: 3, max: 2, line: "（地上的彼岸花一朵一朵轉向你）" }, sounds: { move: "sounds/slime-move.mp3" },
+    // 怨恨之網：紅線展開成網，往四周射出怨恨的文字（每一波錯開半格，找縫鑽）
+    web: { name: "怨恨之網", line: "「……為什麼……只有我……」", ap: 3, cooldown: 2, reaction: 1.1, count: 12, waves: 3, interval: 0.7, speed: 230, r: 12, base: 12, radius: 280, color: "#ff3a4a",
+      sound: "sounds/boss-tentacle.mp3", words: ["恨", "怨", "不原諒", "為什麼", "還給我", "騙子", "憑什麼", "恨", "怨", "忘不掉"] } });
+  Rm.lily = cRoom("彼岸花盛開的事務所", "彼岸花田裡的戰鬥", "lily", null, {
+    grudges: v2("grudge", "斷不開的怨念", "兩團怨念"), grudges3: v3("grudge", "怨念", "三團怨念"),
+    grudgeSpirit: vb("grudgeSpirit", "百年的怨念", "纏住死者的怨念", "<b>百年的怨念</b>：因果的漩渦（身邊的圓）、紅線（細長的紅框）、叫來小怨念、<b>怨恨之網</b>（紅線先展開成網，接著三波怨恨的文字往四周飛；每一波錯開半格，站在字與字的縫裡）"),
+  });
+
+  // ================= A 級時空 =================
+  // #LI44444 李家大宅：紙紮人（喜轎的 Boss 是試煉 Boss「囍」，在 Rm.boss）。數值暫定（A 級：Lv 20～30）
+  E.paperMan = W_("紙紮人", "#e8e4dc", { hp: 96, atk: 24, df: 6, spd: 10, flank: 0.6,
+    bite: { name: "紙手一抓", ap: 1, length: 90, width: 70, base: 18, reaction: 0.85, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "飄過來", ap: 2, length: 300, width: 64, base: 20, reaction: 1.0, cooldown: 2, sound: "sounds/boss-tentacle.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "joss", chance: 0.6 }] });
+  // ===== 試煉 Boss「囍」：王小妹的骨骸（披著紅紗，坐在喜轎上）和王小妹的皮肉，骨頭嫁給皮肉之後，兩個 Boss 同時存在 =====
+  //   同生共死：其中一個倒下，另一個 2 回合後把它拉回來（50% 生命）——要在這之前把另一個也打倒
+  //   形影不離：兩個靠在一起（170 內）時，骨受到的傷害 ×0.5（皮肉護著骨頭），皮肉每回合回復 4%（骨頭撐著皮肉）——把它們拆開
+  //   紅線牽著：骨的回合開始時，骨和皮肉之間拉出一條紅線（細長紅框），站在中間會被勒到
+  const XI_HELP = "<b>囍</b>：王小妹的<b>骨</b>（披著紅紗）和<b>皮肉</b>，兩個 Boss 同時存在<br><b>同生共死</b>：其中一個倒下，另一個 2 回合後會把它拉回來（50% 生命），要在這之前把兩個都打倒<br><b>形影不離</b>：兩個靠在一起時，骨受到的傷害減半、皮肉每回合回復生命——想辦法把它們拆開（推開、勾走、引開）<br><b>紅線</b>：骨的回合開始時，骨和皮肉之間拉出一條紅線，不要站在它們中間<br>骨：紅紗翻飛（身邊的圓）、骨釘（細長紅框）、<b>骨頭嫁皮肉</b>（網狀文字彈）・皮肉：血肉翻湧（身邊的圓）、噴血（粗紅框）";
+  const xiPair = (who) => ({ partnerKind: who, near: 170, revive: { turns: 2, ratio: 0.5 } });
+  E.xiBone = B_("囍・骨", "#e8e0d0", { ai: "xi", meltOnDeath: ["paperMan"], hp: 760, atk: 26, df: 6, spd: 12, ap: 4, r: 40, ...xiPair("xiFlesh"),
+    thread: { name: "紅線", ap: 1, width: 40, base: 26, reaction: 0.9, sound: "sounds/boss-tentacle.mp3" },
+    sweep: { name: "紅紗翻飛", ap: 2, radius: 170, base: 22, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-demon.mp3" },
+    shot: { name: "骨釘", ranged: true, ap: 2, length: 680, width: 30, base: 24, reaction: 0.9, cooldown: 1, sound: "sounds/boss-bullet.mp3", words: ["兩個家……都不要我。", "我誰也不嫁。"] },
+    call: { kind: "paperMan", ap: 2, every: 4, max: 1, line: "（嗩吶聲響起，一個紙紮的轎夫從黑暗裡走出來）" },
+    web: { name: "骨頭嫁皮肉", line: "「……骨頭嫁給皮肉，這樣就誰也不用嫁了。」", ap: 3, cooldown: 2, reaction: 1.1, count: 14, waves: 3, interval: 0.65, speed: 240, r: 12, base: 18, radius: 300, color: "#ff3a4a",
+      sound: "sounds/ilshu-demon.mp3", words: ["囍", "嫁", "骨", "肉", "不嫁", "賣了我", "好苦", "好冤", "好恨", "好慘"] },
+    incomingMult: (b, u) => { const m = b.units.find((x) => x.kind === "xiFlesh" && x.alive); return m && R_dist(m, u) <= 170 ? 0.5 : 1; },
+    incomingNote: (k) => (k < 1 ? "（皮肉護著骨頭）" : ""),
+    sounds: { move: "sounds/slime-move.mp3" } });
+  E.xiFlesh = W_("囍・皮肉", "#c85a5a", { ai: "xi", bigBar: false, hp: 980, atk: 30, df: 10, spd: 9, ap: 4, r: 46, ...xiPair("xiBone"),
+    regen: 0.04,
+    // 皮肉不說話，只噴血
+    sweep: { name: "血肉翻湧", ap: 2, radius: 150, base: 26, reaction: 1.0, cooldown: 1, blood: true, sound: "sounds/youyan-flesh.mp3" },
+    shot: { name: "噴血", ranged: true, ap: 2, length: 460, width: 96, base: 28, reaction: 1.0, cooldown: 1, blood: true, sound: "sounds/youyan-grow.mp3" },
+    call: { kind: "paperMan", ap: 9, every: 99, max: 0 },
+    sounds: { move: "sounds/youyan-flesh.mp3" } });
+  const R_dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  Rm.boss.variants.xi = {
+    name: "囍", desc: "試煉 Boss：骨頭嫁皮肉的婚禮（#LI44444 李家大宅）", level: "建議 Lv 30 上下", trial: true,
+    xp: 2600, coins: 220, terrain: "xiHall", retreat: null,
+    playerStart: { x: 640, y: 620 }, wave: [{ kind: "xiBone", x: 500, y: 230 }, { kind: "xiFlesh", x: 780, y: 230 }],
+    bgm: "sounds/bgm-xi.mp3", help: XI_HELP,
+  };
+  Rm.mansion = cRoom("李家大宅", "凶宅裡的戰鬥", "mansion", null, {
+    papers: v2("paperMan", "紙紮人", "兩個紙紮人", 300), papers3: v3("paperMan", "紙紮的送親隊", "三個紙紮人", 380),
+  });
+  Rm.mansion.bgm = null;            // 李家大宅沒有音樂
+
+  // #LG00412 傳說的道路：斯廷法羅斯的青銅怪鳥、半人馬、不肯認輸的獅子。數值暫定（A 級：Lv 20～30）
+  E.bronzeBird = G_("青銅怪鳥", "#b8863a", { hp: 88, atk: 25, df: 7, spd: 13, keep: 280,
+    shot: { name: "青銅羽毛", ranged: true, ap: 2, length: 620, width: 34, base: 19, reaction: 0.95, sound: "sounds/pirate-gun.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "bronzeFeather", chance: 0.6 }] });
+  E.centaur = W_("半人馬", "#8a6a4a", { hp: 110, atk: 26, df: 7, spd: 12, flank: 0.7,
+    bite: { name: "後腿一踢", ap: 1, length: 100, width: 80, base: 20, reaction: 0.85, sound: "sounds/slime-ram.mp3" },
+    pounce: { name: "衝鋒", ap: 2, length: 340, width: 76, base: 22, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "potionHp", chance: 0.3 }] });
+  E.prideLion = B_("不肯認輸的獅子", "#e8e4da", { hp: 1100, atk: 28, df: 9, spd: 13, ap: 4, r: 50,
+    sweep: { name: "獅爪橫掃", ap: 2, radius: 180, base: 24, reaction: 1.0, cooldown: 1, sound: "sounds/bear-roar.mp3" },
+    shot: { name: "飛撲", ap: 2, length: 460, width: 100, base: 27, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-pounce.mp3", words: ["我沒有輸！", "這只是……熱身！", "我是最強的！"] },
+    call: { kind: "centaur", ap: 9, every: 99, max: 0 },
+    // 傲氣：生命低於一半之前，牠的皮還有一點刀槍不入（受到的傷害 ×0.75）
+    incomingMult: (b, u) => (u.hp > u.maxHp / 2 ? 0.75 : 1),
+    incomingNote: (k) => (k < 1 ? "（傲氣：毛皮硬得像青銅）" : ""),
+    sounds: { move: "sounds/slime-move.mp3" } });
+  Rm.polis = cRoom("傳說的道路", "城邦和荒野裡的戰鬥", "polis", null, {
+    birds: v2("bronzeBird", "青銅怪鳥", "兩隻青銅怪鳥", 300), birds3: v3("bronzeBird", "怪鳥群", "三隻青銅怪鳥", 380),
+    centaurs: v2("centaur", "半人馬", "兩個喝醉的半人馬", 320),
+    prideLion: Object.assign(vb("prideLion", "不肯認輸的獅子", "眾神的考驗：讓牠承認自己輸了", "<b>不肯認輸的獅子</b>：獅爪橫掃（身邊的圓）、飛撲（粗紅框）<br><b>傲氣</b>：生命還有一半以上時，毛皮硬得像青銅，受到的傷害 ×0.75"), { xp: 1400, gold: [180, 240] }),
+  });
+
+
+  // #KN59810 克亞貝魯巴斯諾：街機裡的像素敵機、像素小兵（地圖上碰到時是一般戰鬥；關卡本身是射擊小遊戲）
+  E.pixelJet = G_("像素敵機", "#e83a8a", { hp: 90, atk: 25, df: 6, spd: 14, keep: 300,
+    shot: { name: "一排子彈", ranged: true, ap: 2, length: 640, width: 60, base: 19, reaction: 0.95, sound: "sounds/boss-bullet.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "pixelChip", chance: 0.6 }] });
+  E.pixelGrunt = W_("像素小兵", "#3ab0e8", { hp: 100, atk: 25, df: 7, spd: 11, flank: 0.7,
+    bite: { name: "像素撞擊", ap: 1, length: 90, width: 76, base: 19, reaction: 0.85, sound: "sounds/slime-ram.mp3" },
+    pounce: { name: "瞬移撞擊", ap: 2, length: 320, width: 70, base: 21, reaction: 1.0, cooldown: 2, sound: "sounds/robot-move.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "potionHp", chance: 0.3 }] });
+  Rm.arcade = cRoom("克亞貝魯巴斯諾", "像素世界裡的戰鬥", "arcade", null, {
+    jets: v2("pixelJet", "像素敵機", "兩架像素敵機", 300), jets3: v3("pixelJet", "敵機編隊", "三架像素敵機", 380),
+    grunts: v2("pixelGrunt", "像素小兵", "兩個像素小兵", 300),
+  });
+  // 酒神狄俄倪索斯的餐宴：特殊戰鬥「拚酒」——喝滿十杯就算贏（酒神打不倒；上方的條＝還要喝幾杯）
+  //   場上一直有三杯酒，走到酒杯上就喝掉（喝完會在別的地方再倒一杯）
+  //   喝得越多越醉：每次移動，落腳的位置會晃開一點（醉意越高晃得越遠）
+  E.dionysus = B_("酒神・狄俄倪索斯", "#7a3a8a", { hp: 10, atk: 24, df: 0, spd: 12, ap: 4, r: 40,
+    sweep: { name: "醉舞", ap: 2, radius: 170, base: 18, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-slash.mp3" },
+    shot: { name: "葡萄藤", ranged: true, ap: 2, length: 600, width: 50, base: 20, reaction: 1.0, cooldown: 1, sound: "sounds/boss-tentacle.mp3", words: ["乾杯！", "再來一杯！", "喝！喝！喝！", "這杯敬你！"] },
+    call: { kind: "centaur", ap: 9, every: 99, max: 0 },
+    sounds: { move: "sounds/slime-move.mp3" } });
+  const WINE = { need: 10, cups: 3, r: 26 };
+  const pourCup = (b) => {
+    let s = null;
+    for (let i = 0; i < 12; i++) {           // 新倒的酒不要和別的酒杯、自己疊在一起
+      const c = b.randomFreeSpot?.(WINE.r, 60) || { x: 200 + Math.random() * 880, y: 200 + Math.random() * 380 };
+      s = c;
+      if (b.wine.cups.every((q) => Math.hypot(q.x - c.x, q.y - c.y) > 140) && Math.hypot(b.player.x - c.x, b.player.y - c.y) > 120) break;
+    }
+    b.wine.cups.push({ x: s.x, y: s.y, t: performance.now() });
+  };
+  Rm.polis.variants.dionysus = Object.assign(vb("dionysus", "酒神的餐宴", "和酒神拚酒：喝滿十杯就算贏",
+    "<b>酒神的餐宴</b>：和酒神<b>拚酒</b>。酒神打不倒——<b>喝滿十杯酒就算贏</b>（上方的條＝還要喝幾杯）<br>場上一直有三杯酒，<b>移動到酒杯上</b>就喝掉<br><b>醉意</b>：喝得越多越醉，每次移動落腳的位置都會晃開一點<br>酒神：醉舞（身邊的圓）、葡萄藤（長長的紅框）"),
+    { xp: 1200, gold: [160, 220], bgm: "sounds/bgm-lg.mp3",
+      onStart(b) {
+        b.wine = { drunk: 0, cups: [] };
+        for (let i = 0; i < WINE.cups; i++) pourCup(b);
+        const d = b.units.find((u) => u.kind === "dionysus"); if (d) d.state.invuln = true;
+        b.say("酒神舉起酒杯：「宴會開始！先喝滿十杯的人贏——輸的人明天負責洗杯子！」");
+      },
+      onPlayerMove(b, u) {
+        const W = b.wine; if (!W) return;
+        // 醉了：落腳的位置晃開一點
+        if (W.drunk >= 2) {
+          const a = Math.random() * Math.PI * 2, d = Math.random() * W.drunk * 9;
+          const x = u.x + Math.cos(a) * d, y = u.y + Math.sin(a) * d;
+          if (!b.blocked(u, x, y) && !b.onObstacle(u, x, y) && x > 30 && y > 30 && x < b.cfg.arena.w - 30 && y < b.cfg.arena.h - 30) {
+            const from = { x: u.x, y: u.y }; u.x = x; u.y = y;
+            b.emit({ type: "leap", unit: u, from, to: { x, y }, duration: 0.25 });
+            if (d > 12) b.emit({ type: "buff", unit: u, text: "腳步一晃", color: "#7a3a8a" });
+          }
+        }
+        // 喝酒
+        const c = W.cups.find((q) => Math.hypot(q.x - u.x, q.y - u.y) <= WINE.r + 20);
+        if (!c) return;
+        W.cups = W.cups.filter((q) => q !== c); W.drunk++;
+        b.emit({ type: "sfx", sound: "sounds/microwave-done.mp3" });
+        b.emit({ type: "buff", unit: u, text: `第 ${W.drunk} 杯！`, color: "#7a3a8a" });
+        b.say(`${u.name} 一口喝乾——第 ${W.drunk} 杯！`);
+        const d = b.units.find((x) => x.kind === "dionysus");
+        if (d) { d.hp = Math.max(0, WINE.need - W.drunk); b.emit({ type: "damage", unit: d, amount: 1, text: `還要 ${d.hp} 杯` }); }
+        if (W.drunk >= WINE.need) { if (d) { d.state.invuln = false; b.say("酒神放下酒杯，大笑著鼓掌：「好酒量！今晚的贏家是你！」"); b.onDeath(d); } b.finish("win", "喝滿十杯！酒神承認你是今晚的贏家"); return; }
+        pourCup(b);
+      },
+      drawRoom(ctx, now, b, H) {
+        const W = b.wine; if (!W) return;
+        for (const c of W.cups) {
+          const k = Math.min(1, (now - c.t) / 400), y = c.y + Math.sin(now / 400 + c.x) * 2;
+          ctx.globalAlpha = k;
+          ctx.fillStyle = "rgba(122,58,138,.18)"; ctx.beginPath(); ctx.arc(c.x, y, WINE.r + 14, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#c8a040"; ctx.beginPath(); ctx.moveTo(c.x - 16, y - 14); ctx.lineTo(c.x + 16, y - 14); ctx.quadraticCurveTo(c.x + 14, y + 4, c.x, y + 6); ctx.quadraticCurveTo(c.x - 14, y + 4, c.x - 16, y - 14); ctx.fill();   // 金色的酒杯
+          ctx.fillStyle = "#6a1a5a"; ctx.beginPath(); ctx.ellipse(c.x, y - 13, 14, 4, 0, 0, Math.PI * 2); ctx.fill();           // 紫色的酒
+          ctx.fillStyle = "#c8a040"; ctx.fillRect(c.x - 2, y + 5, 4, 10); ctx.fillRect(c.x - 9, y + 14, 18, 4);
+          ctx.globalAlpha = 1;
+        }
+        const p = H.pos ? H.pos(b.player) : b.player;
+        if (W.drunk) H.label?.(`醉意 ${W.drunk}・${W.drunk} / ${WINE.need} 杯`, p.x, p.y + 46, "#7a3a8a", 12);
+      },
+    });
 })(RPG.CONFIG);
 
 // 房間設定：有 variants 的房間（Boss 測試房）用選到的 Boss 覆蓋
