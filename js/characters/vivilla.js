@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261113040753" });
 // 角色：薇薇拉（輔助，第一個使用魔力的角色）
 // 技能格式同 firsler.js：status / predict / use；status 可以回傳 mp（魔力消耗，由 battle 扣）
 // 蘑菇丟出去之後要過一下才爆炸（飛行＋引信），所以爆炸是非同步結算
