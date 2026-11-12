@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="build" content="20261112133137">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>時空</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261112133137">
+<link rel="stylesheet" href="css/tavern.css?v=20261112133137">
+<link rel="stylesheet" href="css/world.css?v=20261112133137">
+</head>
+<body class="world-page">
+<div id="fit">
+<div id="wx">
+  <main id="wxStage">
+    <canvas id="map" width="1280" height="720" aria-label="地圖"></canvas>
+
+    <!-- 左上：適格者、名字、生命、金幣 -->
+    <div class="wx-hud tl">
+      <div class="who"><span id="wxFace" class="face"></span>
+        <div><button id="wxName" type="button" class="nm" title="點一下更改名字"></button><div id="wxWorld" class="wl"></div></div></div>
+      <div class="hpbar"><i id="wxHp"></i><span id="wxHpText"></span></div>
+      <div class="gold"><span class="coin-ic"></span><span id="wxGold"></span> 金幣</div>
+    </div>
+    <!-- 右上：委託 -->
+    <div class="wx-hud tr">
+      <button id="logBtn" type="button" class="ghost">委託（L）</button>
+      <button id="bagBtn" type="button" class="ghost">行囊（I）</button>
+      <button id="muteBtn" type="button" class="ghost"></button>
+      <button id="trackBtn" type="button" class="ghost" aria-controls="wxTrack">指示：收起</button>
+    </div>
+    <!-- 委託追蹤：每張委託的下一步 -->
+    <ol id="wxTrack" class="wx-track" aria-label="委託進度"></ol>
+    <!-- 下方：模式、Q 技能 -->
+    <div class="wx-hud bl">
+      <div id="modeChip" class="mode"></div>
+      <button id="qBtn" type="button" class="qbtn"><span class="k">Q</span><span id="qName"></span><span id="qCd" class="cd"></span><i id="qMask"></i></button>
+      <div class="wx-help">左鍵：移動／互動　右鍵：切換移動・攻擊</div>
+    </div>
+    <canvas id="mini" width="200" height="250" aria-label="小地圖"></canvas>
+
+    <div id="wxToast" class="wx-toast hidden" role="status"></div>
+    <div id="wxFade" class="wx-fade hidden"><b id="wxFadeText"></b></div>
+    <div id="fatal" class="hidden" role="alert"></div>
+
+    <div id="wxPanel" class="tv-overlay hidden" role="dialog" aria-modal="true">
+      <div class="tv-card">
+        <header><h2 id="wxPanelTitle"></h2><button type="button" class="ghost" data-close aria-label="關閉">關閉</button></header>
+        <div id="wxPanelBody"></div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+<script src="js/config.js?v=20261112133137"></script>
+<script src="js/battle.js?v=20261112133137"></script>
+<script src="js/characters/firsler.js?v=20261112133137"></script>
+<script src="js/characters/ilshu.js?v=20261112133137"></script>
+<script src="js/characters/vivilla.js?v=20261112133137"></script>
+<script src="js/characters/guan.js?v=20261112133137"></script>
+<script src="js/characters/hoffman.js?v=20261112133137"></script>
+<script src="js/characters/marika.js?v=20261112133137"></script>
+<script src="js/characters/cangyou.js?v=20261112133137"></script>
+<script src="js/progression.js?v=20261112133137"></script>
+<script src="js/bag.js?v=20261112133137"></script>
+<script src="js/items.js?v=20261112133137"></script>
+<script src="js/profile.js?v=20261112133137"></script>
+<script src="js/commissions.js?v=20261112133137"></script>
+<script src="js/maps/ci00001.js?v=20261112133137"></script>
+<script src="js/enemy-art.js?v=20261112133137"></script>
+<script src="js/enemy-art-c.js?v=20261112133137"></script>
+<script src="js/maps/hw01031.js?v=20261112133137"></script>
+<script src="js/worlds/hw01031.js?v=20261112133137"></script>
+<script src="js/maps/lb00042.js?v=20261112133137"></script>
+<script src="js/worlds/lb00042.js?v=20261112133137"></script>
+<script src="js/worlds/lb00042-exp.js?v=20261112133137"></script>
+<script src="js/maps/rt00317.js?v=20261112133137"></script>
+<script src="js/worlds/rt00317.js?v=20261112133137"></script>
+<script src="js/maps/ru20314.js?v=20261112133137"></script>
+<script src="js/maps/ru20314-ruins.js?v=20261112133137"></script>
+<script src="js/worlds/ru20314.js?v=20261112133137"></script>
+<script src="js/worlds/ru20314-ruins.js?v=20261112133137"></script>
+<script src="js/maps/md01921.js?v=20261112133137"></script>
+<script src="js/worlds/md01921.js?v=20261112133137"></script>
+<script src="js/maps/sn00512.js?v=20261112133137"></script>
+<script src="js/worlds/sn00512.js?v=20261112133137"></script>
+<script src="js/maps/tr00088.js?v=20261112133137"></script>
+<script src="js/worlds/tr00088.js?v=20261112133137"></script>
+<script src="js/maps/bc00003.js?v=20261112133137"></script>
+<script src="js/worlds/bc00003.js?v=20261112133137"></script>
+<script src="js/maps/kt33233.js?v=20261112133137"></script>
+<script src="js/worlds/kt33233.js?v=20261112133137"></script>
+<script src="js/fishing.js?v=20261112133137"></script>
+<script src="js/explore.js?v=20261112133137"></script>
+<script src="js/version-check.js?v=20261112133137"></script>
+</body>
+</html>

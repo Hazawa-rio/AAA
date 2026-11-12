@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="build" content="20261112133137">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>戰鬥測試</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261112133137">
+</head>
+<body class="battle-page">
+<div id="fit">
+<div id="app">
+  <header id="topbar">
+    <div id="roominfo"><a href="./" class="back">← 選角</a> · <b id="roomName">測試房間</b></div>
+    <div id="order"></div>
+    <div id="roundInfo"></div>
+    <button id="growBtn" class="ghost" type="button">角色成長</button>
+    <button id="muteBtn" class="ghost" type="button"></button>
+  </header>
+
+  <main id="stage">
+    <div id="canvasWrap">
+      <canvas id="arena" width="1280" height="720"></canvas>
+      <div id="bossBar" class="hidden" aria-live="polite">
+        <div class="bn"></div>
+        <div class="bb"><i></i><s></s></div>
+        <div class="bmeta"><span class="bp"></span><span class="bv"></span></div>
+      </div>
+      <div id="banner" class="hidden"></div>
+      <div id="toast" class="hidden"></div>
+      <div id="fatal" class="hidden" role="alert"></div>
+      <div id="ultBanner" class="hidden" role="status"></div>
+      <div id="dialog" class="hidden" role="dialog" aria-live="polite">
+        <div id="dialogName"></div>
+        <p id="dialogText"></p>
+        <span id="dialogNext" class="hidden">▼ 點擊繼續</span>
+      </div>
+      <div id="result" class="overlay hidden">
+        <div class="panel">
+          <h1 id="resultTitle"></h1>
+          <div id="resultXp"></div>
+          <button id="againBtn" class="primary">再來一場</button>
+          <p><a href="./" class="back">回到選角</a></p>
+        </div>
+      </div>
+    </div>
+
+    <aside id="side">
+      <section>
+        <h2>目標資訊</h2>
+        <div id="inspect" class="muted">把滑鼠移到單位上</div>
+      </section>
+      <section class="grow">
+        <h2>戰鬥紀錄</h2>
+        <ol id="log"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer id="hud">
+    <div class="hud-left"><div id="passive" class="passive"></div><div id="items" class="items" aria-label="寶物欄"></div></div>
+    <div id="skills">
+      <button class="skill small" data-pos="left"><span class="key"></span><span class="nm"></span><span class="cost"></span><span class="cdmask"></span></button>
+      <span class="link"></span>
+      <button class="skill big" data-pos="center"><span class="key"></span><span class="nm"></span><span class="cost"></span><span class="cdmask"></span></button>
+      <span class="link"></span>
+      <button class="skill small" data-pos="right"><span class="key"></span><span class="nm"></span><span class="cost"></span><span class="cdmask"></span></button>
+    </div>
+    <div id="vitals">
+      <div class="bar hp"><i></i><span></span></div>
+      <div class="bar mp hidden"><i></i><span></span></div>
+      <div class="bar charge"><i></i><span></span></div>
+      <button id="endBtn">結束回合</button>
+    </div>
+  </footer>
+
+  <details id="tuner">
+    <summary>測試數值調整 <span class="muted">（改了立刻生效，重新整理會還原；要保存請改 js/ 裡的設定檔）</span></summary>
+    <div id="tunerBody"></div>
+    <button id="restartBtn" class="ghost">重新開始戰鬥</button>
+  </details>
+</div>
+</div>
+<script src="js/config.js?v=20261112133137"></script>
+<script src="js/battle.js?v=20261112133137"></script>
+<script src="js/characters/firsler.js?v=20261112133137"></script>
+<script src="js/characters/ilshu.js?v=20261112133137"></script>
+<script src="js/characters/vivilla.js?v=20261112133137"></script>
+<script src="js/characters/guan.js?v=20261112133137"></script>
+<script src="js/characters/hoffman.js?v=20261112133137"></script>
+<script src="js/characters/marika.js?v=20261112133137"></script>
+<script src="js/characters/cangyou.js?v=20261112133137"></script>
+<script src="js/characters/ilshu-tutorial.js?v=20261112133137"></script>
+<script src="js/progression.js?v=20261112133137"></script>
+<script src="js/bag.js?v=20261112133137"></script>
+<script src="js/profile.js?v=20261112133137"></script>
+<script src="js/commissions.js?v=20261112133137"></script>
+<script src="js/items.js?v=20261112133137"></script>
+<script src="js/build-panel.js?v=20261112133137"></script>
+<script src="js/ai.js?v=20261112133137"></script>
+<script src="js/tutorial.js?v=20261112133137"></script>
+<script src="js/enemy-art.js?v=20261112133137"></script>
+<script src="js/enemy-art-c.js?v=20261112133137"></script>
+<script src="js/bestiary.js?v=20261112133137"></script>
+<script src="js/battle-ui.js?v=20261112133137"></script>
+<script src="js/version-check.js?v=20261112133137"></script>
+</body>
+</html>
