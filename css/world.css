@@ -159,4 +159,4 @@ body.world-page #fit { margin: 0 auto; }
 .lab-pc .pc-grid b { color: #d6ffe4; }
 .lab-pc .pc-pick { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .lab-pc select { background: #0f1a14; color: #d6ffe4; border: 1px solid #3a6a4a; font: inherit; padding: 2px 6px; }
-/* build */ :root { --build-css-world-css: "20261112133137"; }
+/* build */ :root { --build-css-world-css: "20261112144644"; }
