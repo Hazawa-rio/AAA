@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art.js": "20261112144644" });
 // 戰鬥畫面：各時空新增的敵人造型（battle-ui 的 drawUnit 會先找這裡）
 // R.EnemyArt[kind](ctx, u, p, now)：p＝畫面上的位置（已經算進衝刺、跳躍的偏移）
 // 萬聖節旅館：都是「扮演者」——方塊人穿上了戲服；午夜郵局：信裡夾帶的情緒變成的煙霧

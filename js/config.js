@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112144644" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -594,7 +594,7 @@ RPG.CONFIG = {
       variants: {
         matrix: {
           name: "古代遺跡", desc: "古代遺跡的殲滅矩陣", level: "建議 Lv 15 上下",
-          xp: 800, coins: 80,
+          xp: 800, coins: 80, terrain: "ruins",          // 背景：遺跡的石磚地
           playerStart: { x: 420, y: 640 },
           wave: [{ kind: "matrixBoss", x: 640, y: 230 }],
           bgm: "sounds/boss-bgm.mp3",
@@ -779,7 +779,7 @@ RPG.CONFIG = {
   E.ruinCruiser = { name: "古代巡弋機關", ai: "gunner", fly: true, color: "#6a6e78", hp: 70, atk: 18, df: 5, spd: 12, ap: 3, moveCost: 1, r: 26, keep: 260,   // 暫定
     shot: { name: "巡弋雷射", ranged: true, ap: 2, length: 660, width: 28, base: 14, reaction: 1.0, sound: "sounds/boss-laser.mp3" },
     sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "ruinCore", chance: 0.4 }] };
-  const RUIN_HELP = "<b>柱子</b>（大掩體）：不能站，躲在後面擋得住攻擊・<b>矮牆</b>（小掩體）：走得過去、投擲物飛得過去，但擋得住敵人的射擊・<b>地刺</b>：偶數回合開始時刺出來・<b>雷射</b>：回合開始時站在光線上會受傷（會被鏡子反射）";
+  const RUIN_HELP = "<b>柱子</b>（大掩體）：誰都不能站（巡弋機關也飛不過去），躲在後面擋得住攻擊・<b>矮牆</b>（小掩體）：玩家和守衛機關不能站（巡弋機關飛得過去），投擲物飛得過去，擋得住巡弋機關的子彈・<b>地刺</b>：偶數回合開始時刺出來・<b>雷射</b>：回合開始時站在光線上會受傷（會被鏡子反射）";
   Rm.ruins = cRoom("古代遺跡", "遺跡裡的戰鬥", "ruins", null, {
     ruinGuards: { name: "古代守衛機關", desc: "兩台守衛機關", xp: 180, gold: [35, 55], randomLayout: true, playerStart: { x: 640, y: 620 }, wave: [{ kind: "ruinGuard", x: 460, y: 170 }, { kind: "ruinGuard", x: 820, y: 170 }] },
     ruinCruisers: { name: "古代巡弋機關", desc: "三台巡弋機關", xp: 170, gold: [35, 55], randomLayout: true, playerStart: { x: 640, y: 620 }, wave: [{ kind: "ruinCruiser", x: 340, y: 150 }, { kind: "ruinCruiser", x: 640, y: 110 }, { kind: "ruinCruiser", x: 940, y: 150 }] },
@@ -878,7 +878,7 @@ RPG.Ruins = {
     }
     return best;
   },
-  // 戰鬥場地：柱子（大掩體，不能站、擋攻擊）、矮牆（小掩體：可以走過去、投擲物飛得過去，但擋得住敵人的射擊）、地刺（偶數回合刺出來）、雷射（一直開著）
+  // 戰鬥場地：柱子（大掩體，不能站、擋攻擊）、矮牆（小掩體：地上走的不能站、會飛的飛得過去；投擲物飛得過去，擋得住敵人的射擊）、地刺（偶數回合刺出來）、雷射（一直開著）
   battleLayout(room) {
     const W = 1280, H = 720, rnd = Math.random, keep = [room.playerStart, ...(room.wave || [])];
     const free = (x, y, w, h, pad = 70) => keep.every((p) => p.x < x - pad || p.x > x + w + pad || p.y < y - pad || p.y > y + h + pad);

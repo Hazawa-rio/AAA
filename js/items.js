@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261112144644" });
 // 寶物：玩家有 6 格寶物欄，放在欄裡的寶物都會生效
 // 寶物存在角色的成長資料裡（R.Progress），戰鬥開始時帶進場
 (function () {

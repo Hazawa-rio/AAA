@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112144644" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -244,13 +244,15 @@
       return null;
     }
     // 能站的範圍：例如海上的戰鬥，玩家只能在船上（room.walk 長方形）
-    // 房間裡的障礙物（例如理性倉庫的貨架）：誰都不能站上去
-    onObstacle(u, x, y) {
-      const O = this.room.obstacles;
-      if (!O || u.def?.fly) return false;          // 會飛的（例如古代巡弋機關）不受柱子影響
-      const r = (u.r || this.cfg.body) * 0.85;
-      return O.some((o) => x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h);
+    // 房間裡的障礙物（例如理性倉庫的貨架、遺跡的柱子）：誰都不能站上去（會飛的古代巡弋機關也一樣）
+    // 遺跡的矮牆：地上走的（玩家、守衛機關）不能站上去；會飛的巡弋機關飛得過去
+    obstacleAt(u, x, y) {
+      const r = (u.r || this.cfg.body) * 0.85, hit = (o) => x + r > o.x && x - r < o.x + o.w && y + r > o.y && y - r < o.y + o.h;
+      if (this.room.obstacles?.some(hit)) return this.room.terrain === "ruins" ? "柱子" : "貨架";
+      if (!u.def?.fly && this.room.lowWalls?.some(hit)) return "矮牆";
+      return null;
     }
+    onObstacle(u, x, y) { return !!this.obstacleAt(u, x, y); }
     // 掩體：兩點之間的直線有沒有被障礙物擋住
     coverBetween(a, b) {
       const O = this.room.obstacles;
@@ -259,7 +261,7 @@
       for (let i = 1; i < n; i++) { const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n; if (O.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) return true; }
       return false;
     }
-    // 矮牆（小掩體）：走得過去、投擲物飛得過去，只擋得住敵人的射擊
+    // 矮牆（小掩體）：擋住地上走的（玩家、守衛機關），投擲物飛得過去；擋得住敵人的射擊（巡弋機關的子彈）
     lowCoverBetween(a, b) {
       const O = this.room.lowWalls;
       if (!O?.length) return false;
@@ -645,7 +647,7 @@
       const d = dist(u.x, u.y, x, y);
       if (d > this.moveRadius(u) + 0.5) throw new ActionError("超出移動範圍");
       if (d < 1) throw new ActionError("位置沒有改變");
-      if (this.onObstacle(u, x, y)) throw new ActionError("那裡有貨架");
+      if (this.onObstacle(u, x, y)) throw new ActionError(`那裡有${this.obstacleAt(u, x, y)}`);
       if (this.blocked(u, x, y)) throw new ActionError("那裡有其他單位");
       const cage = this.cageOf(u);
       if (cage && !this.inCage(cage, x, y, B * 0.6)) throw new ActionError(`被聖牢籠困住了！攻擊牢籠 ${cage.hp} 次才能出去`);

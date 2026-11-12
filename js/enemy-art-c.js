@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-c.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-c.js": "20261112144644" });
 // C 級時空（燈塔小鎮、不停歇的月台、黑原市、巨人的生態盒）的戰鬥造型和戰鬥背景
 // R.EnemyArt[kind](ctx, u, p, now)：p＝畫面上的位置；R.Terrains[terrain]：bg(g, W, H) 畫一次、draw(ctx, now, W, H) 每一格都畫
 // 地圖上也會用 R.EnemyArt 畫小一點的魔物（js/worlds/*.js 的 drawEnemy）

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112144644" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -13,11 +13,28 @@
 
   function showError(e) {
     const el = $("#fatal");
-    el.textContent = `發生錯誤：${e?.message || e}（請截圖回報）`;
+    // 附上出錯的檔案和行號（從錯誤的 stack 裡找第一個 js/ 開頭的位置），方便追
+    const at = String(e?.stack || "").match(/(js\/[\w./-]+?\.js)(?:\?v=\d+)?:(\d+)/);
+    el.textContent = `發生錯誤：${e?.message || e}${at ? `（${at[1]}:${at[2]}）` : ""}（請截圖回報）`;
     el.classList.remove("hidden");
   }
   // 「Script error.」＝錯誤來自別的來源（瀏覽器擴充功能、或直接用檔案打開網頁），看不到內容：附上檔案和行號方便追
   window.addEventListener("error", (e) => showError(e.error || (e.message === "Script error." ? `Script error.（看不到細節：可能是瀏覽器擴充功能，或用檔案直接開網頁；請改用網址開，或關掉擴充功能再試）` : `${e.message}（${e.filename || "?"}:${e.lineno || "?"}）`)));
+  // 用檔案直接打開網頁（file://）時，瀏覽器會把事件裡的錯誤藏成「Script error.」：
+  // 把之後註冊的事件和計時器包一層 try/catch，就能顯示真正的錯誤訊息
+  (() => {
+    const wrapped = new WeakMap();
+    const wrap = (fn) => {
+      if (typeof fn !== "function") return fn;
+      if (!wrapped.has(fn)) wrapped.set(fn, function (...a) { try { return fn.apply(this, a); } catch (err) { console.error(err); showError(err); } });
+      return wrapped.get(fn);
+    };
+    const add = EventTarget.prototype.addEventListener, rem = EventTarget.prototype.removeEventListener;
+    EventTarget.prototype.addEventListener = function (t, fn, o) { return add.call(this, t, wrap(fn), o); };
+    EventTarget.prototype.removeEventListener = function (t, fn, o) { return rem.call(this, t, wrapped.get(fn) || fn, o); };
+    const st = window.setTimeout;
+    window.setTimeout = (fn, ...a) => st(wrap(fn), ...a);
+  })();
   window.addEventListener("unhandledrejection", (e) => { if (["NotAllowedError", "AbortError", "NotSupportedError"].includes(e.reason?.name)) return; showError(e.reason || "非同步錯誤"); });   // 音效被瀏覽器擋下不算
 
   // ===== 這一趟 =====
@@ -763,7 +780,7 @@
       else if (st && (st.type === "talk" || st.type === "report") && st.npc === n.id) {
         const need = st.take && !BAG.count(run.items, st.take);
         html += need ? `<span class="warn">還沒有帶來${esc(BAG.get(st.take).name)}</span>`
-          : `<button type="button" class="primary" data-act="story" data-id="${id}">${st.type === "talk" ? "聽聽委託內容" : "回報"}</button>`;
+          : `<button type="button" class="primary" data-act="story" data-id="${id}">${esc(st.open || (st.type === "talk" ? "聽聽委託內容" : "回報"))}</button>`;
       } else html += `<span>目前：${esc(st?.text || "")}</span>`;
       html += `</div>`;
     }
@@ -810,12 +827,14 @@
   let storyNext = () => {}, storyEnd = () => {};
   function story(id) {
     const c = CM.get(id), st = CM.stage(trip, id), n = MAP.npcs.find((x) => x.id === st.npc) || {};
+    // linesBy：依委託的結果（trip.qdata[委託].result）說不同的話
+    const lines = st.linesBy?.[trip.qdata?.[id]?.result] || st.lines || Object.values(st.linesBy || {})[0] || [""];
     let i = 0;
     const show = () => {
-      const last = i >= st.lines.length - 1;
+      const last = i >= lines.length - 1;
       panel.classList.add("dlg"); setTrackHidden();
-      $("#wxPanelBody").innerHTML = dlgHtml(n, st.lines[i], `<button type="button" class="primary" data-act="${last ? "storyEnd" : "storyNext"}" data-id="${id}">${last ? (st.type === "talk" ? "接下這件事" : "收下報酬") : "繼續"}</button>`,
-        `${c.title}（${i + 1} / ${st.lines.length}）`, last ? "" : ` data-act="storyNext" data-id="${id}"`);
+      $("#wxPanelBody").innerHTML = dlgHtml(n, lines[i], `<button type="button" class="primary" data-act="${last ? "storyEnd" : "storyNext"}" data-id="${id}">${last ? esc(st.endLabel || (st.type === "talk" ? "接下這件事" : "收下報酬")) : "繼續"}</button>`,
+        `${c.title}（${i + 1} / ${lines.length}）`, last ? "" : ` data-act="storyNext" data-id="${id}"`);
       panel.querySelector(".dlg-opts [data-act]")?.focus();
     };
     storyNext = () => { i++; show(); };

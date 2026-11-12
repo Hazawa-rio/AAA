@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112144644" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -1611,12 +1611,12 @@
 
     // 核心：外六角、內六角、三顆代表矩陣的紅點
     if (isCur) { hexagon(c.x, c.y, core.r + 10 + Math.sin(now / 200) * 3); ctx.strokeStyle = "rgba(232,38,44,.3)"; ctx.lineWidth = 3; ctx.stroke(); }
-    hexagon(c.x, c.y, core.r); ctx.fillStyle = "#fffdf8"; ctx.fill();
-    ctx.lineWidth = 4; ctx.strokeStyle = "#7a7a7a"; ctx.stroke();
+    hexagon(c.x, c.y, core.r); ctx.fillStyle = "#a8a8a8"; ctx.fill();          // 核心：灰色（原本是白色）
+    ctx.lineWidth = 4; ctx.strokeStyle = "#5a5a5a"; ctx.stroke();
     hexagon(c.x, c.y, core.r * 0.5); ctx.lineWidth = 3.5; ctx.stroke();
     for (const p of core.parts) {
       const d = core.r * 0.42;
-      circle(c.x + Math.cos(p.angle) * d, c.y + Math.sin(p.angle) * d, 7.5, null, p.alive ? "#e8262c" : "#b5b5b5");
+      circle(c.x + Math.cos(p.angle) * d, c.y + Math.sin(p.angle) * d, 7.5, null, p.alive ? "#e8262c" : "#6b6b6b");
     }
 
     // 立場：半透明泡泡，矩陣越少越淡，全破壞就消失
