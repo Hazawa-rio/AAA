@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261112133137" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -16,7 +16,9 @@
     el.textContent = `發生錯誤：${e?.message || e}（請截圖回報）`;
     el.classList.remove("hidden");
   }
-  window.addEventListener("error", (e) => showError(e.error || e.message));
+  // 「Script error.」＝錯誤來自別的來源（瀏覽器擴充功能、或直接用檔案打開網頁），看不到內容：附上檔案和行號方便追
+  window.addEventListener("error", (e) => showError(e.error || (e.message === "Script error." ? `Script error.（看不到細節：可能是瀏覽器擴充功能，或用檔案直接開網頁；請改用網址開，或關掉擴充功能再試）` : `${e.message}（${e.filename || "?"}:${e.lineno || "?"}）`)));
+  window.addEventListener("unhandledrejection", (e) => { if (["NotAllowedError", "AbortError", "NotSupportedError"].includes(e.reason?.name)) return; showError(e.reason || "非同步錯誤"); });   // 音效被瀏覽器擋下不算
 
   // ===== 這一趟 =====
   let trip = P.trip();
@@ -76,6 +78,8 @@
     const it = BAG.get(id);
     if (!it?.field) { toast(it?.battle ? `${it.name}要在戰鬥中使用` : `${it?.name || "這個"}不能在這裡使用`); return false; }
     if (it.use?.hp && heal(Math.round(maxHp() * it.use.hp), `使用${it.name}`)) { BAG.remove(run.items, id, 1); save(); return true; }
+    // 鋁罐可樂：一段時間內移動速度變快
+    if (it.use?.rush) { run.rushUntil = Date.now() + it.use.rush * 1000; BAG.remove(run.items, id, 1); save(); toast(`喝了${it.name}——${it.use.rush} 秒內移動速度 ×1.5`); return true; }
     return false;
   }
 
@@ -124,6 +128,7 @@
   const enemies = MAP.enemies.filter((e) => !run.defeated.includes(e.id)).map((e) => ({ ...e, hx: e.x, hy: e.y, r: isWolf(e.kind) ? 30 : 26, tx: e.x, ty: e.y, wait: Math.random() * 2, chasing: false, face: 0 }));
   // 瑪莉卡的遠距離點火：地上燒著的火（魔物會被嚇跑、不敢靠近）
   const fires = [];
+  let barkAggro = 0;              // 被魔物盯上時的台詞（地圖 barks.aggro）：20 秒內只說一次
   // 蒼幽的探路小魚：沿著直線慢慢游，附近的魔物會跟著走一段距離
   const lures = [];
   const lurePos = (l) => ({ x: l.x + Math.cos(l.a) * l.d, y: l.y + Math.sin(l.a) * l.d });
@@ -148,7 +153,7 @@
       if (e.lure && (!lures.includes(e.lure) || e.lureLeft <= 0)) { e.lure = null; e.calm = Date.now() + 3000; e.chasing = false; e.tx = e.x; e.ty = e.y; e.wait = 1; }
       if (!e.lure && lures.length && !(e.lured > Date.now())) {
         const l = lures.find((q) => { const p = lurePos(q); return dist(e.x, e.y, p.x, p.y) < q.radius; });
-        if (l) { e.lure = l; e.lureLeft = l.follow; e.lured = Date.now() + 8000; l.got.add(e); fx.push({ k: "alert", e, t: performance.now(), dur: 700 }); }
+        if (l) { if (!l.got.size && Q.lureSay) say(Q.lureSay, 2600); e.lure = l; e.lureLeft = l.follow; e.lured = Date.now() + 8000; l.got.add(e); fx.push({ k: "alert", e, t: performance.now(), dur: 700 }); }
       }
       if (e.lure) {
         const p = lurePos(e.lure), d = dist(e.x, e.y, p.x, p.y);
@@ -165,6 +170,7 @@
       }
       const fz = fires.length && fearOf(e);
       if (fz) {
+        if (!fz.said) { fz.said = true; if (Q.scareSay) say(Q.scareSay, 2600); }      // 角色的探索技能台詞（例如瑪莉卡點火嚇跑魔物）
         // 被火嚇到：朝遠離火的方向逃（擋住就往旁邊偏），一陣子不會追人
         const a0 = Math.atan2(e.y - fz.y, e.x - fz.x), s = Math.max(WOLF.speed || 0, MAP.enemySpeed * 3, 110) * dt;
         e.face = a0; e.chasing = false; e.calm = Date.now() + 4000; e.wait = 0.6; e.tx = e.x; e.ty = e.y;
@@ -178,7 +184,7 @@
       // 魔狼：看到人就撲過來；離家太遠就放棄
       if (isWolf(e.kind) && !grace) {
         const dp = dist(e.x, e.y, me.x, me.y), dh = dist(e.x, e.y, e.hx, e.hy);
-        if (!e.chasing && dp < WOLF.aggro && dh < WOLF.leash * 0.8 && !(e.calm > Date.now())) { e.chasing = true; fx.push({ k: "alert", e, t: performance.now(), dur: 700 }); sfx(WOLF.howl); }
+        if (!e.chasing && dp < WOLF.aggro && dh < WOLF.leash * 0.8 && !(e.calm > Date.now())) { e.chasing = true; fx.push({ k: "alert", e, t: performance.now(), dur: 700 }); sfx(WOLF.howl); if (!(barkAggro > Date.now())) { barkAggro = Date.now() + 20000; bark("aggro"); } }
         if (e.chasing && (dh > WOLF.leash || dp > WOLF.aggro * 1.8)) { e.chasing = false; e.tx = e.hx; e.ty = e.hy; e.wait = 0; }
         if (e.chasing) {
           // 正面被擋住就往旁邊偏一點繞過去（樹、石頭）
@@ -450,7 +456,7 @@
       if (wp && d <= reach) me.path.shift();
       else if (d <= reach) arrive();
       else {
-        const s = Math.min(d - reach + 1, me.speed * dt * (carrying() ? 0.55 : 1) * (HOOK.speedMul?.() || 1));
+        const s = Math.min(d - reach + 1, me.speed * dt * (carrying() ? 0.55 : 1) * (HOOK.speedMul?.() || 1) * (Date.now() < (run.rushUntil || 0) ? 1.5 : 1));
         const ok = step(((tg.x - me.x) / d) * s, ((tg.y - me.y) / d) * s);
         me.stuck = ok ? 0 : me.stuck + dt;
         if (me.stuck > 0.3) { me.target = null; me.then = null; me.stuck = 0; }
@@ -779,10 +785,26 @@
     panel.dataset.npc = n.id;
   }
   // 對話框（opts＝右側上方的選項，adv＝點對話框本身會做的事）
-  function dlgHtml(n, text, opts, note, adv) {
+  // n：說話的人 { name, color, face（臉上的字，預設名字第一個字）, faceBg, faceInk }；raw＝text 是 HTML（例如有 <b>）
+  function dlgHtml(n, text, opts, note, adv, raw) {
+    const c = n.color || "#7a6a5a";
     return `<div class="dlg-opts">${opts || ""}</div>
-      <div class="dlg-box"${adv || ""}><span class="dlg-face" style="border-color:${n.color || "#7a6a5a"};color:${n.color || "#7a6a5a"}">${esc((n.name || "?")[0])}</span>
-        <b class="dlg-name" style="background:${n.color || "#7a6a5a"}">${esc(n.name || "")}</b><p class="dlg-text">${esc(text)}</p>${note ? `<p class="dlg-note">${esc(note)}</p>` : ""}${adv ? `<span class="dlg-next">▼ 點對話框繼續</span>` : ""}</div>`;
+      <div class="dlg-box"${adv || ""}><span class="dlg-face" style="border-color:${n.faceBg ? "#1d1d1f" : c};color:${n.faceInk || (n.faceBg ? "#1d1d1f" : c)}${n.faceBg ? `;background:${n.faceBg}` : ""}">${esc(n.face || (n.name || "?")[0])}</span>
+        <b class="dlg-name" style="background:${c}">${esc(n.name || "")}</b><p class="dlg-text">${raw ? text : esc(text)}</p>${note ? `<p class="dlg-note">${esc(note)}</p>` : ""}${adv ? `<span class="dlg-next">▼ 點對話框繼續</span>` : ""}</div>`;
+  }
+  // 時空程式用的對話框（和委託人一樣的新手教學樣式）：一句話＋右上的選項
+  function dlg(title, n, text, opts = "", note = "", raw = false) { openPanel(title, dlgHtml(n, text, opts, note, "", raw), { dlg: true }); }
+  // 一句一句的對話：steps＝[{ n, text, note, raw }]，點對話框繼續；最後一句顯示 endOpts（沒給就是「結束對話」）
+  let seqNext = () => {};
+  function dlgSeq(title, steps, endOpts) {
+    let i = 0;
+    const show = () => {
+      const st = steps[i], last = i >= steps.length - 1;
+      openPanel(title, dlgHtml(st.n, st.text, last ? (endOpts ?? `<button type="button" class="ghost" data-close>結束對話</button>`) : `<button type="button" class="primary" data-act="seqNext">繼續</button>`,
+        st.note || (steps.length > 1 ? `（${i + 1} / ${steps.length}）` : ""), last ? "" : ` data-act="seqNext"`, st.raw), { dlg: true });
+    };
+    seqNext = () => { i = Math.min(steps.length - 1, i + 1); show(); };
+    show();
   }
   // 劇情：一句一句顯示，最後推進委託
   let storyNext = () => {}, storyEnd = () => {};
@@ -891,6 +913,14 @@
         <div class="tv-row"><button type="button" class="primary" data-act="return">回到酒館結算</button></div>`);
       return;
     }
+    // 時空自己說「被卡住了可以先回去」（例如月台沒錢買周遊券）：沒完成的委託不算失敗，之後可以再接（進度從頭開始）
+    const stuck = left.length && HOOK.retreat?.();
+    if (stuck) {
+      openPanel("酒館的門", `<p class="wx-p">門扉緊閉著……但門把動了一下。${esc(stuck)}，先回去也可以。</p>
+        <p class="tv-note">還有 ${left.length} 張委託沒有完成（${left.map((id) => esc(CM.get(id).title)).join("、")}）：不算失敗，回酒館之後可以再接，但進度會從頭開始。金幣和行囊會跟著你回去。</p>
+        <div class="tv-row"><button type="button" class="primary" data-act="return">先回酒館</button><button type="button" class="ghost" data-close>再想想</button></div>`);
+      return;
+    }
     if (left.length) {
       openPanel("酒館的門", `<p class="wx-p">門扉緊閉著。還有 ${left.length} 張委託沒有完成：</p><ul class="wx-list">${left.map((id) => `<li>${esc(CM.get(id).title)}<span class="muted">：${esc(CM.stage(trip, id)?.text || "（測試）推進")}</span></li>`).join("")}</ul>`);
       return;
@@ -941,6 +971,7 @@
     if (HOOK.act?.(a, b)) return;
     if (a === "story") return story(id);
     if (a === "storyNext") return storyNext();
+    if (a === "seqNext") return seqNext();
     if (a === "storyEnd") return storyEnd();
     if (a === "step" || a === "done") {
       const c = CM.get(id);
@@ -1006,7 +1037,13 @@
       say(x.q, 2600);
       const fk = `ask:${n.id}:${CH.id}:${b.dataset.i}`;
       let got = "";
-      if (x.gold && !hasFlag(fk)) { setFlag(fk); run.gold += x.gold; save(); renderHud(); got = `<p class="tv-note">${esc(CH.name)} 得到了 ${x.gold} 金幣</p>`; }
+      // gold：這輪冒險第一次問的時候拿到金幣（負的＝付出金幣，例如薇薇拉的蘑菇被米拉收走手續費）
+      if (x.gold && !hasFlag(fk)) {
+        setFlag(fk);
+        const g = x.gold > 0 ? x.gold : -Math.min(run.gold, -x.gold);
+        run.gold += g; save(); renderHud();
+        got = g > 0 ? `<p class="tv-note">${esc(CH.name)} 得到了 ${g} 金幣</p>` : g < 0 ? `<p class="tv-note">${esc(CH.name)} 少了 ${-g} 金幣</p>` : "";
+      }
       openPanel(n.name, dlgHtml(n, x.a, `<div class="dlg-said" style="border-color:${CH.color}"><b style="color:${CH.color}">${esc(CH.name)}</b>：「${esc(x.q)}」</div>${got}${x.back ? `<button type="button" class="primary" data-act="askMore" data-i="${b.dataset.i}">繼續</button>` : `<button type="button" class="ghost" data-act="askBack">繼續聊</button>`}`), { dlg: true });
       panel.dataset.npc = n.id;
       return;
@@ -1628,10 +1665,11 @@
   document.fonts?.ready.then(fit);
 
   // 各時空自己的玩法
-  if (R.WorldHooks?.[trip.world]) HOOK = R.WorldHooks[trip.world]({
-    R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
+  // 時空程式初始化失敗時，顯示真正的錯誤訊息（不然瀏覽器只會說 Script error.），遊戲照樣能走
+  if (R.WorldHooks?.[trip.world]) try { HOOK = R.WorldHooks[trip.world]({
+    R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, dlg, dlgSeq, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
     ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
-  });
+  }) || {}; } catch (e) { console.error(e); showError(`時空程式（${trip.world}${trip.scene ? "/" + trip.scene : ""}）：${e?.message || e}`); HOOK = {}; }
   document.title = `${W0.code} ${W0.name}`;
   renderMute();
   renderHud();

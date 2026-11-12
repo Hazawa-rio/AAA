@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261112133137" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -794,12 +794,13 @@ RPG.CONFIG = {
     name: "超古代兵器・翁爾貢", ai: "ongergon", bigBar: true, color: "#7a7e86",
     hp: 900, atk: 22, df: 10, spd: 18, ap: 8, moveCost: 1, r: 42,                                  // 暫定（試煉 Boss）
     dodge: { near: 60, far: 400, minChance: 0.2, maxChance: 0.75, fatigue: 0.6, minSharp: 0.4, maxSharp: 0.85 },
-    flaw: { rounds: 2, mult: 1.3 },                                                                // 破綻：2 回合，受到的傷害 ×1.3
+    flaw: { rounds: 2, mult: 1.6 },                                                                // 破綻：2 回合，受到的傷害 ×1.6（負面狀態，掛在名字上，可以被解除）
+    breach: { rounds: 1, mult: 0.4 },                                                              // 破防：槍尖連戳、或打在有破綻的目標上 → 防禦 ×0.4，1 回合
     stun: { rounds: 1, mult: 1.5 },                                                                // 撞上能量水晶：暈眩 1 回合，受到 1.5 倍傷害
     blockDeg: 75,                                                                                  // 正面幾度以內的投射物會被旋轉的雙刃擋下
-    spin: { name: "迴旋斬擊", ap: 2, radius: 175, base: 12, reaction: 1.0, cooldown: 1, sound: "sounds/alpha-spin.mp3" },
-    poke: { name: "槍尖連戳", ap: 2, length: 250, width: 54, base: 7, hits: 3, reaction: 0.75, sound: "sounds/ilshu-thrust.mp3" },
-    dash: { name: "噴射突刺", ap: 3, width: 110, base: 14, reaction: 1.3, cooldown: 2, sound: "sounds/hoffman-jet.mp3" },
+    spin: { name: "迴旋斬擊", ap: 2, radius: 175, base: 12, reaction: 1.0, cooldown: 1, sound: ["sounds/alpha-spin.mp3", "sounds/ilshu-slash-strong.mp3", "sounds/pirate-slash.mp3"] }   /* 近戰音效：每次隨機挑一個 */,
+    poke: { name: "槍尖連戳", ap: 2, length: 250, width: 54, base: 7, hits: 3, reaction: 0.75, sound: ["sounds/ilshu-thrust.mp3", "sounds/pirate-slash.mp3", "sounds/ilshu-slash.mp3"] }   /* 連戳：每一下輪流換 */,
+    dash: { name: "噴射突刺", ap: 3, width: 110, base: 14, reaction: 1.3, cooldown: 2, sound: "sounds/boss-laser.mp3" }   /* 雙肩向後噴雷射 */,
     throw: { name: "投擲長槍", ranged: true, ap: 2, length: 760, width: 40, base: 13, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
     orbs: { name: "肩炮光彈", ap: 2, count: 3, radius: 62, spread: 170, base: 9, reaction: 1.0, cooldown: 1, sound: "sounds/boss-bullet.mp3" },
     ult: { name: "執行-徹底清除", ap: 3, firstRound: 3, every: 4, bands: 6, base: 12, reaction: 1.25, sound: "sounds/boss-laser.mp3" },

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261112133137" });
 // 成長系統：經驗值 → 等級 → 數值、強化點、行動值、技能強化
 // 目前沒有完整遊戲流程，所以等級可以在「角色成長」介面直接調整；戰鬥勝利也會給一點經驗
 // 每個角色的成長存在瀏覽器（localStorage），換頁、重新整理都會保留

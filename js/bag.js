@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261112133137" });
 // 冒險的行囊（道具欄 20 格）：任務道具、消耗品、素材
 // 地圖探索、地圖上的戰鬥、酒館（酒保烤肉）都會用到
 // use：{ hp: 回復最大生命的比例, mp: 回復最大魔力的比例 }；field = 地圖上可以用、battle = 戰鬥中可以用（花 1 行動點）
@@ -28,6 +28,8 @@
     grilledBlockFish: { name: "烤方塊魚", desc: "桑恩烤的方塊魚，烤出了整齊的格子紋。回復 35% 生命、20% 魔力", color: "#c8742a", icon: "block", stack: 9, use: { hp: 0.35, mp: 0.2 }, field: true, battle: true, sell: 18 },
     borrowedInk: { name: "借來的墨水", desc: "色塊野獸借給你的黑色輪廓線，化成了一小罐墨水。拿來補畫布上的白縫", color: "#1d1d1f", icon: "bottle", stack: 9, quest: true },
     hotCocoa: { name: "熱可可", desc: "月台自動販賣機的熱可可，罐子燙手。回復 20% 生命", color: "#7a4a2a", icon: "bottle", stack: 9, use: { hp: 0.2 }, field: true, battle: true, price: 15, sell: 5 },
+    lactoDrink: { name: "乳酸飲料", desc: "月台自動販賣機的乳酸飲料，酸酸甜甜。解除一個負面狀態（破綻、麻痺、破防、虛弱……；戰鬥中使用）", color: "#e8a0c0", icon: "bottle", stack: 9, use: { cleanse: 1 }, battle: true, price: 20, sell: 6 },
+    colaCan: { name: "鋁罐可樂", desc: "月台自動販賣機的鋁罐可樂，冰得發麻。喝了之後 30 秒內，地圖探索的移動速度 ×1.5", color: "#c0392b", icon: "bottle", stack: 9, use: { rush: 30 }, field: true, price: 20, sell: 6 },
     snowPelt: { name: "熊的毛皮", desc: "熊身上掉下來的一塊毛皮，很暖。可以賣給商店", color: "#8a5a32", icon: "block", stack: 20, sell: 12, mat: true },
     oldTicket: { name: "舊車票", desc: "剪票機肚子裡掉出來的舊車票，日期是好幾圈以前。可以賣給商店", color: "#d8c8a0", icon: "leaf", stack: 20, sell: 6, mat: true },
     droneChip: { name: "無人機晶片", desc: "失控無人機掉下來的晶片。可以賣給商店", color: "#3a8a6a", icon: "block", stack: 20, sell: 12, mat: true },

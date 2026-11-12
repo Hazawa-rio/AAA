@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261112133137" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -963,9 +963,26 @@
     react(b, u, hits, info) { if (!u.alive || u.state.stunUntil >= b.round || u.state.busy) return; dodge(b, u, hits, info); },
     pose(b, u, pose, dur) { u.state.pose = pose; u.state.poseT = performance.now(); u.state.poseDur = dur * 1000; b.emit(); },
     face(u, t) { u.facing = Math.atan2(t.y - u.y, t.x - u.x); },
+    // 音效可以是一組：給 i 就輪流，不給就隨機
+    snd(s, i) { return Array.isArray(s) ? s[i == null ? Math.floor(Math.random() * s.length) : i % s.length] : s; },
     flaw(b, u) {
       const F = u.def.flaw;
-      return (x) => { if (!x.alive) return; const fresh = !(x.state.flawUntil >= b.round); x.state.flawUntil = b.round + F.rounds; x.state.flawMult = F.mult; if (fresh) { b.say(`${x.name} 露出了破綻（${F.rounds} 回合內受到的傷害變多）`); b.emit({ type: "buff", unit: x, text: "破綻", color: "#e8262c" }); } };
+      // 打中：已經有破綻的目標再被打中＝破防（防禦變低）；沒有的話掛上破綻
+      return (x) => {
+        if (!x.alive) return;
+        const fresh = !(x.state.flawUntil >= b.round);
+        if (!fresh) this.breach(b, u, x);
+        x.state.flawUntil = b.round + F.rounds; x.state.flawMult = F.mult;
+        if (fresh) { b.say(`${x.name} 露出了破綻（${F.rounds} 回合內受到的傷害 ×${F.mult}）`); b.emit({ type: "buff", unit: x, text: "破綻", color: "#e8262c" }); }
+      };
+    },
+    // 破防：防禦變低（槍尖連戳、或打在破綻上）
+    breach(b, u, x) {
+      const Bd = u.def.breach;
+      if (!Bd || !x.alive) return;
+      const fresh = !(x.state.defDownUntil >= b.round);
+      x.state.defDownUntil = b.round + Bd.rounds; x.state.defDownMult = Bd.mult;
+      if (fresh) { b.say(`${x.name} 被破防了（防禦 ×${Bd.mult}）`); b.emit({ type: "buff", unit: x, text: "破防", color: "#b05a1e" }); }
     },
     async takeTurn(b, u) {
       const D = u.def;
@@ -993,7 +1010,7 @@
       const S = u.def.spin;
       this.pose(b, u, "spin", reaction + 0.6);
       b.say(`${u.name}：迴旋斬擊`);
-      await b.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: S.radius, reaction, follow: u }, { base: S.base, sound: S.sound, label: `${u.name} 的${S.name}`, onAny: this.flaw(b, u) });
+      await b.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: S.radius, reaction, follow: u }, { base: S.base, sound: this.snd(S.sound), label: `${u.name} 的${S.name}`, onAny: this.flaw(b, u) });
     },
     async poke(b, u, t, n) {
       const P = u.def.poke;
@@ -1002,7 +1019,7 @@
         this.face(u, t);
         const ang = u.facing + (i - 1) * 0.12;
         this.pose(b, u, "poke", 0.9);
-        await b.telegraph(u, { shape: "rect", x: u.x + Math.cos(ang) * u.r * 0.6, y: u.y + Math.sin(ang) * u.r * 0.6, ang, length: P.length, width: P.width, reaction: i ? P.reaction * 0.6 : P.reaction, lunge: true }, { base: P.base, sound: P.sound, label: `${u.name} 的${P.name}`, quiet: i > 0, onAny: this.flaw(b, u) });
+        await b.telegraph(u, { shape: "rect", x: u.x + Math.cos(ang) * u.r * 0.6, y: u.y + Math.sin(ang) * u.r * 0.6, ang, length: P.length, width: P.width, reaction: i ? P.reaction * 0.6 : P.reaction, lunge: true }, { base: P.base, sound: this.snd(P.sound, i), label: `${u.name} 的${P.name}`, quiet: i > 0, onAny: ((f) => (x) => { this.breach(b, u, x); f(x); })(this.flaw(b, u)) });   // 槍尖連戳：刺穿防禦
       }
     },
     // 噴射突刺：預告一路到房間邊緣的長框；途中可能迴旋斬或連戳；撞上能量水晶就停下來暈眩

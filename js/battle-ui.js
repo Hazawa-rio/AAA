@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261112133137" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -266,6 +266,7 @@
         const u = B.player, it = R.Bag.get(b.dataset.id), cost = 1 * mult();
         if (!B.canAct()) throw new R.ActionError("現在不能行動");
         if (u.ap < cost) throw new R.ActionError(`行動點不夠（要 ${cost} 點）`);
+        if (it.use.cleanse && !B.hasDebuff(u)) throw new R.ActionError("沒有負面狀態可以解除");
         if (it.use.hp && u.hp >= u.maxHp) throw new R.ActionError("生命已經是滿的");
         if (it.use.mp && !it.use.hp && (!u.maxMp || u.mp >= u.maxMp)) throw new R.ActionError(u.maxMp ? "魔力已經是滿的" : "沒有魔力可以回復");
         const t = R.Profile.trip();
@@ -275,6 +276,7 @@
         B.say(`${u.name} 使用了${it.name}`);
         if (it.use.hp) B.heal(u, Math.round(u.maxHp * it.use.hp), `（${it.name}）`);
         if (it.use.mp && u.maxMp) { const n = Math.min(u.maxMp - u.mp, Math.round(u.maxMp * it.use.mp)); u.mp += n; B.emit({ type: "mpRegen", unit: u, amount: n }); }
+        if (it.use.cleanse) { const g = B.cleanse(u); if (g) { B.say(`${u.name} 的「${g}」解除了（${it.name}）`); B.emit({ type: "buff", unit: u, text: `解除${g}`, color: "#3d9a5b" }); } }
         B.countAction(u, "item", cost);
         B.afterPlayerAction();
       });
@@ -349,7 +351,7 @@
     if (ev?.type && CH.fxEvents?.[ev.type]) { const d = CH.fxEvents[ev.type](ev); if (d) fx.push({ k: "char", ev, t: t + (ev.delay || 0) * 1000, dur: d }); }
     switch (ev.type) {
       case "damage":
-        fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - (ev.unit.def.bigBar ? 110 : 30), text: ev.text || (SCARE ? `+${ev.amount} 驚嚇` : `-${ev.amount}`), color: SCARE ? PURPLE : ev.unit.cage ? "#b8860b" : ev.boosted ? "#c2477a" : "#e53935", t });
+        fx.push({ k: "num", x: ev.unit.x + (ev.delay ? (Math.round(ev.delay * 10) % 2 ? 14 : -14) : 0), y: ev.unit.y - (ev.unit.def.bigBar ? 110 : 30), text: ev.text || (SCARE ? `+${ev.amount} 驚嚇` : `-${ev.amount}`), color: SCARE ? PURPLE : ev.unit.cage ? "#b8860b" : ev.boosted ? "#c2477a" : "#e53935", t: t + (ev.delay || 0) * 1000 });
         break;
       case "bushCut": for (const g of ev.bushes) for (let i = 0; i < 14; i++) { const a = Math.random() * Math.PI * 2; fx.push({ k: "leaf", x: g.x, y: g.y, vx: Math.cos(a) * (60 + Math.random() * 120), vy: Math.sin(a) * (60 + Math.random() * 120) - 60, rot: Math.random() * 6, t, dur: 800 }); } break;
       case "miss": fx.push({ k: "num", x: ev.x, y: ev.y - 34, text: ev.text || "MISS", color: ev.text ? "#c2477a" : "#1aa3e8", t }); break;
@@ -420,7 +422,7 @@
       // 霍夫曼的超光速制壓：吸入、下砸的藍色震盪
       case "suction": fx.push({ k: "suction", x: ev.x, y: ev.y, r: ev.r, units: ev.units, t, dur: ev.duration * 1000 }); break;
       // 瑪莉卡：蛇腹劍的甩動（一節一節的劍刃連成弧線，左右來回掃過扇形）、伸長勾取
-      case "lash": fx.push({ k: "lash", x: ev.x, y: ev.y, ang: ev.ang, half: ev.half, radius: ev.radius, hits: ev.hits, fire: ev.fire, circle: ev.circle, t, dur: 260 * ev.hits + 240 }); if (ev.circle) shakeUntil = t + 260 * ev.hits; break;
+      case "lash": fx.push({ k: "lash", x: ev.x, y: ev.y, ang: ev.ang, half: ev.half, radius: ev.radius, hits: ev.hits, fire: ev.fire, circle: ev.circle, multi: ev.multi || 1, lift: ev.lift || 0, t, dur: 260 * ev.hits + 240 }); if (ev.circle) shakeUntil = t + 260 * ev.hits; break;
       case "grab": fx.push({ k: "grab", from: ev.from, to: ev.to, fire: ev.fire, t, dur: 700 }); break;
       case "blueQuake": fx.push({ k: "blueQuake", x: ev.x, y: ev.y, r: ev.r, t, dur: 1100 }); shakeUntil = t + 550; break;
       case "arrow": {
@@ -2380,20 +2382,22 @@
     ctx.fillStyle = "#3d9a5b"; ctx.fillRect(bx, by, bw * (u.hp / u.maxHp), 6);
     label(`巨大蘑菇（剩 ${u.turnsLeft} 回合）`, p.x, by + 16, "#2e7a46", 11);
   }
-  // 減速、破防的小標記
+  // 負面狀態的小標記（敵我都會掛在名字下面）：破綻、麻痺、破防、虛弱
   function drawDebuffs(u, p) {
-    if (!u.alive || u.team !== "enemy") return;
+    if (!u.alive || !u.state) return;
     const marks = [];
+    if (u.state.flawUntil >= B.round) marks.push(["破綻", "#e8262c"]);
     if (B.slowed(u.parent || u)) marks.push(["麻痺", "#8a9a2a"]);
     if (u.state.defDownUntil >= B.round) marks.push(["破防", "#b05a1e"]);
+    if (u.team !== "enemy" && u.state.weakUntil >= B.round) marks.push(["虛弱", "#7a5aa0"]);
     marks.forEach(([t, c], i) => label(t, p.x - (marks.length - 1) * 16 + i * 32, p.y + u.r + 44, c, 10));
   }
 
   function drawUnit(u, now) {
     if (u.state?.dived) return;                 // 潛到地底：看不到
     if (u.kind === "giantShroom") return drawGiant(u, now);
+    if (!u.demon && !u.cage && u.kind !== "mentor") drawDebuffs(u, pos(u));      // 負面狀態掛在名字下面（敵我都會）
     if (u.summon && CH.drawSummon && u.alive) { ctx.save(); const done = CH.drawSummon(ctx, u, now, { pos, label, circle, line }); ctx.restore(); if (done) return; }   // 角色自己畫的召喚物（例如蒼幽的魚群）
-    if (u.team === "enemy" && !u.demon && !u.cage) drawDebuffs(u, pos(u));
     if (u.demon) return drawDemon(u, now);
     if (u.kind === "mentor") return drawMentor(u, now);
     if (u.part) return;
@@ -2525,29 +2529,34 @@
         case "ring": circle(f.x, f.y, f.r * (0.4 + k * 0.6), f.color, null, 4); break;
         case "shape": drawShape(f.shape, f.color, f.color, 0.35); break;
         case "char": ctx.save(); CH.drawFx?.(ctx, f.ev, k, now, { circle, line, label }); ctx.restore(); break;
-        case "lash": {   // 蛇腹劍：劍柄在角色手上，劍刃一節一節沿著弧線甩出去
+        case "lash": {   // 蛇腹劍：劍柄在角色手上，劍刃一節一節沿著弧線甩出去（大招：跳到空中，同時甩出好幾條）
           const per = 1 / f.hits, i = Math.min(f.hits - 1, Math.floor(k / per)), q = (k - i * per) / per;
-          const side = i % 2 ? -1 : 1, sweep = f.half * 2 + 0.3;
-          const a = f.ang + side * (-f.half - 0.15 + sweep * Math.min(1, q * 1.25));
-          const reach = f.radius * (0.55 + 0.45 * Math.sin(Math.min(1, q * 1.4) * Math.PI / 2));
-          const segs = 11, pts = [];
-          for (let j = 0; j <= segs; j++) {
-            const r = (j / segs) * reach, lag = (j / segs) * (j / segs) * side * 0.5 * (1 - q);   // 尖端比較慢，拖出弧度
-            pts.push([f.x + Math.cos(a - lag) * r, f.y + Math.sin(a - lag) * r]);
+          const oy = -f.lift * Math.sin(Math.PI * Math.min(1, k * 1.05));           // 跳起來時劍從空中甩出
+          for (let m = 0; m < f.multi; m++) {
+            const side = (i + m) % 2 ? -1 : 1, sweep = f.half * 2 + 0.3, qm = Math.min(1, (q + m * 0.23) % 1.0001);
+            const spread = f.multi > 1 ? (m - (f.multi - 1) / 2) * 0.28 : 0;
+            const a = f.ang + spread + side * (-f.half - 0.15 + sweep * Math.min(1, qm * 1.25));
+            const reach = f.radius * (0.55 + 0.45 * Math.sin(Math.min(1, qm * 1.4) * Math.PI / 2)) * (m ? 0.82 + 0.1 * (m % 2) : 1);
+            const segs = 11, pts = [], ox = f.x, oy0 = f.y + oy;
+            for (let j = 0; j <= segs; j++) {
+              const r = (j / segs) * reach, lag = (j / segs) * (j / segs) * side * 0.5 * (1 - qm);   // 尖端比較慢，拖出弧度
+              pts.push([ox + Math.cos(a - lag) * r, oy0 + Math.sin(a - lag) * r]);
+            }
+            ctx.globalAlpha = Math.min(1, 1.6 - k) * (m ? 0.85 : 1);
+            if (f.fire) { ctx.strokeStyle = "rgba(255,120,30,.45)"; ctx.lineWidth = 16; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+            ctx.strokeStyle = "#3a3a42"; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();   // 串起劍節的鋼索
+            for (let j = 1; j <= segs; j++) {   // 一節一節的劍刃（菱形）
+              const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], aa = Math.atan2(y1 - y0, x1 - x0), L = Math.hypot(x1 - x0, y1 - y0);
+              ctx.save(); ctx.translate(x0, y0); ctx.rotate(aa);
+              ctx.fillStyle = f.fire ? (j % 2 ? "#ffb347" : "#ff6a1a") : "#d9dde3"; ctx.strokeStyle = f.fire ? "#a8320f" : "#5a5f6a"; ctx.lineWidth = 1.5;
+              ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.5, -5); ctx.lineTo(L * 0.95, 0); ctx.lineTo(L * 0.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+              ctx.restore();
+            }
+            // 掃過的殘光
+            ctx.globalAlpha = 0.35 * (1 - qm); ctx.strokeStyle = f.fire ? "#ff7a1e" : "#9aa3b0"; ctx.lineWidth = 6;
+            const a0 = f.ang + spread + side * (-f.half - 0.15);
+            ctx.beginPath(); ctx.arc(ox, oy0, reach * 0.92, Math.min(a, a0), Math.max(a, a0)); ctx.stroke();
           }
-          ctx.globalAlpha = Math.min(1, 1.6 - k);
-          if (f.fire) { ctx.strokeStyle = "rgba(255,120,30,.45)"; ctx.lineWidth = 16; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
-          ctx.strokeStyle = "#3a3a42"; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();   // 串起劍節的鋼索
-          for (let j = 1; j <= segs; j++) {   // 一節一節的劍刃（菱形）
-            const [x0, y0] = pts[j - 1], [x1, y1] = pts[j], aa = Math.atan2(y1 - y0, x1 - x0), L = Math.hypot(x1 - x0, y1 - y0);
-            ctx.save(); ctx.translate(x0, y0); ctx.rotate(aa);
-            ctx.fillStyle = f.fire ? (j % 2 ? "#ffb347" : "#ff6a1a") : "#d9dde3"; ctx.strokeStyle = f.fire ? "#a8320f" : "#5a5f6a"; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * 0.5, -5); ctx.lineTo(L * 0.95, 0); ctx.lineTo(L * 0.5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.restore();
-          }
-          // 掃過的殘光
-          ctx.globalAlpha = 0.35 * (1 - q); ctx.strokeStyle = f.fire ? "#ff7a1e" : "#9aa3b0"; ctx.lineWidth = 6;
-          ctx.beginPath(); ctx.arc(f.x, f.y, reach * 0.92, Math.min(a, f.ang + side * (-f.half - 0.15)), Math.max(a, f.ang + side * (-f.half - 0.15))); ctx.stroke();
           if (f.circle) { ctx.globalAlpha = 0.25 * (1 - k); circle(f.circle.x, f.circle.y, f.circle.radius, f.fire ? "#e8781e" : "#8a8478", f.fire ? "rgba(255,120,30,.12)" : "rgba(80,80,90,.06)", 3, [8, 6]); }
           break;
         }

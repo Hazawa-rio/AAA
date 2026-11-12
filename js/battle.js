@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112030517" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261112133137" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -186,6 +186,9 @@
     // 敵人要打誰：低智力的敵人會被附近的召喚物吸引
     aggroTarget(e) {
       const p = this.player;
+      // 被召喚物打到而惹火（例如蒼幽的幽靈魚）：不管智力高低，先反擊那隻召喚物
+      const pv = e.state?.provokedBy;
+      if (pv && pv.alive && e.state.provokedUntil >= this.round) return pv;
       if (!e.def.lowIntel) return p;
       let best = p, bd = dist(e.x, e.y, p.x, p.y) - (e.def.decoyBias ?? 150);
       for (const a of this.allies()) {
@@ -228,9 +231,12 @@
       this.emit({ type: "buff", unit: u, text, color: "#7a3fb0" });
     }
     weakOf(u) { const w = u.parent || u; return w.state?.weakUntil >= this.round ? w.state.weakMult : 1; }
-    // 去除一個負面狀態（麻痺、破防、虛弱、扣行動點），回傳去掉的名稱
+    // 有沒有負面狀態可以解除（例如乳酸飲料要先確認）
+    hasDebuff(u) { const s = u.state || {}, r = this.round; return s.flawUntil >= r || s.slowUntil >= r || s.defDownUntil >= r || s.weakUntil >= r || !!s.apPenalty; }
+    // 去除一個負面狀態（破綻、麻痺、破防、虛弱、扣行動點），回傳去掉的名稱
     cleanse(u) {
       const s = u.state;
+      if (s.flawUntil >= this.round) { s.flawUntil = 0; return "破綻"; }
       if (s.slowUntil >= this.round) { s.slowUntil = 0; return "麻痺"; }
       if (s.defDownUntil >= this.round) { s.defDownUntil = 0; return "破防"; }
       if (s.weakUntil >= this.round) { s.weakUntil = 0; return "虛弱"; }
@@ -722,7 +728,7 @@
       }
       dst.hp = Math.max(0, dst.hp - amount);
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
-      this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1 });
+      this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1, delay: this.hitDelay || 0 });   // hitDelay：連擊時每一下的傷害數字錯開出現
       if (dst === this.player && dst.alive) this.bark(dst, "hurt");          // 受傷台詞（角色有設定才會跳）
       if (dst.def.ai && dst.alive) R.AI[dst.def.ai]?.onHurt?.(this, dst);
       if (dst.summon && dst.alive && R.Items) R.Items.onSummonHurt(this, dst, src);
