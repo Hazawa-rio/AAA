@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="build" content="20261112144644">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>時空酒館</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261112144644">
+<link rel="stylesheet" href="css/tavern.css?v=20261112144644">
+</head>
+<body class="tavern-page">
+<div id="fit">
+<div id="tv">
+  <header id="tvTop">
+    <div class="tv-left"><b>時空酒館</b><span class="muted">（地圖測試）</span></div>
+    <div class="tv-right">
+      <span id="tvChar" class="chip"></span>
+      <span id="tvRank" class="chip rank"></span>
+      <span id="tvCoins" class="chip coin"></span>
+      <span id="tvDrink" class="chip drink hidden"></span>
+      <span id="tvTrip" class="chip trip hidden"></span>
+      <button id="tvName" class="chip name" type="button" title="點一下更改名字"></button>
+      <button id="logoutBtn" class="ghost" type="button">切換帳號</button>
+    </div>
+  </header>
+
+  <main id="tvStage">
+    <canvas id="tavern" width="1280" height="720" aria-label="酒館地圖"></canvas>
+    <div id="tvHint" class="tv-hint">點地板走過去・點物件會走過去互動（靠近時也可以按 E）</div>
+    <div id="fatal" class="hidden" role="alert"></div>
+
+    <!-- 互動面板（調酒、委託欄、名牌架、電話、望遠鏡） -->
+    <div id="tvPanel" class="tv-overlay hidden" role="dialog" aria-modal="true">
+      <div class="tv-card">
+        <header><h2 id="tvPanelTitle"></h2><button type="button" class="ghost tv-close" data-close aria-label="關閉">關閉</button></header>
+        <div id="tvPanelBody"></div>
+      </div>
+    </div>
+
+    <!-- 登入（正式版：Google 或遊客；測試版只有遊客） -->
+    <div id="login" class="tv-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <div class="tv-card login">
+        <h2 id="loginTitle">歡迎來到時空酒館</h2>
+        <p class="muted">登入後取一個名字，你會以適格者候補的身分走進酒館。</p>
+        <div class="login-btns">
+          <button type="button" class="ghost" disabled title="線上版才開放">以 Google 登入（線上版開放）</button>
+          <button type="button" id="guestBtn" class="primary">以遊客身分進入</button>
+        </div>
+        <form id="nameForm" class="hidden">
+          <label for="nameInput">你的名字</label>
+          <div class="name-row">
+            <input id="nameInput" maxlength="12" autocomplete="off" placeholder="最多 12 個字" required>
+            <button type="submit" class="primary">決定</button>
+          </div>
+          <p id="nameErr" class="tv-err" role="alert"></p>
+        </form>
+      </div>
+    </div>
+
+    <div id="askTutorial" class="tv-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+      <div class="tv-card login">
+        <h2 id="askTitle">要先進行戰鬥系統教學嗎？</h2>
+        <p class="muted">羽澤璃央會用教學版的伊爾舒帶你熟悉戰鬥。之後也可以在酒館的「時空委託欄」重新進行。</p>
+        <div class="login-btns">
+          <button type="button" id="tutYes" class="primary">進行教學</button>
+          <button type="button" id="tutNo" class="ghost">先逛逛酒館</button>
+        </div>
+      </div>
+    </div>
+    <div id="away" class="tv-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="awayTitle">
+      <div class="tv-card login">
+        <h2 id="awayTitle">酒館的門沒有打開</h2>
+        <p id="awayNote" class="muted"></p>
+        <div class="login-btns"><a class="primary btnlink" href="world.html">回到時空</a></div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+<script src="js/config.js?v=20261112144644"></script>
+<script src="js/battle.js?v=20261112144644"></script>
+<script src="js/characters/firsler.js?v=20261112144644"></script>
+<script src="js/characters/ilshu.js?v=20261112144644"></script>
+<script src="js/characters/vivilla.js?v=20261112144644"></script>
+<script src="js/characters/guan.js?v=20261112144644"></script>
+<script src="js/characters/hoffman.js?v=20261112144644"></script>
+<script src="js/characters/marika.js?v=20261112144644"></script>
+<script src="js/characters/cangyou.js?v=20261112144644"></script>
+<script src="js/characters/ilshu-tutorial.js?v=20261112144644"></script>
+<script src="js/progression.js?v=20261112144644"></script>
+<script src="js/bag.js?v=20261112144644"></script>
+<script src="js/items.js?v=20261112144644"></script>
+<script src="js/profile.js?v=20261112144644"></script>
+<script src="js/commissions.js?v=20261112144644"></script>
+<script src="js/gacha.js?v=20261112144644"></script>
+<script src="js/enemy-art.js?v=20261112144644"></script>
+<script src="js/enemy-art-c.js?v=20261112144644"></script>
+<script src="js/bestiary.js?v=20261112144644"></script>
+<script src="js/tavern.js?v=20261112144644"></script>
+<script src="js/version-check.js?v=20261112144644"></script>
+</body>
+</html>
