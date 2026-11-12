@@ -91,4 +91,4 @@ body.char-forced #cards, body.char-forced #detail { opacity: .4; }
 .variant.sel { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(29,29,31,.12); }
 .variant.trial.sel { border-color: #7a0d1a; box-shadow: 0 0 0 2px rgba(122,13,26,.15); }
 .tavern-link { font-size: 14px; font-weight: 700; margin-left: 12px; color: #7a4a22; vertical-align: middle; }
-/* build */ :root { --build-css-home-css: "20261112030517"; }
+/* build */ :root { --build-css-home-css: "20261112133137"; }
