@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042-exp.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042-exp.js": "20261112144644" });
 // #LB00042 美食研究所（擴充）：電腦 UI、素材編號、玩家實驗、失散的實驗紀錄、會動的布丁
 // 疊在 lb00042.js（照單領料）上面：兩邊的 hook 都會被呼叫，這邊先處理
 (function () {

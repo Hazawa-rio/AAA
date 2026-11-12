@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/hw01031.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/hw01031.js": "20261112144644" });
 // #HW01031 永遠萬聖節旅館：1F、後院墓園、2F～4F 的繪圖、換場景、樓梯間的幽靈扮演者、委託的玩法
 // 委託的玩法：
 //   hwQueue   請大廳的狼人扮演者排隊（太入戲的要先嚇唬；薇薇拉可以拿出蘑菇）

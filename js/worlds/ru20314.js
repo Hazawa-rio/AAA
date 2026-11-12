@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314.js": "20261112144644" });
 // #RU20314 古代遺跡科考隊：森林、營地、石門的繪圖，C 級委託「森林外的魔物痕跡」
 //   ruTraces  在森林外的草地調查魔物痕跡（每趟隨機 5 處，金屬碎片一定在；找到 need 處就完成）
 (function () {
@@ -11,10 +11,10 @@
     const active = (id) => trip.accepted.includes(id) && !trip.done.includes(id);
     const stageOf = (id) => (active(id) ? CM.stage(trip, id) : null);
     trip.qdata = trip.qdata || {};
-    const D = (trip.qdata.ruins = trip.qdata.ruins || (() => {
-      const others = MAP.traces.filter((t) => t.id !== "metal").sort(() => Math.random() - 0.5).slice(0, 4).map((t) => t.id);
-      return { traces: ["metal", ...others], found: [] };
-    })());
+    // trip.qdata.ruins 也被遺跡（js/worlds/ru20314-ruins.js、地圖的 prepare）共用：缺的欄位各自補上，不要整個覆蓋
+    const D = (trip.qdata.ruins = trip.qdata.ruins || {});
+    if (!Array.isArray(D.traces)) D.traces = ["metal", ...MAP.traces.filter((t) => t.id !== "metal").sort(() => Math.random() - 0.5).slice(0, 4).map((t) => t.id)];
+    if (!Array.isArray(D.found)) D.found = [];
     const traces = () => MAP.traces.filter((t) => D.traces.includes(t.id));
     const tracing = () => stageOf("RU20314-01")?.type === "ruTraces";
 
