@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bc00003.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bc00003.js": "20261112133137" });
 // 地圖：#BC00003 黑原市（C 級時空）
 // 棋盤狀的街道：中間一條東西向的大道（上面有一座天橋），南邊是廣場（酒館的門、飛天車的停機坪）
 // 委託要用的飛天車（最多七人；多人時指名一位駕駛）停在廣場上：坐上去可以飛過大樓
@@ -21,6 +21,11 @@
 
   R.MAPS.BC00003 = {
     indoor: true, battleRoom: "city", city: true,
+    arrival: { firsler: "嗚哇，會飛的車", ilshu: "好熱鬧阿...感覺不賴...", vivilla: "這裡我有點喜歡...", cangyou: "大城市...好久沒來過這樣的地方了..." },                          // 這輪冒險第一次抵達時說的話
+    barks: {
+      board: { firsler: "阿哈哈，飛起來了飛起來了！", ilshu: "飛到天上原來是這種感覺嗎？", vivilla: "太高了不行不行放我下來...", marika: "喔喔！像是騎著獅鷲的感覺！", cangyou: "我可以開嗎？" },
+      taxi: { marika: "直接撞上去！沒問題的吧！" },          // 開飛天車追上無人計程車的時候
+    },       // 坐上飛天車時說的話
     bgm: "sounds/bgm-lab.mp3",               // 暫用（還沒有黑原市的 BGM）
     w: W, h: H, avenue: AVENUE, plaza: PLAZA, xs: XS, ys: YS,
     walk: [{ x: 40, y: 40, w: W - 80, h: H - 80 }],

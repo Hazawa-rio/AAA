@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261112133137" });
 // 地圖：#MD01921 蒙德里安的理想國（B 級時空，使用者畫的地圖）
 // 一大片由黑色粗線分隔的紅、黃、藍、白色塊。黑線是路；每一塊色塊都是一位藝術家的家，也是他的名字（n×m 的 o 色方形）
 // 座標：照使用者的圖（約 770 × 665）放大 4 倍
@@ -31,6 +31,8 @@
   const ctr = (b, dy = 0) => ({ x: Math.round(b.x + b.w / 2), y: Math.round(b.y + b.h / 2 + dy) });
 
   R.MAPS.MD01921 = {
+    arrival: { cangyou: "這個地方真奇怪呢..." },                    // 這輪冒險第一次抵達時說的話
+    barks: { pondFish: { cangyou: "這也是魚嗎？" } },                // 在黃色水面釣到方塊魚
     indoor: true, battleRoom: "canvas", canvasWorld: true,
     bgm: "sounds/bgm-mondrian.mp3",
     w: 3080, h: 2680,

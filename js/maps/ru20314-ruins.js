@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314-ruins.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314-ruins.js": "20261112133137" });
 // 地圖：#RU20314 古代遺跡內部（場景 RU20314/ruins）
 // 房間的位置和連接照使用者畫的結構圖（5 列）：
 //   藍色＝入口（固定：中間有一塊石台、牆上爬著藤蔓，藤蔓下可能藏一個寶箱）
@@ -43,6 +43,7 @@
   const SC = CORR.find((c) => c.id === "r03-r13");
   const SEAL = { x: SC.x - 10, y: Math.round(SC.y + SC.h * 0.35), w: SC.w + 20, h: 70 };
   const MAP = {
+    barks: { ongergon: { ilshu: "這肯定是場惡戰...", marika: "看來！有趣的來了！" } },      // 第一次走到翁爾貢面前
     seal: SEAL,
     indoor: true, battleRoom: "ruins", ruins: true,
     bgm: "sounds/bgm-ruins.mp3",

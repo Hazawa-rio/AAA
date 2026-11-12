@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/tr00088.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/tr00088.js": "20261112133137" });
 // 地圖：#TR00088 不停歇的月台（C 級時空）
 // 四座月台（南＝抵達的地方、東、北、西）長得都一樣：上面是一直在跑的列車，中間是月台（有自動販賣機），
 // 下面隔著一排閘門是大廳。列車車廂是另一個場景：找個位子小睡一會，醒來就到了下一座月台（逆時針：南→東→北→西→南）
@@ -45,8 +45,11 @@
       arrive: dir === "S" ? { x: 1000, y: 1120 } : { x: 1000, y: 400 },
       portal: dir === "S" ? { x: 1000, y: 1200 } : null,
       zone: { dy: 62, r: 46 },
-      shops: [{ id: `vend${dir}`, name: "自動販賣機", keeper: "自動販賣機", x: 1700, y: 400, color: "#c0392b", noIcon: true, greet: "（喀噹。）歡迎光臨。本機販售：飲料、藥水、還有一種叫「熱可可」的東西。" }],
-      potions: ["hotCocoa", "potionHp", "potionMp"],
+      shops: [{ id: `vend${dir}`, name: "自動販賣機", keeper: "自動販賣機", x: 1700, y: 400, color: "#c0392b", noIcon: true, greet: "（喀噹。）歡迎光臨。本機販售：熱可可、乳酸飲料、鋁罐可樂，還有藥水。" }],
+      potions: ["hotCocoa", "lactoDrink", "colaCan", "potionHp", "potionMp"],
+      barks: { catchDodger: { firsler: "給老娘乖乖交錢！", marika: "膽小鬼！上哪去！" } },          // 抓到逃票客時說的話
+      // 第一次抵達（南月台）時說的話
+      arrival: dir === "S" ? { ilshu: "這台火車...就這麼一直行駛著嗎...", vivilla: "火車行駛的聲音好吵啊...", cangyou: "這台火車，要多久才會離站呢？" } : null,
       enemyWander: 120, enemySpeed: 34,
       enemies: dir === "N" ? [{ id: "tbN1", kind: "ticketBots", x: 400, y: 520 }] : dir === "W" ? [{ id: "tbW1", kind: "ticketBots", x: 1500, y: 560 }] : dir === "E" ? [{ id: "tbE1", kind: "ticketBots", x: 300, y: 1000 }] : [],
       npcs: npcAt[dir],
@@ -62,6 +65,7 @@
   // 列車的車廂：中間是走道，上下兩排座位（點座位＝小睡一會）
   R.MAPS["TR00088/train"] = {
     indoor: true, battleRoom: "train", trainCar: true,
+    arrival: { firsler: "好長的車廂，老娘可以在這裡跑上一輩子！", ilshu: "深不見底呢", cangyou: "真想躺著睡一覺啊..." },     // 這輪冒險第一次上車時說的話
     bgm: "sounds/bgm-post.mp3",
     w: 3000, h: 760,
     walk: [{ x: 60, y: 250, w: 2880, h: 260 }],
@@ -73,12 +77,12 @@
     enemies: [],
     npcs: [
       { id: "otis", name: "歐提斯", x: 900, y: 380, color: "#2a3a5a", quests: ["TR00088-03"],
-        asks: { guan: [{ q: "你剪的每一張票，你都記得。", a: "記得。四十年，三百萬張。有一張是我自己的——出生那天，我媽媽替我買的。" }], hoffman: [{ q: "你的剪票鉗咬合角度歪了零點五度。", a: "……四十年來第一個發現的人。那是我故意的，這樣我剪的洞，一看就知道是我剪的。" }] },
+        asks: { ilshu: [{ q: "你沒有想過下車嗎？", a: "出了列車，那又是一個陌生的世界了阿..." }], firsler: [{ q: "老娘最擅長的就是逮人！", a: "這些逃票客每個都比您高呢...", quest: true }], guan: [{ q: "你剪的每一張票，你都記得。", a: "記得。四十年，三百萬張。有一張是我自己的——出生那天，我媽媽替我買的。" }], hoffman: [{ q: "你的剪票鉗咬合角度歪了零點五度。", a: "……四十年來第一個發現的人。那是我故意的，這樣我剪的洞，一看就知道是我剪的。" }] },
         lines: ["剪票剪了四十年，從沒漏剪過一張。……直到那群逃票客出現。", "車廂是我的家，車票是我的信。每一張都要剪。"] },
       { id: "oldman", name: "睡過頭的老先生", x: 1600, y: 300, color: "#7a6a5a", quests: ["TR00088-01"],
         lines: ["呼……呼……（睡得很熟）", "……東月台……再五分鐘……"] },
       { id: "mira", name: "米拉", x: 2300, y: 460, color: "#8a6a3a", quests: ["TR00088-02"],
-        asks: { guan: [{ q: "你從沒踩過不會晃的地面。", a: "沒有。我聽說地面是「靜止」的。……那不會很可怕嗎？" }], hoffman: [{ q: "你的秤，砝碼被列車晃得少了兩克。", a: "所以我都多給兩克。列車上的生意，靠的是信用。" }] },
+        asks: { vivilla: [{ q: "你收外面的蘑菇嗎?", a: "看上去很新奇，我收了！", gold: 3 }], guan: [{ q: "你從沒踩過不會晃的地面。", a: "沒有。我聽說地面是「靜止」的。……那不會很可怕嗎？" }], hoffman: [{ q: "你的秤，砝碼被列車晃得少了兩克。", a: "所以我都多給兩克。列車上的生意，靠的是信用。" }] },
         lines: ["歡迎來到第四千節車廂的市場！今天有剛從北邊農田經過時摘的蘋果。", "我出生在這節車廂，我媽媽也是。我們家的地址是「第四千節車廂，左邊第三個座位」。"] },
       { id: "kidT", name: "車上的小孩", x: 600, y: 470, color: "#4a8fb0",
         lines: ["我在數車廂。數到第一萬兩千節的時候，數到自己這一節了。", "地面上的人為什麼要下車？下車以後要去哪裡？"] },

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314.js": "20261112133137" });
 // 地圖：#RU20314 古代遺跡科考隊（B 級時空）
 // 南：森林外的草地（傳送門，C 級委託在這裡調查魔物痕跡）
 // 中：森林中央的科考隊營地；北：古代遺跡的石門（遺跡內部還在準備中）
@@ -36,6 +36,7 @@
   const PILLARS = [{ x: 1280, y: 220, r: 34 }, { x: 1920, y: 220, r: 34 }, { x: 1250, y: 470, r: 30 }, { x: 1950, y: 470, r: 30 }];
 
   R.MAPS.RU20314 = {
+    barks: { gate: { ilshu: "有種不妙的預感阿..." } },             // 找到隱藏的石門開關
     indoor: true, battleRoom: "ruinsWild", forest: true,
     bgm: "sounds/bgm-chinon.mp3",            // 暫用（還沒有遺跡的 BGM）
     w: W, h: H, meadowY: MEADOW_Y,
@@ -79,7 +80,7 @@
       { id: "sylas", name: "賽勒斯", x: 1880, y: 1290, color: "#3a6a8a", quests: ["RU20314-03"],
         asks: { guan: [{ q: "你的地圖上，遺跡那一格是空白的。", a: "因為我畫不出來。每次畫到石門，筆就斷。這是第十七支了。" }], hoffman: [{ q: "你的比例尺用錯了。這張地圖北邊被壓縮了一成。", a: "……我以為是森林在長大。原來是我的問題？還是森林的問題？" }] },
         lines: ["整座森林我都畫完了，除了石門後面。", "要是能進去，我想畫下遺跡裡的每一條走廊。"] },
-      { id: "dora", name: "朵拉", x: 1830, y: 1460, color: "#8a4a2a", quests: ["RU20314-04"],
+      { id: "dora", name: "朵拉", x: 1600, y: 1440, color: "#8a4a2a", quests: ["RU20314-04"],
         asks: { guan: [{ q: "你看機械的眼神，比看人溫柔。", a: "機械不會說謊。……人偶爾也不會，但很少。" }], hoffman: [{ q: "那台守衛機關的關節，用的是三重棘輪？", a: "你也看出來了？！你是哪個學派的？我們可以聊一整晚。" }] },
         lines: ["我剛從城裡拿工具回來。遺跡裡的機關，是我這輩子見過最漂亮的東西。", "「別打壞了」——我知道這句話很難做到。"] },
       { id: "nova", name: "諾娃", x: 1380, y: 1400, color: "#8a5a7a", quests: ["RU20314-05"],
