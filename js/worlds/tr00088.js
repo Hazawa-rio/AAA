@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/tr00088.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/tr00088.js": "20261112133137" });
 // #TR00088 不停歇的月台：四座月台＋一節車廂
 //   閘門：要感應周遊券才會開（閘門旁邊可以買一張，整趟都能用）
 //   上車：在月台邊「跳上車」→ 車廂；在車廂裡點座位「小睡一會」→ 醒來就到了下一座月台（逆時針：南→東→北→西→南）
@@ -47,6 +47,7 @@
       const st = stageOf("TR00088-03"), done = st && D.caught >= st.need;
       if (done) CM.advance(trip, "TR00088-03");
       save();
+      api.bark("catchDodger");
       toast(done ? `${how}第三個了！逃票客說：「老大在車廂最後面……」回車廂找他` : `${how}逃票客乖乖補了票（${D.caught} / ${st?.need || 3}）`);
     }
     // 攻擊模式的普攻打到逃票客＝攔下來
@@ -76,7 +77,8 @@
       if (D.pass) { toast("嗶——周遊券。閘門開了"); return; }
       openPanel("閘門", `<p class="wx-p">閘門關著。旁邊的機器上寫著：「環狀周遊券・一趟到底都能用」。</p>
         <p class="tv-note">價格：${PASS_PRICE} 金幣（你有 ${run.gold} 金幣）</p>
-        <div class="tv-row"><button type="button" class="primary" data-act="trPass" ${run.gold < PASS_PRICE ? "disabled" : ""}>買一張周遊券</button></div>`);
+        <div class="tv-row"><button type="button" class="primary" data-act="trPass" ${run.gold < PASS_PRICE ? "disabled" : ""}>買一張周遊券</button></div>
+        ${run.gold < PASS_PRICE ? `<p class="tv-note">錢不夠的話，可以先從大廳的門回酒館（沒完成的委託不算失敗，之後可以再接）。</p>` : ""}`);
     }
     function boardPanel() {
       openPanel(`${MAP.platName}・月台邊`, `<p class="wx-p">列車從你面前呼嘯而過。它不會停——但車門一直開著，月台邊的人一個接一個跳上去。</p>
@@ -257,6 +259,8 @@
       if (DIR) dot(MAP.vending.x, MAP.vending.y, 3, "#c0392b");
       if (DIR && (D.follow || D.cargo || stageOf("TR00088-02")?.type === "talk" || stageOf("TR00088-01")?.type === "talk" && CM.progressOf(trip, "TR00088-01") === 1 || stageOf("TR00088-03")?.type === "talk")) dot(MAP.board.x, MAP.board.y, 4, blink);
     }
-    return { update, click, act, draw, drawFloor, drawEnemy, mini, stageText, speedMul, blocked, basicHit, dbg: { dodgers, D } };
+    // 沒有周遊券、錢也不夠買：可以先從大廳的門回酒館（不會被卡住）
+    const retreat = () => (!D.pass && run.gold < PASS_PRICE ? `身上的錢不夠買周遊券（要 ${PASS_PRICE} 金幣）` : null);
+    return { update, click, act, draw, drawFloor, drawEnemy, mini, stageText, speedMul, blocked, basicHit, retreat, dbg: { dodgers, D } };
   };
 })();

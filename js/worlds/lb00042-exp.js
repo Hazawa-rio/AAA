@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042-exp.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042-exp.js": "20261112133137" });
 // #LB00042 美食研究所（擴充）：電腦 UI、素材編號、玩家實驗、失散的實驗紀錄、會動的布丁
 // 疊在 lb00042.js（照單領料）上面：兩邊的 hook 都會被呼叫，這邊先處理
 (function () {
@@ -178,6 +178,7 @@
       while (mwEv.kind === "hail" && mwEv.hits < HAIL.length && k > HAIL[mwEv.hits]) { mwEv.hits++; hurt(6, "冰雹打在頭上！"); }
       if (k > EV_DUR[mwEv.kind]) { const f = mwEv.done; f(); mwEv = null; }
     }
+    MAP.mwOn = () => !!expAnim;               // 研究所的實驗也讓微波爐運轉
     MAP.mwFx = (now) => {
       if (!mwEv) return null;
       const k = (now - mwEv.t0) / 1000;
@@ -330,10 +331,12 @@
         trip.progress["LB00042-04"] = AMBI_MADELEINE + 1;       // 直接到「把所長的話帶給安比」
         if (BAG.count(run.items, "livePudding") && !active3()) BAG.remove(run.items, "livePudding", 1);    // 布丁不用帶去微波爐了（放回去）
         save();
-        openPanel("所長・瑪德蓮", `<div class="tv-npc"><span class="face" style="border-color:#c2471a;color:#c2471a">瑪</span><p>普羅米修斯是從微波爐裡孵出來的……一隻活生生的、雞冠上燒著火的小雞。</p></div>
-          <div class="tv-npc"><span class="face" style="border-color:#c2471a;color:#c2471a">瑪</span><p>那不是加熱，是創造。我們研究了這麼多年，一直把它當成一台加熱的機器。</p></div>
-          <div class="tv-npc"><span class="face" style="border-color:#c2471a;color:#c2471a">瑪</span><p>你說倉庫裡還有一位研究員，一直想證明這件事？請替我告訴他：不用等了，今天就來研究室吧。研究室有他的位置。</p></div>
-          <p class="tv-note">「微波爐的另一種用法」：${esc(CM.stage(trip, "LB00042-04").text)}</p>`);
+        const md = MAP.npcs.find((x) => x.id === "madeleine") || { name: "所長・瑪德蓮", color: "#c2471a" };
+        api.dlgSeq("所長・瑪德蓮", [
+          { n: md, text: "普羅米修斯是從微波爐裡孵出來的……一隻活生生的、雞冠上燒著火的小雞。" },
+          { n: md, text: "那不是加熱，是創造。我們研究了這麼多年，一直把它當成一台加熱的機器。" },
+          { n: md, text: "你說倉庫裡還有一位研究員，一直想證明這件事？請替我告訴他：不用等了，今天就來研究室吧。研究室有他的位置。", note: `「微波爐的另一種用法」：${CM.stage(trip, "LB00042-04").text}` },
+        ]);
         toast(`「${CM.get("LB00042-04").title}」：${CM.stage(trip, "LB00042-04").text}`);
         return true;
       }
@@ -417,11 +420,7 @@
         ctx.strokeStyle = "rgba(60,60,80,.5)"; for (let i = -8; i < 10; i += 5) { ctx.beginPath(); ctx.moveTo(-7, i); ctx.lineTo(7, i); ctx.stroke(); }
         ctx.restore();
       }
-      // 微波爐運轉中
-      if (expAnim) {
-        const mw = MAP.microwave, k = 0.5 + 0.5 * Math.sin(now / 70);
-        ctx.fillStyle = `rgba(255,${170 + 60 * k},80,.55)`; ctx.fillRect(mw.x - 8 + Math.sin(now / 30) * 3, mw.y - 8, mw.w + 16, mw.h + 16);
-      }
+      // 微波爐運轉中：發光和晃動交給 lb00042.js 畫微波爐的地方（跟普羅的委託一樣，只有門上的玻璃窗發光）
     }
     function draw(now) {
       B.draw?.(now);

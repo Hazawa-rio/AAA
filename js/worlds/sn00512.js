@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sn00512.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sn00512.js": "20261112133137" });
 // #SN00512 燈塔小鎮：雪地、針葉林、燈塔、結冰的港口
 //   暴風雪會一陣一陣地變大（大約 70 秒一輪）：越大，走得越慢、看得越不清楚；最大的時候冰鈴草才會開花
 //   SN00512-01 燈塔的柴火：柴房裝柴 → 拉雪橇（變慢）送到燈塔門口，兩趟
@@ -72,6 +72,7 @@
         },
         onDone(c) {
           D.fished[h.id] = true; D.catches.push(c.name); run.gold += FT[c.tier].gold;
+          api.bark("iceFish");
           const st = stageOf("SN00512-02");
           if (st && Object.keys(D.fished).length >= st.need) CM.advance(trip, "SN00512-02");
           save(); api.setBusy(false); api.renderHud();
@@ -120,6 +121,7 @@
       if (S.t >= S.next) {
         const pickL = Object.keys(LIGHTS)[Math.floor(Math.random() * 3)];
         S.ships.push({ name: SHIPS[S.si++ % SHIPS.length], t0: S.t, dir: Math.random() < 0.5 ? 1 : -1, light: pickL, logged: false });
+        if (S.si === 1) api.bark("ship", 3000);          // 第一艘船經過時
         S.next += 15 + Math.random() * 5;
       }
       for (let i = S.ships.length - 1; i >= 0; i--) { const sh = S.ships[i]; if (S.t - sh.t0 > SHIP_SEEN + SHIP_LATE) { if (!sh.logged) S.missed++; S.ships.splice(i, 1); } }
@@ -336,6 +338,7 @@
           if (!bloom()) { toast(`冰鈴草的花苞還閉著……要等暴風雪最大的時候（現在：${Math.round(storm() * 100)}%）`); return; }
           BAG.add(run.items, "iceBell", 1); CM.advance(trip, "SN00512-04"); save();
           toast("叮鈴——你摘下了一串冰做的小鈴鐺。旁邊的雪堆動了一下……");
+          api.bark("herb");
         });
         return true;
       }

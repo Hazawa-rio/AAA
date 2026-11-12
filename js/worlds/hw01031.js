@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/hw01031.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/hw01031.js": "20261112133137" });
 // #HW01031 永遠萬聖節旅館：1F、後院墓園、2F～4F 的繪圖、換場景、樓梯間的幽靈扮演者、委託的玩法
 // 委託的玩法：
 //   hwQueue   請大廳的狼人扮演者排隊（太入戲的要先嚇唬；薇薇拉可以拿出蘑菇）
@@ -18,6 +18,7 @@
 
   R.WorldHooks.HW01031 = function (api) {
     const { MAP, trip, run, me, CM, BAG, toast, inRect, text, rr, save, openPanel, closePanel, esc, dist, goTo } = api;
+    const WOLF = { name: "狼人扮演者", color: "#7a5a3a" };          // 對話框上的說話者
     const ctx = api.ctx();
     const YARD = !!MAP.yard, FLOOR = MAP.floor || 0, LOBBY = !YARD && !FLOOR;
     const ART = R.EnemyArt || {};
@@ -88,16 +89,15 @@
       if (w.line >= 0) return toast("他乖乖排著隊，偶爾小聲地嗷嗚一下");
       if (st?.type !== "hwQueue") return toast(trip.accepted.includes("HW01031-02") ? "先去櫃檯聽聽骸骸怎麼說吧" : "狼人扮演者對著櫃檯嚎了一聲，後面的客人嚇得退了一步");
       if (!w.tried) {
-        openPanel("狼人扮演者", `<div class="tv-npc"><span class="face" style="border-color:#7a5a3a;color:#7a5a3a">狼</span><p>嗷嗚——！我要入住！現在！馬上！</p></div>
-          <div class="tv-row"><button type="button" class="primary" data-act="hwWolf" data-i="${i}">請他排隊</button><button type="button" class="ghost" data-close>再想想</button></div>`);
+        api.dlg("狼人扮演者", WOLF, "嗷嗚——！我要入住！現在！馬上！", `<button type="button" class="primary" data-act="hwWolf" data-i="${i}">請他排隊</button><button type="button" class="ghost" data-close>再想想</button>`);
         return;
       }
       angryPanel(i);
     }
     function angryPanel(i) {
-      openPanel("太入戲的狼人", `<div class="tv-npc"><span class="face" style="border-color:#7a5a3a;color:#7a5a3a">狼</span><p>嗷嗚——！本大爺是滿月之王，滿月之王不排隊！</p></div>
-        <p class="tv-note">他太入戲了。嚇唬他（旅館的戰鬥），讓他回過神來。</p>
-        <div class="tv-row"><button type="button" class="primary" data-act="hwWolfScare" data-i="${i}">嚇唬他</button>${api.CH.id === "vivilla" ? `<button type="button" class="ghost" data-act="hwWolfShroom" data-i="${i}">拿出蘑菇</button>` : ""}<button type="button" class="ghost" data-close>先不要</button></div>`);
+      api.dlg("太入戲的狼人", WOLF, "嗷嗚——！本大爺是滿月之王，滿月之王不排隊！",
+        `<button type="button" class="primary" data-act="hwWolfScare" data-i="${i}">嚇唬他</button>${api.CH.id === "vivilla" ? `<button type="button" class="ghost" data-act="hwWolfShroom" data-i="${i}">拿出蘑菇</button>` : ""}<button type="button" class="ghost" data-close>先不要</button>`,
+        "他太入戲了。嚇唬他（旅館的戰鬥），讓他回過神來。");
     }
 
     // ===== 布料回收 =====
@@ -116,9 +116,8 @@
       const n = H.linen.filter((x) => x.taken).length;
       if (n >= st.need) return toast("夠了。最後這份留給他們吧");
       if (!l.mummy) return takeLinen(i);
-      openPanel("抱著床單的木乃伊", `<div class="tv-npc"><span class="face" style="border-color:#b89a5a;color:#b89a5a">木</span><p>還——給——我——……這是我的……繃帶……</p></div>
-        <p class="tv-note">床單纏在木乃伊扮演者身上。嚇唬他一下，他就會鬆手。</p>
-        <div class="tv-row"><button type="button" class="primary" data-act="hwMummy" data-i="${i}">嚇唬他</button><button type="button" class="ghost" data-close>先不要</button></div>`);
+      api.dlg("抱著床單的木乃伊", { name: "木乃伊扮演者", color: "#b89a5a" }, "還——給——我——……這是我的……繃帶……",
+        `<button type="button" class="primary" data-act="hwMummy" data-i="${i}">嚇唬他</button><button type="button" class="ghost" data-close>先不要</button>`, "床單纏在木乃伊扮演者身上。嚇唬他一下，他就會鬆手。");
     }
 
     // ===== 迷路的幽靈 =====
@@ -128,8 +127,8 @@
       const s5 = stageOf("HW01031-05");
       if (G.following) return toast("幽靈客人：「穿牆、穿牆……我們要去穿牆對吧？」");
       if (s5?.type !== "hwGhost" && s5?.type !== "hwWall") return toast("一位披著白床單的客人在走廊上飄來飄去");
-      openPanel("迷路的幽靈客人", `<div class="tv-npc"><span class="face" style="border-color:#7a3fb0;color:#7a3fb0">幽</span><p>${s5.type === "hwWall" ? "你回來了！剛剛那些扮幽靈的好可怕……我是說，我也是幽靈，但是他們好可怕。" : "你、你看得見我？我是幽靈！我昨晚穿牆穿到一半，就迷路了。樓梯？幽靈不走樓梯！要穿牆！……可是我一個人不敢。"}</p></div>
-        <div class="tv-row"><button type="button" class="primary" data-act="hwGhost">${s5.type === "hwWall" ? "跟上來吧" : "我陪你穿牆"}</button><button type="button" class="ghost" data-close>等一下</button></div>`);
+      api.dlg("迷路的幽靈客人", { name: "幽靈客人", color: "#7a3fb0" }, s5.type === "hwWall" ? "你回來了！剛剛那些扮幽靈的好可怕……我是說，我也是幽靈，但是他們好可怕。" : "你、你看得見我？我是幽靈！我昨晚穿牆穿到一半，就迷路了。樓梯？幽靈不走樓梯！要穿牆！……可是我一個人不敢。",
+        `<button type="button" class="primary" data-act="hwGhost">${s5.type === "hwWall" ? "跟上來吧" : "我陪你穿牆"}</button><button type="button" class="ghost" data-close>等一下</button>`);
     }
 
     // ===== 喪屍與腦漿蛋糕 =====

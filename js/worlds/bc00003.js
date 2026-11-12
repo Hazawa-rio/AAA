@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bc00003.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bc00003.js": "20261112133137" });
 // #BC00003 黑原市：街道、大樓、天橋；委託用的飛天車
 //   飛天車：停在南邊廣場的停機坪。最多坐七人，多人時要指名一位駕駛（目前一個人出發＝自己開）
 //           坐上去之後可以飛過大樓、移動變快；回到停機坪才能降落
@@ -11,6 +11,7 @@
 
   R.WorldHooks.BC00003 = function (api) {
     const { MAP, trip, run, me, CH, CM, toast, inRect, text, save, openPanel, closePanel, dist, esc } = api;
+    let taxiSaid = false;          // 追上計程車的台詞只說一次
     const ctx = api.ctx();
     const active = (id) => trip.accepted.includes(id) && !trip.done.includes(id);
     const stageOf = (id) => (active(id) ? CM.stage(trip, id) : null);
@@ -34,6 +35,7 @@
     function board(driver) {
       closePanel(); D.car = true; D.driver = driver; save(); api.renderHud();
       toast("引擎嗡嗡地響了起來。飛天車浮了起來——現在可以飛過大樓了");
+      api.bark("board");
     }
     function land() {
       closePanel(); D.car = false; D.grip = 0; save(); api.renderHud();
@@ -50,7 +52,7 @@
       if (d <= sp) { taxi.x = t.x; taxi.y = t.y; taxi.i = (taxi.i + 1) % TP.length; }
       else { taxi.face = Math.atan2(t.y - taxi.y, t.x - taxi.x); taxi.x += Math.cos(taxi.face) * sp; taxi.y += Math.sin(taxi.face) * sp; }
       if (stageOf("BC00003-01")?.type !== "bcTaxi") return;
-      if (D.car && dist(me.x, me.y, taxi.x, taxi.y) < 120) D.grip = Math.min(1.6, D.grip + dt);
+      if (D.car && dist(me.x, me.y, taxi.x, taxi.y) < 120) { if (!taxiSaid) { taxiSaid = true; api.bark("taxi"); } D.grip = Math.min(1.6, D.grip + dt); }
       else D.grip = Math.max(0, D.grip - dt * 0.5);
       if (D.grip >= 1.5) {
         D.grip = 0; CM.advance(trip, "BC00003-01"); save();

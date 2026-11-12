@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261112133137" });
 // #MD01921 蒙德里安的理想國：畫布的繪圖、長出眼睛的色塊、兩張委託的玩法
 //   長眼睛的色塊：走近時問「我像什麼？」——回答物品就乖乖回去，回答野獸就變成野獸撲過來；
 //                唱反調的色塊（看不出來）只認相反的答案。薇薇拉「像蘑菇」、弗爾斯勒「你就是個方塊」一定能破解
@@ -57,8 +57,7 @@
       const extra = id === "vivilla" ? `<button type="button" class="ghost" data-act="mdAns" data-a="crack" data-t="像蘑菇">像蘑菇</button>` : id === "firsler" ? `<button type="button" class="ghost" data-act="mdAns" data-a="crack" data-t="你就是個方塊">你就是個方塊</button>` : "";
       const inkBtn = stageOf("MD01921-04")?.type === "mdInk" ? `<button type="button" class="ghost" data-act="mdAns" data-a="ink" data-t="借墨水">借一點墨水</button>` : "";
       const opts = [`<button type="button" class="primary" data-act="mdAns" data-a="obj" data-t="${esc(obj)}">${esc(obj)}</button>`, `<button type="button" class="primary" data-act="mdAns" data-a="beast" data-t="${esc(beast)}">${esc(beast)}</button>`].sort(() => Math.random() - 0.5).join("");
-      openPanel(b.name, `<div class="tv-npc"><span class="face" style="border-color:#1d1d1f;color:#1d1d1f;background:${b.color}">◉</span><p>（色塊上睜開了一雙眼睛）……我像什麼？</p></div>
-        <div class="tv-row">${opts}${extra}${inkBtn}</div>`);
+      api.dlg(b.name, { name: b.name, color: "#1d1d1f", face: "◉", faceBg: b.color }, "（色塊上睜開了一雙眼睛）……我像什麼？", `${opts}${extra}${inkBtn}`);
     }
     function answer(kind, said) {
       const e = asking; asking = null;
@@ -174,9 +173,8 @@
     function fishAt(b) {
       const left = castsLeft(b);
       if (left <= 0) { toast("這片水面的方塊魚都躲起來了（每一處只能釣三次）"); return; }
-      openPanel(`${b.name}（水面）`, `<div class="tv-npc"><span class="face" style="border-color:#1d1d1f;color:#1d1d1f;background:#f0d800">≈</span><p>大家都說這塊黃色方形是一片水。你盯著它看——平平的黃色底下，真的有方形的影子游過去。</p></div>
-        <p class="tv-note">剩下 ${left} 次。釣到的方塊魚可以帶回酒館請桑恩烤。</p>
-        <div class="tv-row"><button type="button" class="primary" data-act="mdFish" data-b="${b.id}">下竿</button></div>`);
+      api.dlg(`${b.name}（水面）`, { name: "水面", color: "#1d1d1f", face: "≈", faceBg: "#f0d800" }, "大家都說這塊黃色方形是一片水。你盯著它看——平平的黃色底下，真的有方形的影子游過去。",
+        `<button type="button" class="primary" data-act="mdFish" data-b="${b.id}">下竿</button>`, `剩下 ${left} 次。釣到的方塊魚可以帶回酒館請桑恩烤。`);
     }
     function startFish(id) {
       const b = MAP.block(id);
@@ -193,6 +191,7 @@
         onDone(c) {
           const T = FT[c.tier];
           D.casts[b.id] = (D.casts[b.id] || 0) + 1;
+          api.bark("pondFish");
           const k = BAG.add(run.items, "blockFish", T.n);
           if (T.gold) run.gold += T.gold;
           save(); api.setBusy(false); api.renderHud();
@@ -226,9 +225,8 @@
       const s3 = stageOf("MD01921-03");
       if (s3?.type === "mdCaterpillar" && !cat.following && dist(p.x, p.y, cat.x, cat.y) < 70) {
         const go = () => {
-          openPanel("一條黑線", `<div class="tv-npc"><span class="face" style="border-color:#1d1d1f;color:#fff;background:#1d1d1f">—</span><p>（黑線一伸一縮地蠕動著）我不是線。我是毛毛蟲。毛毛蟲要吃葉子，才能長大。</p></div>
-            <p class="tv-note">牠會跟著你。帶牠到「被認為是葉子」的色塊上（畫布左下角那塊細長的黃色方形）。</p>
-            <div class="tv-row"><button type="button" class="primary" data-act="mdFollow">跟我來</button></div>`);
+          api.dlg("一條黑線", { name: "一條黑線", color: "#1d1d1f", face: "—", faceBg: "#1d1d1f", faceInk: "#fff" }, "（黑線一伸一縮地蠕動著）我不是線。我是毛毛蟲。毛毛蟲要吃葉子，才能長大。",
+            `<button type="button" class="primary" data-act="mdFollow">跟我來</button>`, "牠會跟著你。帶牠到「被認為是葉子」的色塊上（畫布左下角那塊細長的黃色方形）。");
         };
         if (dist(me.x, me.y, cat.x, cat.y) < 110) go(); else api.goTo({ x: cat.x, y: cat.y + 40 }, { type: "hook", reach: 90, fn: go });
         return true;
@@ -253,8 +251,7 @@
         if (!canConvince(id)) return true;
         D.convinced.push(id); save(); syncRex();
         const n = MAP.npcs.find((x) => x.id === id), all = believers().length;
-        openPanel(n.name, `<div class="tv-npc"><span class="face" style="border-color:${n.color};color:${n.color}">${esc(n.name[0])}</span><p>${esc(REPLY[(D.convinced.length - 1) % REPLY.length])}</p></div>
-          <p class="tv-note">已說服 ${D.convinced.length} / ${all} 位居民。${D.convinced.length >= all ? "再也沒有人認為它是霸王龍了。" : "還有人深信它是霸王龍。"}</p>`);
+        api.dlg(n.name, n, REPLY[(D.convinced.length - 1) % REPLY.length], "", `已說服 ${D.convinced.length} / ${all} 位居民。${D.convinced.length >= all ? "再也沒有人認為它是霸王龍了。" : "還有人深信它是霸王龍。"}`);
         return true;
       }
       if (a === "mdFish") { startFish(b.dataset.b); return true; }

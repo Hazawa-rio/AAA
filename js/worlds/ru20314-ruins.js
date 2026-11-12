@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261112133137" });
 // #RU20314 古代遺跡科考隊：隱藏的石門開關、皮普的行跡、遺跡內部（場景 RU20314/ruins）
 // 森林：跟著皮普一路掉的東西走，一定找得到藏在森林裡的石門開關（不跟也有機會自己撞見）
 //       找到之後：特寫石門，符文一個一個變成紅色，石門打開 → 走進石門就是遺跡
@@ -115,6 +115,7 @@
       function pressSwitch() {
         if (D.gateOpen) { toast("石頭上的紋路是紅色的。石門已經開了"); return; }
         D.gateOpen = true; save();
+        api.bark("gate");
         cutscene(() => {
           if (stageOf("RU20314-02")?.type === "ruTrail") CM.advance(trip, "RU20314-02");
           save();
@@ -275,12 +276,12 @@
         // 秘密寶庫：沉睡的超古代兵器・翁爾貢（試煉 Boss）
         const SR = MAP.secret;
         if (D.vaultOpen && inRect(SR, p.x, p.y) && dist(p.x, p.y, SR.cx, SR.cy) < 120) {
-          reach({ x: SR.cx, y: SR.cy + 170 }, 100, () => openPanel("超古代兵器・翁爾貢", D.ongDown
+          reach({ x: SR.cx, y: SR.cy + 170 }, 100, () => (!D.ongDown && api.bark("ongergon"), openPanel("超古代兵器・翁爾貢", D.ongDown
             ? `<p class="wx-p">倒在地上的超古代兵器。雙肩的能量炮已經暗了，長槍斜插在地上。</p><div class="tv-row"><button type="button" class="ghost" data-act="ruOng">再挑戰一次</button></div>`
             : `<p class="wx-p">秘密寶庫的正中央，跪著一具灰色的巨大兵器。雙肩是兩顆紅色的球，手裡握著一把兩頭都是刃的長槍。</p>
               <p class="wx-p">房間的四周插著幾塊紅色的水晶，一明一暗地發著光。</p>
               <p class="tv-note">試煉 Boss。它很快、很會閃，正面的投射物會被擋下；引誘它的「噴射突刺」撞上能量水晶，它會暈眩。</p>
-              <div class="tv-row"><button type="button" class="primary" data-act="ruOng">喚醒翁爾貢</button></div>`));
+              <div class="tv-row"><button type="button" class="primary" data-act="ruOng">喚醒翁爾貢</button></div>`)));
           return true;
         }
         const V = MAP.vault;

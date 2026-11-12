@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261112133137" });
 // #LB00042 美食研究所：地圖探索裡的專屬玩法
 // - 理性倉庫：貨架上的素材只有「採購清單」上的拿得起來
 // - 電腦：玩家通不過驗證，只能在委託中協助研究員操作；完成夠多委託後才開放玩家自己做實驗（之後再做）
@@ -58,7 +58,9 @@
 
     // ===== 對話：普羅 =====
     function npcFace(n) { return `<span class="face" style="border-color:${n.color};color:${n.color}">${esc(n.name[0])}</span>`; }
-    function proPanel(html) { openPanel("普羅", `<div class="tv-npc">${npcFace(MAP.npcs[0])}<p>${html}</p></div>`); }
+    // 對話一律用委託人的對話框（api.dlg）
+    function proPanel(html) { api.dlg("普羅", MAP.npcs[0], html, "", "", true); }
+    const NARR = { name: "實驗結果", color: "#8a8478", face: "叮" };
     function talkPro(n) {
       const st = stage();
       if (!st) return false;
@@ -66,22 +68,19 @@
       if (dist(me.x, me.y, zone.x, zone.y) > MAP.zone.r) { goTo(zone, { type: "npc", npc: n, reach: 10 }); return true; }
       const d = qd();
       if (st.type === "talk") {
-        openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>你們可算來了！我本想將雞蛋和荷馬史詩做出奧菲斯蛋之類的東西！你知道的，那個能孵化宇宙的蛋！可是我的天啊，這台機器居然印出了一個難蛋，這個冒著怪味的蛋阻止我探險宇宙的真理阿！</p></div>
-          <p class="tv-note">判定框內的玩家：1 / 1</p>
-          <div class="tv-row">${CH.id === "firsler" ? `<button type="button" class="ghost" data-act="pro" data-s="ask">你真覺得一本書和一顆蛋能整出這種東西？</button>` : ""}<button type="button" class="primary" data-act="pro" data-s="go">繼續</button></div>`);
+        api.dlg("普羅", n, "你們可算來了！我本想將雞蛋和荷馬史詩做出奧菲斯蛋之類的東西！你知道的，那個能孵化宇宙的蛋！可是我的天啊，這台機器居然印出了一個難蛋，這個冒著怪味的蛋阻止我探險宇宙的真理阿！",
+          `${CH.id === "firsler" ? `<button type="button" class="ghost dlg-ask" data-act="pro" data-s="ask"><b style="color:${CH.color}">${esc(CH.name)}</b>：你真覺得一本書和一顆蛋能整出這種東西？</button>` : ""}<button type="button" class="primary" data-act="pro" data-s="go">繼續</button>`, "判定框內的玩家：1 / 1");
         return true;
       }
       if (st.type === "labFetch") { proPanel(`採購清單已經印給你了：<b>荷馬史詩</b>、<b>難蛋</b>。去理性倉庫拿吧，只有清單上的東西拿得起來。`); return true; }
       if (st.type === "labEgg") {
         const can = BAG.count(run.items, "hardEgg") && BAG.count(run.items, "homerEpic") && !d.robot0 && !d.robot1;
-        openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>難蛋拿到了吧？快把它丟進報廢室！那個房間在倉庫的左下角。</p></div>
-          ${can ? `<div class="tv-row"><button type="button" class="ghost" data-act="pro" data-s="persuade">說服普羅用難蛋做實驗</button></div>` : ""}`);
+        api.dlg("普羅", n, "難蛋拿到了吧？快把它丟進報廢室！那個房間在倉庫的左下角。", can ? `<button type="button" class="ghost" data-act="pro" data-s="persuade">說服普羅用難蛋做實驗</button>` : "");
         return true;
       }
       if (st.type === "labExp") {
         if (BAG.count(run.items, "chickenEgg")) {
-          openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>雞蛋！完美的、毫無苦難的雞蛋！把它和荷馬史詩一起給我！</p></div>
-            <div class="tv-row"><button type="button" class="primary" data-act="pro" data-s="egg">把雞蛋和荷馬史詩交給普羅</button></div>`);
+          api.dlg("普羅", n, "雞蛋！完美的、毫無苦難的雞蛋！把它和荷馬史詩一起給我！", `<button type="button" class="primary" data-act="pro" data-s="egg">把雞蛋和荷馬史詩交給普羅</button>`);
         } else proPanel(`難蛋處理掉了，現在可以重新下單了！幫我在電腦上輸入<b>雞蛋</b>的採購清單，再去倉庫拿來。`);
         return true;
       }
@@ -118,15 +117,21 @@
       const n = MAP.npcs[0];
       if (r === "chick") {
         chickObj = { x: 1600, y: 1140, tx: 1300, ty: 1000, wait: 1.2, via: [{ x: 1400, y: 1045 }, { x: 1320, y: 1045 }] };
-        openPanel("實驗結果", `<p class="wx-p">微波爐「叮」的一聲——門一打開，一隻小雞搖搖晃晃地走了出來，雞冠上燃著一簇小小的火苗。牠拍拍翅膀跳上觀察窗，從窗口鑽進了研究室。</p>
-          <div class="tv-npc">${npcFace(n)}<p>普羅米修斯！你是普羅米修斯！你從諸神那裡偷來了火！……這是我這輩子最成功的實驗！</p></div><p class="tv-note">委託完成</p>`);
+        api.dlgSeq("實驗結果", [
+          { n: NARR, text: "微波爐「叮」的一聲——門一打開，一隻小雞搖搖晃晃地走了出來，雞冠上燃著一簇小小的火苗。牠拍拍翅膀跳上觀察窗，從窗口鑽進了研究室。" },
+          { n, text: "普羅米修斯！你是普羅米修斯！你從諸神那裡偷來了火！……這是我這輩子最成功的實驗！", note: "委託完成" },
+        ]);
       } else if (r === "epicEgg") {
-        openPanel("實驗結果", `<p class="wx-p">微波爐裡是一顆空心的蛋。輕輕一敲，蛋殼上就裂出一行一行的紋路——是荷馬史詩的節錄。</p>
-          <div class="tv-npc">${npcFace(n)}<p>史詩蛋……很美，真的很美。只是……它孵不出宇宙。</p></div><p class="tv-note">委託完成</p>`);
+        api.dlgSeq("實驗結果", [
+          { n: NARR, text: "微波爐裡是一顆空心的蛋。輕輕一敲，蛋殼上就裂出一行一行的紋路——是荷馬史詩的節錄。" },
+          { n, text: "史詩蛋……很美，真的很美。只是……它孵不出宇宙。", note: "委託完成" },
+        ]);
       } else {
         for (let i = 0; i < 42; i++) { const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 160; words.push({ x: 1605, y: 1135, vx: Math.cos(a) * sp - 60, vy: Math.sin(a) * sp, t: performance.now(), life: 9000 + Math.random() * 6000, w: WORDS[Math.floor(Math.random() * WORDS.length)], rot: Math.random() - 0.5 }); }
-        openPanel("實驗結果", `<p class="wx-p">微波爐的門被撞開——大量的「文字」噴了出來，一個一個實實在在地掉在地上、彈到牆上，過了一陣子才慢慢消失。</p>
-          <div class="tv-npc">${npcFace(n)}<p>看到了嗎！它讀懂了！它在吟誦！雖然還不是宇宙之蛋……但這是文學的勝利！</p></div><p class="tv-note">委託完成</p>`);
+        api.dlgSeq("實驗結果", [
+          { n: NARR, text: "微波爐的門被撞開——大量的「文字」噴了出來，一個一個實實在在地掉在地上、彈到牆上，過了一陣子才慢慢消失。" },
+          { n, text: "看到了嗎！它讀懂了！它在吟誦！雖然還不是宇宙之蛋……但這是文學的勝利！", note: "委託完成" },
+        ]);
       }
     }
 
@@ -325,12 +330,13 @@
       cols.forEach((c, i) => { ctx.save(); ctx.translate(dk.x + 22 + i * 21, dk.y + 30 + (i % 2) * 18); ctx.rotate((i - 2) * 0.2); ctx.fillStyle = c; ctx.fillRect(-12, -16, 24, 32); ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = 1; ctx.strokeRect(-12, -16, 24, 32); ctx.restore(); });
       text("手稿", dk.x + dk.w / 2, dk.y + dk.h + 14, "#6b4a2a", 12, 900);
       if (qd().result === "epicEgg") { ctx.fillStyle = "#f6efe0"; ctx.beginPath(); ctx.ellipse(dk.x + dk.w - 20, dk.y + 20, 12, 15, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#8a7a5a"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.beginPath(); ctx.moveTo(dk.x + dk.w - 28, dk.y + 16); ctx.lineTo(dk.x + dk.w - 22, dk.y + 22); ctx.lineTo(dk.x + dk.w - 16, dk.y + 14); ctx.lineTo(dk.x + dk.w - 12, dk.y + 22); ctx.stroke(); }
-      const mw = MAP.microwave, shake = exp ? Math.sin(now / 30) * 3 : 0;
+      // 運轉中（普羅的委託 exp，或研究所的實驗 MAP.mwOn）：晃動，門上的玻璃窗發光
+      const mw = MAP.microwave, on = !!exp || !!MAP.mwOn?.(), shake = on ? Math.sin(now / 30) * 3 : 0;
       const mf = MAP.mwFx?.(now) || {};          // 實驗失敗的事件：微波爐變大、跳起來（js/worlds/lb00042-exp.js）
       ctx.save(); ctx.translate(shake + (mf.dx || 0), mf.dy || 0);
       if (mf.s) { const cx = mw.x + mw.w / 2, cy = mw.y + mw.h; ctx.translate(cx, cy); ctx.scale(mf.s, mf.s); ctx.translate(-cx, -cy); }
       ctx.fillStyle = "#9aa0aa"; ctx.fillRect(mw.x, mw.y, mw.w, mw.h); ctx.strokeStyle = "#4a4f58"; ctx.lineWidth = 3; ctx.strokeRect(mw.x, mw.y, mw.w, mw.h);
-      ctx.fillStyle = exp ? `rgba(255,${180 + 60 * Math.sin(now / 80)},80,.9)` : "#5a5f68"; ctx.fillRect(mw.x + 12, mw.y + 18, 46, 54);
+      ctx.fillStyle = on ? `rgba(255,${180 + 60 * Math.sin(now / 80)},80,.9)` : "#5a5f68"; ctx.fillRect(mw.x + 12, mw.y + 18, 46, 54);
       ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 2;
       for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(mw.x + 12 + i * 9, mw.y + 72); ctx.lineTo(mw.x + 12 + i * 9 + 14, mw.y + 18); ctx.stroke(); }
       ctx.fillStyle = "#2a3a4a"; ctx.fillRect(mw.x + 66, mw.y + 20, 14, 50);
@@ -389,12 +395,11 @@
         const s = b.dataset.s, n = MAP.npcs[0];
         if (s === "ask") {
           api.say("你真覺得一本書和一顆蛋能整出這種東西？", 3000);
-          openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>那肯定的阿，這台狡猾的機器是閱讀文字的，他需要文學之美的領導！</p></div><div class="tv-row"><button type="button" class="primary" data-act="pro" data-s="go">繼續</button></div>`);
+          api.dlg("普羅", n, "那肯定的阿，這台狡猾的機器是閱讀文字的，他需要文學之美的領導！", `<button type="button" class="primary" data-act="pro" data-s="go">繼續</button>`);
           return true;
         }
         if (s === "go") {
-          openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>總之，在處理掉那個不知道是甚麼的難蛋前，我無法再下單我要的雞蛋，我需要你們的幫助！把那顆難蛋報廢了吧，把他丟進那個房間就行，那個房間能把任何物質的概念回歸到那個微波爐裡，這是我們唯一研究明白的東西。</p></div>
-            <div class="tv-row"><button type="button" class="primary" data-act="pro" data-s="list">拿採購清單</button></div>`);
+          api.dlg("普羅", n, "總之，在處理掉那個不知道是甚麼的難蛋前，我無法再下單我要的雞蛋，我需要你們的幫助！把那顆難蛋報廢了吧，把他丟進那個房間就行，那個房間能把任何物質的概念回歸到那個微波爐裡，這是我們唯一研究明白的東西。", `<button type="button" class="primary" data-act="pro" data-s="list">拿採購清單</button>`);
           return true;
         }
         if (s === "list") {
@@ -404,8 +409,7 @@
           return true;
         }
         if (s === "persuade") {
-          openPanel("普羅", `<div class="tv-npc">${npcFace(n)}<p>有道理啊，苦難確實是文學的根源，好的，我這就來試試。</p></div>
-            <div class="tv-row"><button type="button" class="primary" data-act="pro" data-s="persuadeGo">看普羅做實驗</button></div>`);
+          api.dlg("普羅", n, "有道理啊，苦難確實是文學的根源，好的，我這就來試試。", `<button type="button" class="primary" data-act="pro" data-s="persuadeGo">看普羅做實驗</button>`);
           return true;
         }
         if (s === "persuadeGo") {

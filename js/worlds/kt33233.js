@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kt33233.js": "20261112021356" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kt33233.js": "20261112133137" });
 // #KT33233 巨人的生態盒：你非常非常小；兩隻大魔王打不了，只能跑
 //   恐怖的大魔王・長戟大兜蟲（右盒）：沿路線巡邏，看到你就衝過來
 //   邪惡大魔王・長頸鹿鉅鍬形蟲（左盒）：睡在糧倉上，每隔一陣子翻身睜眼；睜眼時看到你就衝過來
@@ -47,13 +47,14 @@
       grace = Date.now() + 3500; run.grace = Date.now() + 3000;
       king.st = who === "stag" ? "return" : "return";
       save(); api.renderHud();
+      api.bark("kingHit", 3000);
       toast(`${who === "stag" ? "邪惡大魔王的大顎夾住了你——" : "恐怖的大魔王用角把你挑了起來——"}你被丟了出去！（生命 -${loss}）${lost}`);
     }
     function updateStag(dt) {
       const k = stag, H0 = MAP.stag.home, safe = Date.now() < grace;
       k.t += dt;
       if (k.st === "sleep" && k.t > 9) { k.st = "awake"; k.t = 0; }
-      else if (k.st === "awake") { if (!safe && inLeft(me.x) && dist(k.x, k.y, me.x, me.y) < MAP.stag.vision) { k.st = "chase"; k.t = 0; toast("邪惡大魔王翻身的時候看到你了！快跑！"); } else if (k.t > 3.5) { k.st = "sleep"; k.t = 0; } }
+      else if (k.st === "awake") { if (!safe && inLeft(me.x) && dist(k.x, k.y, me.x, me.y) < MAP.stag.vision) { k.st = "chase"; k.t = 0; toast("邪惡大魔王翻身的時候看到你了！快跑！"); api.bark("kingChase"); } else if (k.t > 3.5) { k.st = "sleep"; k.t = 0; } }
       else if (k.st === "chase") {
         if (safe || !inLeft(me.x) || k.t > 4.5 || dist(k.x, k.y, me.x, me.y) > MAP.stag.vision * 1.7) { k.st = "return"; k.t = 0; }
         else { moveTo(k, me.x, me.y, kingSpeed(), dt); clampBox(k, L); if (dist(k.x, k.y, me.x, me.y) < 78) caught(k, "stag"); }
@@ -70,7 +71,7 @@
       k.t += dt;
       if (k.st === "patrol") {
         const t = BP[k.i]; if (moveTo(k, t.x, t.y, 85, dt)) k.i = (k.i + 1) % BP.length;
-        if (!safe && !inLeft(me.x) && dist(k.x, k.y, me.x, me.y) < MAP.beetle.vision) { k.st = "chase"; k.t = 0; toast("恐怖的大魔王發現你了！快跑！"); }
+        if (!safe && !inLeft(me.x) && dist(k.x, k.y, me.x, me.y) < MAP.beetle.vision) { k.st = "chase"; k.t = 0; toast("恐怖的大魔王發現你了！快跑！"); api.bark("kingChase"); }
       } else if (k.st === "chase") {
         if (safe || inLeft(me.x) || k.t > 4.5) { k.st = "return"; k.t = 0; }
         else { moveTo(k, me.x, me.y, kingSpeed(), dt); clampBox(k, Rb); if (dist(k.x, k.y, me.x, me.y) < 82) caught(k, "beetle"); }
@@ -84,10 +85,11 @@
       if (run.hp >= api.maxHp()) { toast("肚子已經飽了（生命是滿的）。果凍還是一樣大"); return; }
       lastBite = Date.now();
       api.heal(Math.round(api.maxHp() * 0.25), "偷吃了一口巨大的果凍");
+      api.bark("jelly");
       D.bites++; noise += 1; save(); api.renderHud();
       if (noise >= 3) {
         noise = 0;
-        if (Math.random() < 0.5 || stag.st === "guard") { beetle.st = "chase"; beetle.t = 0; setTimeout(() => toast("咕嚕——恐怖的大魔王聽到咬果凍的聲音，衝過來了！"), 900); }
+        if (Math.random() < 0.5 || stag.st === "guard") { beetle.st = "chase"; beetle.t = 0; setTimeout(() => { toast("咕嚕——恐怖的大魔王聽到咬果凍的聲音，衝過來了！"); api.bark("kingChase"); }, 900); }
         else { stag.st = "guard"; stag.t = 0; setTimeout(() => toast("左邊的盒子傳來喀啦喀啦的聲音……邪惡大魔王被果凍的味道吵醒，守在牆洞旁邊！"), 900); }
       }
     }
@@ -95,6 +97,8 @@
     // ===== 委託 =====
     function update(dt, now) {
       noise = Math.max(0, noise - dt / 6);
+      // 第一次看到巨大的果凍（這輪冒險只說一次）
+      if (!api.hasFlag("ktJellySee") && dist(me.x, me.y, MAP.jelly.x, MAP.jelly.y) < MAP.jelly.r + 260) { api.setFlag("ktJellySee"); api.bark("jellySee"); }
       updateStag(dt); updateBeetle(dt);
       const s1 = stageOf("KT33233-01");
       if (s1?.type === "ktEscort" && !D.follow) { D.follow = true; dropNpc(); save(); toast("圓圓一路滾著跟上來"); }
