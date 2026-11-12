@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261112144644" });
 // 角色：薇薇拉（輔助，第一個使用魔力的角色）
 // 技能格式同 firsler.js：status / predict / use；status 可以回傳 mp（魔力消耗，由 battle 扣）
 // 蘑菇丟出去之後要過一下才爆炸（飛行＋引信），所以爆炸是非同步結算
@@ -22,6 +22,8 @@
     role: "輔助・使用魔力",
     profile: "居住一處神奇世界的少女，與蘑菇作伴，有些慵懶怕事，不太擅長人際互動，被意外捲入時空亂流後在尋找回家的方法。",
     desc: "使用魔力的輔助角色。投擲會延遲爆炸的蘑菇：炸到敵人會降低防禦，炸到自己人可以回血；還能種下蘑菇陷阱、長出吸引火力的巨大蘑菇。",
+    // 戰鬥風格：酒館名牌架上顯示
+    style: { role: "輔助・蘑菇（魔力）", text: "站在後排丟蘑菇的輔助。蘑菇會延遲爆炸：炸到敵人降低防禦，炸到自己人回血；再用蘑菇陷阱封住路線、讓巨大蘑菇吸引火力。靠預判敵人的位置取勝。" },
     stats: { hp: 70, mp: 100, atk: 14, df: 4, spd: 11, ap: 6 },     // 暫定
     growth: { hp: 3.2, mp: 3, atk: 0.75, df: 0.3, spd: 0.1 },       // 每升一級（暫定）
     mpRegen: 0.35,                     // 每次輪到自己時回復最大魔力的 35%

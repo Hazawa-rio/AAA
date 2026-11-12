@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261112144644" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
@@ -44,6 +44,8 @@
     color: "#c2477a",
     profile: "外型嬌小的少女，透過菸斗吐出特殊的煙霧並加以操縱，個性傲慢任性，態度相當輕蔑，似乎甚麼都看不起，擅長暗殺，喜歡在煙霧中戲耍對手。",
     desc: "用煙霧配合弩箭的遠程角色。箭穿過煙霧會變強，累積行動後能把所有煙霧化成尖刺一次射出。",
+    // 戰鬥風格：酒館名牌架上顯示
+    style: { role: "遠程・弩箭與煙霧", text: "先放煙霧、再從遠處射箭的狙擊手。箭矢穿過煙霧會分裂或貫穿，煙霧裡的她也更難被打中；行動累積夠了，就把場上所有煙霧化成尖刺一口氣射出。擅長拉開距離、用煙霧控制戰場。" },
     stats: { hp: 75, mp: 0, atk: 16, df: 5, spd: 12, ap: 6 },
     // 每升一級增加的數值（暫定）
     growth: { hp: 3.5, mp: 2, atk: 0.9, df: 0.3, spd: 0.1 },

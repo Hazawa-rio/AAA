@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu-tutorial.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu-tutorial.js": "20261112144644" });
 // 新手引導專用的伊爾舒（固定版）
 // 技能的行為沿用 ilshu.js，但所有數值都寫死在這裡。
 // 之後調整 ilshu.js 的平衡數值，不會影響這個教學版本；選角頁也不會顯示它。
