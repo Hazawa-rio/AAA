@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921-house.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921-house.js": "20261113040753" });
 // 地圖：#MD01921 蒙德里安的理想國・3×4 的黃色方形的家（場景 MD01921/house）
 // 「豪宅還是山洞」：屋裡的五樣東西，看成什麼就是什麼（豪宅的看法／山洞的看法）
 (function () {

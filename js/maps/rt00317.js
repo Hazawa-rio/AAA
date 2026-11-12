@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/rt00317.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/rt00317.js": "20261113040753" });
 // 地圖：#RT00317 午夜郵局（室內）
 // 下方是大廳（傳送門、窗口、時間投遞口），往上是時鐘走廊；走廊頂端左邊是分信室、右邊是退件室
 // 郵局裡飄著信件夾帶的情緒變成的煙霧（自責、悔恨、思念、快樂），撞到就會戰鬥

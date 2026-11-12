@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/hw01031.js": "20261112144644" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/hw01031.js": "20261113040753" });
 // 地圖：#HW01031 永遠萬聖節旅館（室內）
 // 1F：左邊是大廳（傳送門、紫色地毯、櫃台和公關），中間的走廊往上通到後院墓園的門、左牆是上 2F 的樓梯，右邊是自助餐廳
 // 後院墓園是另一個場景（HW01031/yard）
