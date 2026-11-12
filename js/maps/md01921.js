@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261112144644" });
 // 地圖：#MD01921 蒙德里安的理想國（B 級時空，使用者畫的地圖）
 // 一大片由黑色粗線分隔的紅、黃、藍、白色塊。黑線是路；每一塊色塊都是一位藝術家的家，也是他的名字（n×m 的 o 色方形）
 // 座標：照使用者的圖（約 770 × 665）放大 4 倍
@@ -62,7 +62,7 @@
       { id: "redWide", name: BLOCKS[5].name, ...ctr(BLOCKS[5]), color: "#e8262c", quests: ["MD01921-04"],
         asks: { guan: [{ q: "你右手邊那條縫，氣是往外漏的。", a: "對吧！是漏的！每天晚上都有一點白色流出來，流到我的腳邊。" }], hoffman: [{ q: "那條縫寬八個像素，上下四百四十八個像素。", a: "……你連這個都量了？那你一定補得好。" }] },
         lines: ["我右邊那條縫，一直在溢出白色。白色是畫布的底，不該露出來的。", "黑色不夠了。理想國裡的黑色，全都被畫成了線、被野獸們穿在身上。"] },
-      { id: "cave", name: byId("cave").name, ...ctr(byId("cave")), color: "#8a8a8a",
+      { id: "cave", name: byId("cave").name, ...ctr(byId("cave")), color: "#8a8a8a", quests: ["MD01921-02"],
         lines: ["隔壁那位住在山洞裡。我每天早上都聽到回音。", "霸王龍？是啊，大家都知道那塊黑色方形是霸王龍。"] },
       { id: "blueA", name: BLOCKS[38].name, ...ctr(BLOCKS[38]), color: "#1a3ae8",
         lines: ["藍色的畫布很適合發呆。", "霸王龍昨晚又吼了。也可能只是風吹過黑線的聲音。"] },

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ci00001.js": "20261112133137" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ci00001.js": "20261112144644" });
 // 地圖：#CI00001 奇儂鎮（北在上，南北走向）
 // 西邊是海、港口與海上市集；中間是鎮；東邊是城牆（中段有東門），牆外是有魔物的草原
 // 座標單位是畫素，整張地圖遠大於畫面，鏡頭跟著玩家
