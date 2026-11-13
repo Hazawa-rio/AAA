@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261114045024" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）

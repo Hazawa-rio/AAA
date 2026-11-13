@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261114045024" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;

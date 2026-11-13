@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261114045024" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -649,7 +649,11 @@
       for (const k of Object.keys(u.cd)) if (u.cd[k] > 0 && !u._cdSet.has(k)) u.cd[k]--;
       u._cdSet.clear();
       const ult = u.def.ultimate;
-      if (ult && actionId !== ult && !this.char.noCharge?.(this, u, actionId)) u.charge = Math.min(u.def.skills[ult].charge, u.charge + 1);
+      if (ult && actionId !== ult && !this.char.noCharge?.(this, u, actionId)) {
+        const need = this.char.chargeNeed?.(this, u) ?? u.def.skills[ult].charge, before = u.charge;      // chargeNeed：角色強化改變大招要的充能（例如悠魘）
+        u.charge = Math.min(need, u.charge + 1);
+        if (u.charge !== before) this.char.onCharge?.(this, u, u.charge);
+      }
     }
     setCooldown(u, key, n) { u.cd[key] = n; u._cdSet.add(key); }
 

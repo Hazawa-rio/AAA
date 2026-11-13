@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/commissions.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/commissions.js": "20261114045024" });
 // 時空與委託單
 // 每個時空有編號（#CI00001…）；委託單標記：時空、委託人、委託內容、報酬
 // 同一個時空可以同時接多張委託；conflicts 裡的委託不能和這張同時接（例如幫海盜運貨 ↔ 追查海盜）

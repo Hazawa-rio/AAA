@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261114045024" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -874,7 +874,7 @@
       el.title = CH.passive.desc;
     }
     if (CH.ultimate) {
-      const need = CH.skills[CH.ultimate].charge;
+      const need = CH.chargeNeed?.(B, u) ?? CH.skills[CH.ultimate].charge;
       setBar(".bar.charge", u.charge, need, u.charge >= need ? "大招就緒" : `大招充能 ${u.charge} / ${need}`);
     }
 

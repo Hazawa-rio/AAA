@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-b.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-b.js": "20261114045024" });
 // B 級時空（雲端上的海洋、有點偏執的急診室、或許是魔法森林、比爾哈頓廣場、童年時的黑市、彼岸花盛開的事務所）的戰鬥造型和戰鬥背景
 // R.EnemyArt[kind](ctx, u, p, now)；R.Terrains[terrain]：bg(g, W, H) 畫一次、draw(ctx, now, W, H) 每一格都畫
 (function () {

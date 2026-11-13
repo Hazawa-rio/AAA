@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/race.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/race.js": "20261114045024" });
 // 賽跑小遊戲（俯視、跑道會轉彎）：LG00412-02 和荷米斯賽跑用這一份；之後「爆裂時速」也預計用同一套機制
 //   R.Race.play(env)：env = {
 //     ch（角色）, rival: { name, face, color, wing }（對手的樣子）

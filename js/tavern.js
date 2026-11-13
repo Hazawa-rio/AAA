@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261114045024" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -337,6 +337,8 @@
   }
   // ===== 名牌架：玩家精選三位掛出來（存在 rpg.rackShow；沒選過就掛前三位） =====
   const RACK_MAX = 3;
+  // 奧秘之瞳：悠魘的和諧特效開關（js/characters/youyan.js 讀 rpg.calmYouyan）
+  const calmYY = () => store.get("rpg.calmYouyan") === "1";
   function featured() {
     const owned = Object.values(R.CHARACTERS).filter((c) => !c.hidden && P.owns(c.id)).map((c) => c.id);
     let pick = null;
@@ -648,6 +650,8 @@
           ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag" title="${peekC.awaken ? "覺醒角色：天生就有 Q、W、E，沒有技能強化分支；大招等級解鎖覺醒技 R" : "昇華角色：Q、E、W 可以選強化分支"}">${peekC.awaken ? "覺醒" : "昇華"}</span><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
             <p>${esc(peekC.style.text)}</p>
             <div class="ps-stats">${[["生命", "hp"], ["魔力", "mp"], ["攻擊", "atk"], ["防禦", "df"], ["速度", "spd"], ["行動點", "ap"]].filter(([, k]) => k !== "mp" || peekC.stats.mp).map(([l, k]) => `<span>${l} <b>${peekC.stats[k]}</b></span>`).join("")}</div></div>` : ""}</div>` : ""}
+        <div class="rack-show"><b>奧秘之瞳</b><span class="muted">（悠魘的部分技能特效比較獵奇；打開後改用簡化的和諧特效。沒觀測到悠魘也可以先設定）</span>
+          <div class="tv-row" style="margin-top:6px"><button type="button" class="rack-chip${calmYY() ? " on" : ""}" style="--c:#c40a1e" data-act="calmYY" aria-pressed="${calmYY()}"><span>瞳</span>和諧特效：${calmYY() ? "開" : "關"}</button></div></div>
         <p class="tv-note">冒險中的等級、技能強化與寶物只屬於這輪冒險，冒險結束就重新開始。在戰鬥中的「角色成長」調整。</p>`;
       return;
     }
@@ -984,6 +988,7 @@
     }
     if (a === "pick") { if (!P.owns(data.id)) return; store.set("rpg.char", data.id); peek = data.id; renderTop(); return renderPanel(); }
     if (a === "peek") { peek = data.id; return renderPanel(); }
+    if (a === "calmYY") { store.set("rpg.calmYouyan", calmYY() ? "0" : "1"); return renderPanel(); }
     if (a === "feature") {
       const cur = featured(), on = cur.includes(data.id);
       let next = on ? cur.filter((x) => x !== data.id) : [...cur, data.id];

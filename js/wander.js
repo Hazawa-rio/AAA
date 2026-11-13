@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/wander.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/wander.js": "20261114045024" });
 // 委託以外的探索：每一趟從時空的事件池隨機挑幾個，在隨機的時間、隨機的地點冒出來（地圖上的「？」）
 //   R.WanderPools[時空]：{ pick（一趟挑幾個）, every: [最短, 最長]（兩個事件之間隔幾秒）, events: [...] }
 //   事件的種類（kind）：
