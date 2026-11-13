@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261113212359" });
 // #MD01921 蒙德里安的理想國：畫布的繪圖、長出眼睛的色塊、兩張委託的玩法
 //   長眼睛的色塊：走近時問「我像什麼？」——回答物品就乖乖回去，回答野獸就變成野獸撲過來；
 //                唱反調的色塊（看不出來）只認相反的答案。薇薇拉「像蘑菇」、弗爾斯勒「你就是個方塊」一定能破解
@@ -6,6 +6,9 @@
 //              （全部說服＝色塊小怪；部分＝自我懷疑的暗黑霸王龍；完全沒有＝十分恐怖的暗黑霸王龍之王）
 //   MD01921-04 溢出的白色縫縫：向色塊野獸借三份墨水（打贏才肯借）→ 補上紅色長方形和高塔之間的白縫（補好之後那裡變成路）
 //   黃色水面：大家都說某些黃色色塊是水，可以釣方塊魚（每一處三次），帶回酒館請桑恩烤
+//   畫架（被認為是畫架的色塊）：做委託的過程中（每完成一個階段）會拿到隨機的顏料——紅藍黃白黑，每一罐都被色塊們「認為」有某種特質
+//     （有生命力→生命、有力量感→攻擊、令人安定→防禦、相當神奇→魔力、充滿速度→速度）。在畫架的 6×6 畫布上用顏料畫畫（一罐塗 4 格），
+//     自己命名，就變成一個自訂寶物（圖示就是那幅畫）。顏料跨冒險保留（rpg.paints）；地圖上偶爾滴下來的顏料也撿得到
 //   MD01921-03 消失的黑線：黑線以為自己是毛毛蟲爬走了 → 帶牠到被認為是葉子的色塊 → 擋下天敵 → 結繭、變成蝴蝶飛走 → 帶回繭（黑線）
 (function () {
   const R = (window.RPG = window.RPG || {});
@@ -111,7 +114,86 @@
       if (!cands.length) return;
       D.eyes.push({ i: pick(cands).i, contra: false, done: false }); save();
     }
+    // ===== 畫架：顏料、畫布、自訂寶物 =====
+    const PZ = R.Items?.paints, N = 6;
+    const EASEL = (() => { for (let r = 0; r < 600; r += 40) for (let i = 0; i < 12; i++) { const x = MAP.arrive.x + 260 + Math.cos(i * 0.52) * r, y = MAP.arrive.y - 40 + Math.sin(i * 0.52) * r * 0.6; if (!api.blocked(x, y, 40)) return { x: Math.round(x), y: Math.round(y) }; } return { x: MAP.arrive.x + 200, y: MAP.arrive.y }; })();
+    const mdIds = () => (trip.accepted || []).filter((id) => id.startsWith("MD01921"));
+    const progSum = () => mdIds().reduce((n, id) => n + CM.progressOf(trip, id), 0);
+    if (D.paintSeen == null) { D.paintSeen = progSum(); save(); }
+    function paintCheck() {
+      if (!PZ) return;
+      const n = progSum();
+      if (n > D.paintSeen) {
+        const got = PZ.add(n - D.paintSeen); D.paintSeen = n; save();
+        toast(`委託有進展——旁邊的色塊塞給你顏料：${got.map((j) => PZ.label(j)).join("、")}（拿去畫架畫畫）`);
+      }
+    }
+    let draft = null;          // { grid: [], use: { 罐子編號: 用掉幾格 }, sel: 罐子編號, name }
+    const jarsLeft = () => { const a = PZ.list(); return a.map((j, i) => ({ ...j, i, left: j.left - (draft?.use[i] || 0) })); };
+    function easelPanel(msg) {
+      if (!PZ) return;
+      draft = draft || { grid: Array(N * N).fill(null), use: {}, sel: null, name: "" };
+      const jars = jarsLeft(), filled = draft.grid.filter(Boolean).length;
+      const cell = (g, i) => `<button type="button" data-act="pzCell" data-i="${i}" title="${g ? esc(PZ.label(g)) : "空白"}" style="width:40px;height:40px;padding:0;border:0;border-radius:0;cursor:pointer;background:${g ? R.Items.PAINT.colors[g.c].hex : "repeating-linear-gradient(45deg,#d8d3c6 0 6px,#cfc9bb 6px 12px)"}"></button>`;
+      const grid = `<div style="display:grid;grid-template-columns:repeat(${N},40px);gap:5px;background:#141416;padding:5px;width:max-content;border-radius:4px">${draft.grid.map(cell).join("")}</div>`;
+      const pal = jars.length ? jars.map((j) => `<button type="button" class="${draft.sel === j.i ? "primary" : "ghost"}" data-act="pzJar" data-i="${j.i}" ${j.left <= 0 ? "disabled" : ""} style="display:flex;align-items:center;gap:6px;margin:0 6px 6px 0"><span style="display:inline-block;width:16px;height:16px;border:2px solid #141416;background:${R.Items.PAINT.colors[j.c].hex}"></span>${esc(PZ.label(j))}・剩 ${j.left} 格</button>`).join("")
+        : `<p class="tv-note">還沒有顏料。做蒙德里安的委託（每完成一個階段給一罐），或是撿地圖上滴下來的顏料。</p>`;
+      const prev = R.Items.previewCustom({ kind: "paint", n: N, grid: draft.grid, name: draft.name || "（未命名）" });
+      const charId = trip.char, build = R.Progress?.load(charId), full = (build?.items || []).length >= (R.Items.SLOTS || 6);
+      api.openPanel("被認為是畫架的色塊", `${msg ? `<p class="wx-p"><b>${esc(msg)}</b></p>` : ""}<p class="wx-p">「我是一個畫架。……大家都這麼說，所以我就是。來，畫點什麼吧。畫布只有這麼大，顏料要省著用。」</p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">${grid}
+          <div style="flex:1;min-width:240px"><div class="tv-note" style="margin-bottom:6px">選一罐顏料，再點畫布的格子（點已經塗過的格子＝擦掉）。每一罐被認為的特質不一樣：生命力→生命、力量感→攻擊、安定→防禦、神奇→魔力、速度→速度</div>
+          <div style="display:flex;flex-wrap:wrap">${pal}</div>
+          <div class="tv-note" style="margin:6px 0">已經塗了 ${filled} / ${N * N} 格・預覽：${esc(prev?.desc.replace(/^.*?。/, "") || "")}（${R.Items.RARITY[prev?.rarity || "common"].name}）</div>
+          <label class="tv-note">作品名稱 <input id="pzName" maxlength="14" value="${esc(draft.name)}" placeholder="幫這幅畫取個名字" style="width:180px"></label>
+          <div class="tv-row" style="margin-top:8px"><button type="button" class="primary" data-act="pzDone" ${filled < 6 || full ? "disabled" : ""}>完成作品（變成寶物）</button><button type="button" class="ghost" data-act="pzClear">全部擦掉</button></div>
+          ${full ? `<p class="tv-note" style="color:#c62828">寶物欄滿了（${R.Items.SLOTS} 格），先在酒館整理寶物欄再來</p>` : filled < 6 ? `<p class="tv-note">至少要塗 6 格</p>` : ""}</div></div>`);
+    }
+    function pzAct(a, b) {
+      const nm = document.getElementById("pzName"); if (nm && draft) draft.name = nm.value.trim();
+      if (a === "pzJar") { draft.sel = +b.dataset.i; return easelPanel(), true; }
+      if (a === "pzCell") {
+        const i = +b.dataset.i, g = draft.grid[i];
+        if (g) { draft.use[g.j] = (draft.use[g.j] || 1) - 1; draft.grid[i] = null; return easelPanel(), true; }
+        if (draft.sel == null) return easelPanel("先選一罐顏料"), true;
+        const j = jarsLeft()[draft.sel];
+        if (!j || j.left <= 0) return easelPanel("這罐用完了"), true;
+        draft.grid[i] = { c: j.c, t: j.t, j: j.i }; draft.use[j.i] = (draft.use[j.i] || 0) + 1;
+        return easelPanel(), true;
+      }
+      if (a === "pzClear") { draft = null; return easelPanel(), true; }
+      if (a === "pzDone") {
+        const filled = draft.grid.filter(Boolean).length;
+        if (filled < 6) return easelPanel("至少要塗 6 格"), true;
+        const name = (draft.name || "").slice(0, 14) || "無題";
+        const grid = draft.grid.map((g) => (g ? { c: g.c, t: g.t } : null));
+        const it = R.Items.createCustom({ kind: "paint", n: N, grid, name, by: R.Profile?.get?.()?.name || "你" });
+        const g = R.Items.give(trip.char, it.id);
+        // 用掉的顏料
+        const jars = PZ.list();
+        for (const [k, n] of Object.entries(draft.use)) if (jars[k]) jars[k].left -= n;
+        PZ.save(jars.filter((j) => j.left > 0));
+        draft = null;
+        api.dlg("被認為是畫架的色塊", { name: "畫架", color: "#8a6a3a", face: "架" }, `「${name}」……好畫。色塊們圍過來看，七嘴八舌：「${it.desc.match(/「(.*?)」/)?.[1] || "很有感覺"}」`,
+          `<button type="button" class="primary" data-close>收下</button>`, g.text);
+        return true;
+      }
+      return false;
+    }
+    function drawEasel(now) {
+      const { x, y } = EASEL;
+      ctx.save();
+      ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x - 40, y + 50); ctx.lineTo(x, y - 70); ctx.lineTo(x + 40, y + 50); ctx.moveTo(x, y - 70); ctx.lineTo(x, y + 56); ctx.stroke();
+      ctx.fillStyle = "#141416"; ctx.fillRect(x - 46, y - 64, 92, 76);
+      const g = draft?.grid || [], c = 72 / N;
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const q = g[j * N + i]; ctx.fillStyle = q ? R.Items.PAINT.colors[q.c].hex : "#c9c4b6"; ctx.fillRect(x - 44 + i * c + 1, y - 62 + j * c + 1, c - 2, c - 2); }
+      ctx.restore();
+      text("被認為是畫架的色塊", x, y - 84, "#1d1d1f", 12, 900);
+      const n = PZ ? PZ.list().length : 0;
+      if (n) text(`顏料 ${n} 罐`, x, y + 74, "#5a3a1a", 11, 900);
+    }
     function update(dt, now) {
+      paintCheck();
       if (api.isBusy()) return;
       refillEyes();
       // 色塊長眼睛：走近就問
@@ -201,6 +283,7 @@
     }
 
     function click(p) {
+      if (dist(p.x, p.y, EASEL.x, EASEL.y - 20) < 70) { if (dist(me.x, me.y, EASEL.x, EASEL.y) < 140) easelPanel(); else api.goTo({ x: EASEL.x, y: EASEL.y + 70 }, { type: "hook", reach: 60, fn: () => easelPanel() }); return true; }
       // 溢出的白縫：用墨水補上
       if (stageOf("MD01921-04")?.type === "mdPaint" && inRect({ x: SEAM.x - 40, y: SEAM.y, w: SEAM.w + 80, h: SEAM.h }, p.x, p.y)) {
         const paint = () => {
@@ -245,6 +328,7 @@
       return false;
     }
     function act(a, b) {
+      if (a.startsWith("pz")) return pzAct(a, b);
       if (a === "mdAns") { answer(b.dataset.a, b.dataset.t); return true; }
       if (a === "mdConvince") {
         const id = b.dataset.n;
@@ -325,6 +409,7 @@
       ctx.fillStyle = "#fff"; ctx.fillRect(x + 48, y - 6 + Math.sin(now / 160) * 6, 5, 5);
     }
     function draw(now) {
+      drawEasel(now);
       const s3 = stageOf("MD01921-03");
       if (s3 && (s3.type === "mdCaterpillar" || s3.type === "boss")) drawCaterpillar(cat.x, cat.y, now);
       if (s3?.type === "mdCocoon") {

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ru20314-ruins.js": "20261113212359" });
 // #RU20314 古代遺跡科考隊：隱藏的石門開關、皮普的行跡、遺跡內部（場景 RU20314/ruins）
 // 森林：跟著皮普一路掉的東西走，一定找得到藏在森林裡的石門開關（不跟也有機會自己撞見）
 //       找到之後：特寫石門，符文一個一個變成紅色，石門打開 → 走進石門就是遺跡
@@ -44,6 +44,31 @@
       run.hp -= n; save(); api.renderHud();
       api.fx.push({ k: "num", x: me.x, y: me.y - 40, text: `-${n}`, color: "#e53935", t: performance.now(), dur: 900 });
       toast(label);
+    }
+    // ===== RU20314-02 失聯的隊員：有時限 =====
+    //   跟葛瑞絲說完話就開始計時（PIP_LIMIT 秒，用真實時間算，戰鬥中也在跑）；時間內走進皮普躲著的房間＝找到活著的皮普
+    //   時間到了還沒走進那個房間：只能帶回皮普留下的東西（委託報酬變少，對話也不一樣）
+    const RQ = (trip.qdata["RU20314-02"] = trip.qdata["RU20314-02"] || {});
+    const PIP_LIMIT = 9 * 60;
+    const pipLeft = () => Math.max(0, PIP_LIMIT - (Date.now() - RQ.t0) / 1000);
+    const relicNpc = (n) => Object.assign(n, { name: "皮普留下的背包", color: "#8a8478", face: "物", lines: ["（牆角只剩一個背包。背包上別著一支鉛筆，刻著「皮普」。）"] });
+    function pipTimer() {
+      if (!active("RU20314-02")) return;
+      const k = CM.progressOf(trip, "RU20314-02");
+      if (k >= 1 && !RQ.t0) { RQ.t0 = Date.now(); save(); }
+      if (RQ.t0 && !RQ.reached && !RQ.result && k <= 2 && pipLeft() <= 0) {
+        RQ.result = "relic"; save(); api.renderHud();
+        toast("……太遲了。遺跡深處傳來機關停下來的聲音。只能去把皮普留下的東西帶回來了");
+        const n = MAP.npcs?.find((x) => x.id === "pip"); if (n) relicNpc(n);
+      }
+    }
+    function pipText(id, st) {
+      if (id !== "RU20314-02" || !st) return null;
+      const tm = () => { const s = Math.ceil(pipLeft()); return `・剩 ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+      if (RQ.result === "relic" && st.npc === "pip") return "到皮普躲著的房間，把他留下的東西帶回來";
+      if (st.type === "talk" && st.npc === "pip") return `${st.text}${!RQ.reached && RQ.t0 ? tm() : ""}`;
+      if (st.type === "ruTrail") return `${st.text}（皮普的東西：${D.trailFound.length} / ${TRAIL.length}）${RQ.result === "relic" ? "・來不及了……" : RQ.t0 ? tm() : ""}`;
+      return null;
     }
     return MAP.ruins ? ruins() : forest();
 
@@ -135,6 +160,7 @@
       function enter() { api.changeScene("ruins", R.MAPS["RU20314/ruins"].arrive, "古代遺跡"); }
       function update(dt, now) {
         B.update?.(dt, now);
+        pipTimer();
         if (D.gateOpen && me.y < G.y + G.h + 34 && me.x > G.x && me.x < G.x + G.w) enter();
       }
       function drawFloor(now, x0, y0) {
@@ -163,11 +189,10 @@
           if (!D.gateOpen) text("長滿青苔的石頭（有一圈紋路）", SW.x, SW.y - 36, "#d8f0f0", 12, 900);
         }
         // 找到皮普之後：他回營地了
-        if (D.pipFound) { ctx.fillStyle = "#fffaf0"; ctx.fillRect(1660, 1290, 28, 28); ctx.strokeStyle = "#7a8a3a"; ctx.lineWidth = 3; ctx.strokeRect(1660, 1290, 28, 28); text("皮", 1674, 1305, "#7a8a3a", 14, 900); text("皮普（在寫報告）", 1674, 1276, "#3a2a1a", 11, 700); }
+        if (D.pipFound && RQ.result !== "relic") { ctx.fillStyle = "#fffaf0"; ctx.fillRect(1660, 1290, 28, 28); ctx.strokeStyle = "#7a8a3a"; ctx.lineWidth = 3; ctx.strokeRect(1660, 1290, 28, 28); text("皮", 1674, 1305, "#7a8a3a", 14, 900); text("皮普（在寫報告）", 1674, 1276, "#3a2a1a", 11, 700); }
       }
       function stageText(id, st) {
-        if (st?.type === "ruTrail") return `${st.text}（皮普的東西：${D.trailFound.length} / ${TRAIL.length}）`;
-        return B.stageText?.(id, st) || null;
+        return pipText(id, st) || B.stageText?.(id, st) || null;
       }
       function mini(dot, now) {
         B.mini?.(dot, now);
@@ -261,7 +286,8 @@
 
       // ===== 皮普：說完話就跟著你 =====
       const pal = { x: me.x - 40, y: me.y + 20 };
-      const pipFollow = () => D.pipFound && !trip.done.includes("RU20314-02");
+      const pipFollow = () => D.pipFound && !trip.done.includes("RU20314-02") && RQ.result !== "relic";
+      if (RQ.result === "relic") { const n = MAP.npcs.find((x) => x.id === "pip"); if (n) relicNpc(n); }
 
       // ===== 互動 =====
       function click(p) {
@@ -326,8 +352,11 @@
       function update(dt, now) {
         // 走出入口＝回到森林
         if (inRect(MAP.exit, me.x, me.y)) { api.changeScene(null, { x: 1600, y: 400 }, "回到森林"); return; }
+        pipTimer();
+        // 時間內走進皮普躲著的房間：找到了
+        if (RQ.t0 && !RQ.reached && !RQ.result && active("RU20314-02")) { const rm = MAP.rooms[D.pip]; if (rm && inRect(rm, me.x, me.y)) { RQ.reached = true; save(); api.renderHud(); toast("找到了！牆角縮著一個抱著筆記本的人——是皮普！"); } }
         // 皮普：說完話之後跟著你
-        if (stageOf("RU20314-02")?.type === "report" && !D.pipFound) { D.pipFound = true; const i = MAP.npcs.findIndex((n) => n.id === "pip"); if (i >= 0) MAP.npcs.splice(i, 1); save(); toast("皮普抱著筆記本跟在你後面。帶他回營地吧"); }
+        if (stageOf("RU20314-02")?.type === "report" && !D.pipFound) { D.pipFound = true; const i = MAP.npcs.findIndex((n) => n.id === "pip"); if (i >= 0) MAP.npcs.splice(i, 1); save(); toast(RQ.result === "relic" ? "把皮普的背包和筆記本收好了。……帶回營地吧" : "皮普抱著筆記本跟在你後面。帶他回營地吧"); }
         if (pipFollow()) { const tx = me.x - 40, ty = me.y + 20; pal.x += (tx - pal.x) * Math.min(1, dt * 5); pal.y += (ty - pal.y) * Math.min(1, dt * 5); }
         const t = performance.now(), jumped = t - (me.jetAt || 0) < 400;
         // 噴火機關
@@ -353,6 +382,7 @@
       }
       function stageText(id, st) {
         if (!st) return null;
+        const pt = pipText(id, st); if (pt) return pt;
         if (st.type === "ruCores") return `${st.text}（${D.cores || 0} / ${st.need}）`;
         if (st.type === "ruTraps") return `${st.text}（${Math.min(st.need, D.trapCount || 0)} / ${st.need}）`;
         return null;

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/cd02016.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/cd02016.js": "20261113212359" });
 // #CD02016 童年時的黑市
 //   CD02016-01 混進來的人：問四個新來的人兩個問題，指認臥底（真的懷念過的人記得細節；臥底只背得出年表）→ 打時代蓋世太保
 //   CD02016-02 分配童年：照客人的描述，從倉庫的架上拿對的玻璃罐交給他們（一次一罐）

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/co00756.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/co00756.js": "20261113212359" });
 // #CO00756 雲端上的海洋
 //   海＝天空的藍色：在海裡移動沒有水的阻力（速度照常），但其他都像水：停下來會慢慢浮上去、要換氣（氧氣用完會一直掉血）
 //   換氣：浮到海面（港口）或游進空氣雲。這裡的魚怎樣都抓不到（打下去會從指縫溜走）
@@ -69,7 +69,7 @@
       const bed = MAP.beds.find((b) => dist(p.x, p.y, b.x, b.y) < 80);
       if (bed) { K.reach(bed, 110, () => knead(bed)); return true; }
       // 破洞：補
-      if (dist(p.x, p.y, MAP.hole.x, MAP.hole.y) < 90) { K.reach(MAP.hole, 120, patch); return true; }
+      if (dist(p.x, p.y, MAP.hole.x, MAP.hole.y) < 90 && K.stage("CO00756-01")?.type !== "escort") { K.reach(MAP.hole, 120, patch); return true; }      // 委託進行到「護送」時，讓地圖的委託地點接手
       // 吸雲管：剪斷
       const h = MAP.hoses.find((x) => dist(p.x, p.y, x.x, x.y - 60) < 70);
       if (h) { K.reach({ x: h.x, y: h.y - 40 }, 100, () => cut(h)); return true; }
@@ -80,7 +80,7 @@
       if (Q1.beds[bed.id]) return toast("這片雲床已經捏過了，換一片吧");
       Q1.beds[bed.id] = true; Q1.clouds++; save(); api.renderHud?.();
       api.fx.push({ k: "ring", x: bed.x, y: bed.y, r: 60, color: "#ffffff", t: performance.now(), dur: 700 });
-      if (Q1.clouds >= 3) K.adv("CO00756-01", "捏好三團雲了。潛到最底層，找到破洞");
+      if (Q1.clouds >= 3) K.adv("CO00756-01", "捏好三團雲了。潛到最底層的破洞——把雲團送進去（小心氧氣）");
       else toast(`捏了一團雲（${Q1.clouds} / 3）`);
     }
     function patch() {
@@ -149,7 +149,7 @@
       for (let x = 0; x < MAP.w; x += 60) { ctx.fillStyle = "#f4f9ff"; ctx.beginPath(); ctx.arc(x + 30, FLOOR + 20 + Math.sin(x) * 8, 52, 0, Math.PI * 2); ctx.fill(); }
       ctx.fillStyle = "#f4f9ff"; ctx.fillRect(0, FLOOR + 30, MAP.w, MAP.h - FLOOR);
       // 破洞（補好了就看不到）
-      const ho = MAP.hole, fixed = trip.done.includes("CO00756-01") || (Q1.patched || 0) >= 3;
+      const ho = MAP.hole, fixed = trip.done.includes("CO00756-01") || (Q1.patched || 0) >= 3 || K.stage("CO00756-01")?.type === "report";
       if (!fixed) { const k = 1 - (Q1.patched || 0) / 3; ctx.fillStyle = "#6a7a8a"; ctx.beginPath(); ctx.ellipse(ho.x, ho.y, 90 * k + 10, 40 * k + 6, 0, 0, Math.PI * 2); ctx.fill(); text("破洞", ho.x, ho.y - 60, "#3a5a7a", 13, 900); }
       // 吸雲管
       const hoseOn = !trip.done.includes("CO00756-02");

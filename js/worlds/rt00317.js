@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/rt00317.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/rt00317.js": "20261113212359" });
 // #RT00317 午夜郵局：繪圖、情緒煙霧的樣子、委託的玩法
 //   rtChase  追上「昨天」正在搬家的梅森先生：他抱著箱子照著昨天的路線走，追上一次他就搬到下一個地方；
 //            昨天剩下的時間用完，時間投遞口會把昨天倒回去（從頭開始）

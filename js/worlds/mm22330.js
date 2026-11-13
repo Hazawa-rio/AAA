@@ -1,8 +1,9 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330.js": "20261113212359" });
 // #MM22330 或許是魔法森林
 //   黑暗：沒有菇光的地方只看得到身邊一小圈（行囊裡有「發光的蘑菇傘」會亮一點）
 //   紫色孢子：走進飄著紫色孢子的地方（或採到紫色孢子）會很想睡，走路變慢
 //   MM22330-01 不再發光的菇群：拔掉三團寄生菇 → 打寄生菇王 → 北邊的菇群重新亮起來
+//     寄生菇的位置每一趟隨機、地圖上不標記：牠會吸光——越靠近，身邊的光圈越小（冷熱遊戲）；每拔掉一團，身邊的光圈大一圈
 //   MM22330-02 孢子雨季：收集七種顏色的孢子（紫色最後才出現）
 //   MM22330-03 蘑菇屋的灰斑：刷掉四間蘑菇屋的灰斑 → 趕走鼴鼠洞的鼴鼠群
 (function () {
@@ -14,6 +15,12 @@
     const K = R.BKit(api), ctx = api.ctx();
     const Q1 = K.q("MM22330-01"), Q2 = K.q("MM22330-02"), Q3 = K.q("MM22330-03");
     Q1.pulled = Q1.pulled || {}; Q2.got = Q2.got || {}; Q3.spots = Q3.spots || {};
+    // 寄生菇：每一趟從候選位置隨機挑三個
+    if (!Q1.at) { const pool = MAP.growthSpots.slice().sort(() => Math.random() - 0.5); Q1.at = MAP.growths.map((g, i) => ({ x: pool[i].x, y: pool[i].y })); save(); }
+    MAP.growths.forEach((g, i) => Object.assign(g, Q1.at[i]));
+    const hunting = () => K.is("MM22330-01", "mmCut");
+    // 離最近的寄生菇多遠（找的時候用來縮小光圈）
+    const nearGrowth = () => Math.min(9999, ...MAP.growths.filter((g) => !Q1.pulled[g.id]).map((g) => dist(me.x, me.y, g.x, g.y)));
     const northLit = () => trip.done.includes("MM22330-01") || K.stage("MM22330-01")?.type === "report";
     let sleepy = 0, sleepMsg = 0;
     const SPOTS = 2;                                             // 每間屋子的灰斑數
@@ -130,7 +137,11 @@
         ctx.fillStyle = s.col; ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI * 2); ctx.fill();
         text(`${s.name}色的孢子`, s.x, s.y - 46, "#f4eefc", 12, 900);
       }
-      if (K.is("MM22330-01", "mmCut")) for (const g of MAP.growths) if (!Q1.pulled[g.id]) api.marker(g.x, g.y - 60, now, "#f2c200");
+      if (hunting()) {
+        const d = nearGrowth();
+        const hint = d < 200 ? "光被吸走了……就在附近！" : d < 450 ? "光圈在縮小……" : d < 700 ? "好像有一點點暗下來" : "";
+        if (hint) text(hint, me.x, me.y - 60 - Math.sin(now / 300) * 3, "#c8a0ff", 13, 900);
+      }
       if (K.is("MM22330-03", "mmHouse")) for (const h of MAP.houses) if ((Q3.spots[h.id] || 0) < SPOTS) api.marker(h.x, h.y - 140, now, "#f2c200");
       if (sleepy > 0) text("Zzz", me.x + 22, me.y - 52 - Math.sin(now / 400) * 4, "#c8a0ff", 14, 900);
     }
@@ -149,23 +160,29 @@
         g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
         d.fillStyle = g; d.beginPath(); d.arc(sx, sy, sr, 0, Math.PI * 2); d.fill();
       };
-      hole(me.x, me.y, BAG.count(run.items, "glowCap") ? 300 : 210);
+      let myR = BAG.count(run.items, "glowCap") ? 300 : 210;
+      if (hunting()) {
+        // 寄生菇在吸光：越靠近，光圈越小（最小 90）；每拔掉一團，光圈 +40
+        const d = nearGrowth(), k = d < 700 ? Math.max(0, d - 80) / 620 : 1;
+        myR = 90 + (myR - 90) * k + Object.keys(Q1.pulled).length * 40 * k;
+      }
+      hole(me.x, me.y, myR);
       for (const L of MAP.lights) if (!L.north || northLit()) hole(L.x, L.y, L.r * (1 + Math.sin(now / 900 + L.x) * 0.04));
       if (K.is("MM22330-02", "mmSpore")) for (const s of MAP.spores) if (!Q2.got[s.id] && (!s.sleepy || sixDone())) hole(s.x, s.y, 70);
-      for (const g of MAP.growths) if (!Q1.pulled[g.id] && !trip.done.includes("MM22330-01")) hole(g.x, g.y, 50);
+      // 寄生菇本身不發光（找的時候只能靠光圈變小來判斷）；很近的時候才看得到牠一跳一跳的紫光
+      for (const g of MAP.growths) if (!Q1.pulled[g.id] && !trip.done.includes("MM22330-01") && dist(me.x, me.y, g.x, g.y) < 160) hole(g.x, g.y, 40);
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(dark, 0, 0);
       if (sleepy > 0) { ctx.fillStyle = `rgba(120,60,180,${Math.min(0.25, sleepy * 0.03)})`; ctx.fillRect(0, 0, cw, ch); }
       ctx.restore();
     }
     function stageText(id, st) {
-      if (st?.type === "mmCut") return `${st.text}（${Object.keys(Q1.pulled).length} / 3）`;
+      if (st?.type === "mmCut") return `${st.text}（${Object.keys(Q1.pulled).length} / 3）・寄生菇會吸光：身邊的光圈越小，就越近`;
       if (st?.type === "mmSpore") return `${st.text}（${Object.keys(Q2.got).length} / 7）`;
       if (st?.type === "mmHouse") return `${st.text}（${MAP.houses.filter((x) => (Q3.spots[x.id] || 0) >= SPOTS).length} / 4）`;
       return null;
     }
     function mini(dot, now) {
       const bl = `rgba(242,194,0,${0.6 + 0.4 * Math.sin(now / 200)})`;
-      if (K.is("MM22330-01", "mmCut")) for (const g of MAP.growths) if (!Q1.pulled[g.id]) dot(g.x, g.y, 4, bl);
       if (K.is("MM22330-02", "mmSpore")) for (const s of MAP.spores) if (!Q2.got[s.id] && (!s.sleepy || sixDone())) dot(s.x, s.y, 4, s.col);
       if (K.is("MM22330-03", "mmHouse")) for (const h of MAP.houses) if ((Q3.spots[h.id] || 0) < SPOTS) dot(h.x, h.y, 4, bl);
     }

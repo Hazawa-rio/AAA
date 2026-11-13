@@ -1,7 +1,7 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/er00119.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/er00119.js": "20261113212359" });
 // #ER00119 有點偏執的急診室
 //   ER00119-01 只是打了個噴嚏：在心電圖監視器上排出正常的竇性心律（P → QRS → T，三拍；選錯就從頭來）
-//   ER00119-02 被完美縫合的病人們：為三位病人算出鎮靜劑量（體重 × 係數 ÷ 濃度，剛好小數點第五位）→ 手術室打首席外科醫師
+//   ER00119-02 被完美縫合的病人們：為三位病人算出鎮靜劑量（體重 × 係數 ÷ 濃度，剛好小數點第五位）→ 推病床到恢復室（護送戰：站在病床旁邊病床就會往前滑）→ 手術室打首席外科醫師
 //   ER00119-03 風水上的完美：把四張病床轉回羅盤牌上的角度（±45°、±7.5°）
 (function () {
   const R = (window.RPG = window.RPG || {});
@@ -79,7 +79,7 @@
       api.sfx?.("sounds/guan-chime.mp3");
       const n = Object.keys(Q2.dosed).length;
       api.closePanel();
-      if (n >= 3) K.adv("ER00119-02", "三位病人都睡著了。去東北邊的手術室找首席外科醫師");
+      if (n >= 3) K.adv("ER00119-02", "三位病人都睡著了。趁現在，到地下病房的門口把病床推到恢復室");
       else toast(`牆上的管子「咻」地送來一支針：${v} 毫升，剛剛好。${p.name}慢慢睡著了（${n} / 3）`);
     }
 

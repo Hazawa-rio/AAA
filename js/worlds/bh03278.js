@@ -1,9 +1,11 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bh03278.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bh03278.js": "20261113212359" });
 // #BH03278 比爾哈頓廣場
-//   催淚瓦斯：白色的煙會慢慢飄。走進去會咳嗽（走路變慢）；扛著醫療物資走進去，箱子會掉回補給車
-//   BH03278-01 廣場上的醫療站：從補給車搬三箱醫療物資到醫療站
-//   BH03278-02 兩年前的收據：問店員、主持人、警官 → 對圍著店的人說出查到的事（選對的話）→ 打煽動者
+//   催淚瓦斯：白色的煙隨風飄（風向每隔一陣子會變）。走進去會咳嗽（走路變慢）
+//   BH03278-01 廣場上的醫療站：從補給車搬三箱醫療物資到醫療站。扛著箱子碰到瓦斯，箱子會掉在原地（煙散了再撿）
+//     南邊有臨時封鎖線（補給車和醫療站之間），定時開關：關著的時候過不去，要等它打開，或繞北邊穿過瓦斯
+//   BH03278-02 兩年前的收據：問店員、主持人、警官 → 對圍著店的人說出查到的事 → 守住精品店（護送戰：講錯越多次，留下來的暴民越多）
 //   BH03278-03 瓦斯散了以後：幫五個咳到睜不開眼的人沖眼睛（不分哪一邊）
+//     大學生和外送員咳到亂跑（靠近會跑開，咳到停下來的時候追上去）；警員和郵差爺爺在噴水池邊吵架，要先把他們勸開
 (function () {
   const R = (window.RPG = window.RPG || {});
   R.WorldHooks = R.WorldHooks || {};
@@ -12,7 +14,16 @@
     const { MAP, trip, me, toast, text, save, dist, esc } = api;
     const K = R.BKit(api), ctx = api.ctx();
     const Q1 = K.q("BH03278-01"), Q2 = K.q("BH03278-02"), Q3 = K.q("BH03278-03");
-    Q1.n = Q1.n || 0; Q2.asked = Q2.asked || {}; Q3.done = Q3.done || {};
+    Q1.n = Q1.n || 0; Q2.asked = Q2.asked || {}; Q2.wrong = Q2.wrong || 0; Q3.done = Q3.done || {};
+    // 風：每隔 12 秒換一次方向，瓦斯跟著飄
+    let wind = { x: 16, y: 6 }, windT = 12;
+    // 南邊的臨時封鎖線：開 4 秒 → 閃 1 秒 → 關 4 秒
+    const CP = MAP.checkpoint, CYCLE = 9;
+    const cpPhase = () => (performance.now() / 1000) % CYCLE;
+    const cpOpen = () => cpPhase() < 4;
+    // 咳到亂跑的人
+    const runners = MAP.coughers.filter((c) => c.runner).map((c) => Object.assign(c, { home: { x: c.x, y: c.y }, vx: 0, vy: 0, pause: 2 + Math.random() * 2, fit: 0 }));
+    if (Q3.apart) for (const c of MAP.coughers) if (c.argue) c.x += c.id === "c2" ? 130 : -130;
     const gas = MAP.gas.map((g) => ({ ...g }));
     let cough = 0, coughMsg = 0;
 
@@ -58,22 +69,43 @@
     }
     function say(id) {
       const s = SAY.find((x) => x.id === id);
-      if (!s.ok) return crowdPanel(s.r);
+      if (!s.ok) { Q2.wrong++; save(); return crowdPanel(s.r); }
       api.dlg("精品店前", { name: "圍著精品店的人群", color: "#8a5a3a", face: "群" }, "……人群安靜了下來。有人低頭看了看手上的傳單，把它摺起來放進口袋。「……那我們去議會門口。」「對，去議會門口。」", `<button type="button" class="primary" data-close>繼續</button>`);
       K.adv("BH03278-02", "大部分的人往議會的方向走了。可是有一個人沒有走……");
     }
 
     // ===== 更新：瓦斯、搬箱子 =====
     function update(dt) {
-      for (const g of gas) {
-        g.x += g.vx * dt; g.y += g.vy * dt;
-        if (g.x < 500 || g.x > 2200) g.vx *= -1;
-        if (g.y < 650 || g.y > 1600) g.vy *= -1;
+      if ((windT -= dt) <= 0) {
+        windT = 12; const a = Math.random() * Math.PI * 2, sp = 14 + Math.random() * 16; wind = { x: Math.cos(a) * sp, y: Math.sin(a) * sp };
+        if (K.is("BH03278-01", "bhCrate")) toast("風向變了，瓦斯往另一邊飄");
       }
+      for (const g of gas) {
+        g.vx += (wind.x - g.vx) * dt * 0.5; g.vy += (wind.y - g.vy) * dt * 0.5;
+        g.x += g.vx * dt; g.y += g.vy * dt;
+        if (g.x < 500) { g.x = 500; g.vx = Math.abs(g.vx); } if (g.x > 2200) { g.x = 2200; g.vx = -Math.abs(g.vx); }
+        if (g.y < 650) { g.y = 650; g.vy = Math.abs(g.vy); } if (g.y > 1700) { g.y = 1700; g.vy = -Math.abs(g.vy); }
+      }
+      // 咳到亂跑的人：靠近就跑開；每隔幾秒咳到停下來
+      for (const c of runners) {
+        if (Q3.done[c.id] || c.caught || !K.is("BH03278-03", "bhRinse")) continue;
+        if (c.fit > 0) { c.fit -= dt; continue; }
+        if ((c.pause -= dt) <= 0) { c.pause = 3 + Math.random() * 2.5; c.fit = 1.6; continue; }
+        const d = dist(me.x, me.y, c.x, c.y);
+        if (d < 70) { c.caught = true; toast(`抓住${c.name}了！他咳得停不下來——快幫他沖眼睛`); continue; }
+        let tx, ty, sp;
+        if (d < 260) { tx = c.x + (c.x - me.x) / d * 100; ty = c.y + (c.y - me.y) / d * 100; sp = 165; }
+        else { tx = c.home.x + Math.sin(performance.now() / 2000 + c.x) * 160; ty = c.home.y + Math.cos(performance.now() / 2600) * 120; sp = 50; }
+        const L = Math.hypot(tx - c.x, ty - c.y) || 1, nx = c.x + (tx - c.x) / L * sp * dt, ny = c.y + (ty - c.y) / L * sp * dt;
+        const inside = nx > 80 && nx < MAP.w - 80 && ny > 120 && ny < MAP.h - 100 && !MAP.solids.some((r) => nx > r.x - 30 && nx < r.x + r.w + 30 && ny > r.y - 30 && ny < r.y + r.h + 30) && !(CP && nx > CP.x - 30 && nx < CP.x + CP.w + 30 && ny > CP.y);
+        if (inside) { c.x = nx; c.y = ny; } else { c.home = { x: MAP.w / 2 + (Math.random() - 0.5) * 900, y: 1100 + (Math.random() - 0.5) * 600 }; }
+      }
+      // 封鎖線關上的時候人剛好站在線上：被警察推到旁邊
+      if (CP && !cpOpen() && me.x + me.half > CP.x && me.x - me.half < CP.x + CP.w && me.y + me.half > CP.y) me.x = me.x < CP.x + CP.w / 2 ? CP.x - me.half - 2 : CP.x + CP.w + me.half + 2;
       if (cough > 0) cough -= dt;
       const inGas = gas.some((g) => dist(me.x, me.y, g.x, g.y) < g.r);
       if (inGas) {
-        if (Q1.carry) { Q1.carry = false; save(); api.renderHud(); toast("咳——咳咳！箱子掉了，被路過的志工撿回補給車……再搬一次，記得繞開白煙"); }
+        if (Q1.carry) { Q1.carry = false; Q1.drop = { x: Math.round(me.x), y: Math.round(me.y) }; save(); api.renderHud(); toast("咳——咳咳！箱子掉在地上了。等煙散了再回來撿"); }
         if (cough < 2) cough = 2.5;
         if (Date.now() > coughMsg) { coughMsg = Date.now() + 6000; api.bark?.("gas"); toast("催淚瓦斯！眼睛好痛……（走路變慢）"); }
       }
@@ -85,18 +117,51 @@
       }
     }
     const speedMul = () => (cough > 0 ? 0.6 : 1) * (Q1.carry ? 0.75 : 1);
+    // 封鎖線關著的時候走不過去
+    const blocked = (x, y, h) => CP && !cpOpen() && x + h > CP.x && x - h < CP.x + CP.w && y + h > CP.y && y - h < CP.y + CP.h;
+    // 守住精品店：講錯越多次，留下來的暴民越多
+    const escortVariant = (s) => (s.id === "BH03278-02" ? `shop${Math.min(2, Q2.wrong)}` : null);
 
     // ===== 點擊 =====
     function click(p) {
+      if (Q1.drop && K.hit(p, Q1.drop, 50)) { K.reach(Q1.drop, 70, pickDrop); return true; }
       if (K.hit(p, MAP.truck, 90)) { K.reach(MAP.truck, 130, takeCrate); return true; }
       if (K.hit(p, MAP.crowd, 120) && K.is("BH03278-02", "bhTruth")) { K.reach(MAP.crowd, 160, () => crowdPanel()); return true; }
       const c = MAP.coughers.find((x) => K.hit(p, x, 50));
-      if (c && K.is("BH03278-03", "bhRinse")) { K.reach(c, 90, () => rinse(c)); return true; }
+      if (c && K.is("BH03278-03", "bhRinse")) {
+        if (c.argue && !Q3.apart) { K.reach(c, 110, arguePanel); return true; }
+        K.reach(c, 90, () => (dist(me.x, me.y, c.x, c.y) < 130 ? rinse(c) : toast(`${c.name}又咳著跑開了……等他咳到停下來再追上去`)));
+        return true;
+      }
       return false;
+    }
+    function pickDrop() {
+      if (Q1.carry) return toast("一次只扛得動一箱");
+      if (gas.some((g) => dist(Q1.drop.x, Q1.drop.y, g.x, g.y) < g.r)) return toast("箱子還泡在白煙裡。等風把煙吹走再撿");
+      Q1.drop = null; Q1.carry = true; save(); api.renderHud(); toast("把掉在地上的箱子撿起來了");
+    }
+    // 吵架的警員和郵差爺爺：先勸開
+    const ARGUE = [
+      { id: "stop", t: "「不要吵了！誰對誰錯等一下再說！」", r: "兩個人同時轉過頭來：「你是哪一邊的？」……他們吵得更兇了。" },
+      { id: "side", t: "「警察先生，你應該讓爺爺先沖。」", r: "「我也睜不開眼睛啊！」「你看，他們永遠只顧自己！」……幫一邊說話，另一邊就聽不進去了。" },
+      { id: "ok", t: "「你們兩個的眼睛都在痛。我一次只能沖一個——先各退三步，我一個一個來。」", ok: true },
+    ];
+    function arguePanel(msg) {
+      const pair = { name: "吵架的兩個人", color: "#6a5a7a", face: "吵" };
+      api.dlg("噴水池邊", pair, msg || "年輕的警員和郵差爺爺都咳得睜不開眼，卻還在互相大吼：「你們先丟瓦斯的！」「你們先推封鎖線的！」——兩個人靠得太近，誰都不肯讓你先沖另一個。",
+        ARGUE.map((s) => `<button type="button" class="ghost dlg-ask" data-act="bhArgue" data-s="${s.id}">${esc(s.t)}</button>`).join(""));
+    }
+    function argue(id) {
+      const s = ARGUE.find((x) => x.id === id);
+      if (!s.ok) return arguePanel(s.r);
+      Q3.apart = true; save();
+      for (const c of MAP.coughers) if (c.argue) c.x += c.id === "c2" ? 130 : -130;
+      api.dlg("噴水池邊", { name: "吵架的兩個人", color: "#6a5a7a", face: "吵" }, "……兩個人愣了一下，各自往後退了三步。郵差爺爺嘟囔著：「那……讓年輕人先吧。」警員搖搖頭：「爺爺先。」", `<button type="button" class="primary" data-close>好，一個一個來</button>`);
     }
     function takeCrate() {
       if (!K.is("BH03278-01", "bhCrate")) return toast("補給車上堆著紗布和生理食鹽水，車身寫著「醫療用，請勿搶奪」");
       if (Q1.carry) return toast("一次只扛得動一箱");
+      if (Q1.drop) return toast("先把掉在地上的那箱撿回來吧（地圖上的箱子）");
       Q1.carry = true; save(); api.renderHud();
       toast("扛起一箱醫療物資。走得比較慢，繞開白色的煙");
     }
@@ -112,6 +177,7 @@
     function act(a, b) {
       if (a === "bhAsk") { ask(b.dataset.n); return true; }
       if (a === "bhSay") { say(b.dataset.s); return true; }
+      if (a === "bhArgue") { argue(b.dataset.s); return true; }
       return false;
     }
 
@@ -146,7 +212,16 @@
       text("補給車", tr.x, tr.y + 80, "#5a5a5a", 13, 900);
       // 舞台前的群眾、圍著店的人群
       for (let i = 0; i < 18; i++) person(200 + (i % 6) * 50, 860 + Math.floor(i / 6) * 50, ["#d8a04a", "#c86a4a", "#4a8ac8"][i % 3], now, i, "抗");
-      const st2 = K.stage("BH03278-02")?.type, calmed = trip.done.includes("BH03278-02") || st2 === "boss" || st2 === "report";
+      const st2 = K.stage("BH03278-02")?.type, calmed = trip.done.includes("BH03278-02") || st2 === "escort" || st2 === "report";
+      // 南邊的臨時封鎖線
+      if (CP) {
+        const open = cpOpen(), warn = !open && cpPhase() < 5 && Math.floor(now / 120) % 2;
+        ctx.fillStyle = open ? "rgba(58,74,106,.25)" : warn ? "#f2c200" : "#3a4a6a"; ctx.fillRect(CP.x, CP.y + (open ? CP.h * 0.35 : 0), CP.w, open ? CP.h * 0.3 : CP.h);
+        if (!open) { ctx.fillStyle = "#f2c200"; for (let y = CP.y; y < CP.y + CP.h; y += 40) ctx.fillRect(CP.x, y, CP.w, 14); }
+        for (let i = 0; i < 5; i++) { const yy = CP.y + 50 + i * 110, side = open ? (i % 2 ? 60 : -60) : 0; person(CP.x + CP.w / 2 + side, yy, "#3a4a7a", now, i, "警"); }
+        const left = Math.ceil(open ? 4 - cpPhase() : CYCLE - cpPhase());
+        text(open ? `臨時封鎖線：開著（${left}）` : `臨時封鎖線：關著（${left}）`, CP.x + CP.w / 2, CP.y - 16, open ? "#2e7a46" : "#3a4a7a", 12, 900);
+      }
       const cn = calmed ? 4 : 22;
       for (let i = 0; i < cn; i++) { const a = Math.PI * (0.05 + 0.9 * (i / cn)), rr = 210 + (i % 3) * 40; person(1400 + Math.cos(a) * rr * 1.4, 400 + Math.sin(a) * rr * 0.6, ["#5a4a3a", "#8a5a3a", "#6a6a5a"][i % 3], now, i, "眾"); }
       if (!calmed) text("「議員買得起，我們就拿得起！」", 1400, 640 + Math.sin(now / 500) * 3, "#6a2a1a", 13, 900);
@@ -158,16 +233,19 @@
       for (const c of MAP.coughers) {
         const ok = Q3.done[c.id] || trip.done.includes("BH03278-03");
         K.human(c.x, c.y, c.col, c.ch, now, { s: 28, k: c.x }); text(c.name, c.x, c.y - 30, "#3a2a1a", 11, 700);
+        if (!ok && c.argue && !Q3.apart && K.active("BH03278-03")) text(c.id === "c2" ? "「你們先推的！」" : "「你們先丟的！」", c.x, c.y - 48 - Math.abs(Math.sin(now / 160)) * 3, "#a83a2a", 12, 900);
+        if (!ok && c.runner && c.fit > 0) text("咳咳咳咳！", c.x, c.y - 48, "#a83a2a", 12, 900);
         if (!ok && K.active("BH03278-03")) { text("咳咳…", c.x + 40, c.y + 4 - Math.abs(Math.sin(now / 200)) * 4, "#6a6a6a", 11, 900); if (K.is("BH03278-03", "bhRinse")) api.marker(c.x, c.y - 56, now, "#f2c200"); }
       }
+      if (Q1.drop) { ctx.fillStyle = "#e8e0d0"; ctx.strokeStyle = "#8a6a3a"; ctx.lineWidth = 3; api.rr(Q1.drop.x - 18, Q1.drop.y - 10, 36, 26, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#c84a4a"; ctx.fillRect(Q1.drop.x - 3, Q1.drop.y - 6, 6, 18); ctx.fillRect(Q1.drop.x - 9, Q1.drop.y, 18, 6); if (K.is("BH03278-01", "bhCrate")) api.marker(Q1.drop.x, Q1.drop.y - 40, now, "#f2c200"); }
       if (Q1.carry) { ctx.fillStyle = "#e8e0d0"; ctx.strokeStyle = "#8a6a3a"; ctx.lineWidth = 3; api.rr(me.x - 18, me.y - 70, 36, 26, 4); ctx.fill(); ctx.stroke(); ctx.fillStyle = "#c84a4a"; ctx.fillRect(me.x - 3, me.y - 66, 6, 18); ctx.fillRect(me.x - 9, me.y - 60, 18, 6); }
-      if (K.is("BH03278-01", "bhCrate")) api.marker(Q1.carry ? MAP.tent.x : MAP.truck.x, (Q1.carry ? MAP.tent.y : MAP.truck.y) - 100, now, "#f2c200");
+      if (K.is("BH03278-01", "bhCrate") && !Q1.drop) api.marker(Q1.carry ? MAP.tent.x : MAP.truck.x, (Q1.carry ? MAP.tent.y : MAP.truck.y) - 100, now, "#f2c200");
       if (K.is("BH03278-02", "bhTruth")) api.marker(MAP.crowd.x, MAP.crowd.y - 60, now, "#f2c200");
       if (K.is("BH03278-02", "bhAsk")) for (const id of Object.keys(TESTIMONY)) if (!Q2.asked[id]) { const n = MAP.npcs.find((x) => x.id === id); api.marker(n.x, n.y - 70, now, "#f2c200"); }
       if (cough > 0) text("咳咳！", me.x + 24, me.y - 50, "#8a8a8a", 13, 900);
     }
     function stageText(id, st) {
-      if (st?.type === "bhCrate") return `${st.text}（${Q1.n} / 3）${Q1.carry ? "・扛著一箱" : ""}`;
+      if (st?.type === "bhCrate") return `${st.text}（${Q1.n} / 3）${Q1.carry ? "・扛著一箱" : Q1.drop ? "・有一箱掉在路上" : ""}`;
       if (st?.type === "bhAsk") return `${st.text}（${Object.keys(Q2.asked).length} / 3）`;
       if (st?.type === "bhRinse") return `${st.text}（${Object.keys(Q3.done).length} / 5）`;
       return null;
@@ -180,6 +258,6 @@
       if (K.is("BH03278-03", "bhRinse")) for (const c of MAP.coughers) if (!Q3.done[c.id]) dot(c.x, c.y, 4, bl);
     }
     function drawEnemy(e, now, red) { return K.enemyArt(e, now, red, { looters: ["looter", 2], looters3: ["looter", 3] }); }
-    return { update, click, act, npcExtra, draw, drawFloor, drawEnemy, stageText, mini, speedMul };
+    return { update, click, act, npcExtra, draw, drawFloor, drawEnemy, stageText, mini, speedMul, blocked, escortVariant };
   };
 })();

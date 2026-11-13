@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kt33233.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kt33233.js": "20261113212359" });
 // #KT33233 巨人的生態盒：你非常非常小；兩隻大魔王打不了，只能跑
 //   恐怖的大魔王・長戟大兜蟲（右盒）：沿路線巡邏，看到你就衝過來
 //   邪惡大魔王・長頸鹿鉅鍬形蟲（左盒）：睡在糧倉上，每隔一陣子翻身睜眼；睜眼時看到你就衝過來
