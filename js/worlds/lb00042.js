@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261114045024" });
 // #LB00042 美食研究所：地圖探索裡的專屬玩法
 // - 理性倉庫：貨架上的素材只有「採購清單」上的拿得起來
 // - 電腦：玩家通不過驗證，只能在委託中協助研究員操作；完成夠多委託後才開放玩家自己做實驗（之後再做）

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261114045024" });
 // #LG00412 傳說的道路（A 級）
 //   宙斯的噴嚏：在城裡走動時，偶爾地上會亮起一個金色的圈，一下子就會打雷（站在裡面會受傷）
 //   LG00412-01 眾神的考驗：向三位哲學家請教 → 到獅子洞跟獅子辯論（三輪，選錯了從頭來）→ 獅子被說動搖了，打一場 → 牠承認自己輸了

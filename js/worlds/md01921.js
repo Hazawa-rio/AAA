@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921.js": "20261114045024" });
 // #MD01921 蒙德里安的理想國：畫布的繪圖、長出眼睛的色塊、兩張委託的玩法
 //   長眼睛的色塊：走近時問「我像什麼？」——回答物品就乖乖回去，回答野獸就變成野獸撲過來；
 //                唱反調的色塊（看不出來）只認相反的答案。薇薇拉「像蘑菇」、弗爾斯勒「你就是個方塊」一定能破解

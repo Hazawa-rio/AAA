@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/er00119.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/er00119.js": "20261114045024" });
 // #ER00119 有點偏執的急診室
 //   ER00119-01 只是打了個噴嚏：在心電圖監視器上排出正常的竇性心律（P → QRS → T，三拍；選錯就從頭來）
 //   ER00119-02 被完美縫合的病人們：為三位病人算出鎮靜劑量（體重 × 係數 ÷ 濃度，剛好小數點第五位）→ 推病床到恢復室（護送戰：站在病床旁邊病床就會往前滑）→ 手術室打首席外科醫師

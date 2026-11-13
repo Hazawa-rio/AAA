@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/li44444.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/li44444.js": "20261114045024" });
 // #LI44444 李家大宅（A 級：中式恐怖、規則怪談）
 //   時辰：戌 → 亥 → 子 → 丑 一直輪（一輪約 4 分鐘；子時 70 秒）。子時喜轎會從正廳飄出來，繞前院三圈，再從後門出去
 //   陰氣（0～100）：違反規矩、被幻影碰到、子時待在正廳都會上升；站在長明燈旁會慢慢散掉

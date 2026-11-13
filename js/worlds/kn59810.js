@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kn59810.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/kn59810.js": "20261114045024" });
 // #KN59810 克亞貝魯巴斯諾（A 級：街機空戰射擊遊戲的內部）
 //   關卡門 STAGE 1～3：進去是「射擊小遊戲」（直式捲軸）：滑鼠或方向鍵／WASD 移動（Shift 慢速），自動射擊
 //     生命改成「殘機」（3 架），被打中就少一架；殘機用完是 CONTINUE 畫面：投 10 金幣接關，或放棄

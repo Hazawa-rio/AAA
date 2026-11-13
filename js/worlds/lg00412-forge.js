@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412-forge.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412-forge.js": "20261114045024" });
 // #LG00412-2 赫菲斯托斯的鍛造場（傳說的道路的裏時空）
 //   入口：傳說的道路東北角的火山裂縫。完成傳說的道路全部五張委託（這一輪冒險裡做過就算）才會打開
 //   三個任務拿素材（這一趟有效）：

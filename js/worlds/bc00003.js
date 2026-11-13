@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bc00003.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bc00003.js": "20261114045024" });
 // #BC00003 黑原市：街道、大樓、天橋；委託用的飛天車
 //   飛天車：停在南邊廣場的停機坪。最多坐七人，多人時要指名一位駕駛（目前一個人出發＝自己開）
 //           坐上去之後可以飛過大樓、移動變快；回到停機坪才能降落

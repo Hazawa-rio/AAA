@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/co00756.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/co00756.js": "20261114045024" });
 // #CO00756 雲端上的海洋
 //   海＝天空的藍色：在海裡移動沒有水的阻力（速度照常），但其他都像水：停下來會慢慢浮上去、要換氣（氧氣用完會一直掉血）
 //   換氣：浮到海面（港口）或游進空氣雲。這裡的魚怎樣都抓不到（打下去會從指縫溜走）
