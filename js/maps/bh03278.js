@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bh03278.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bh03278.js": "20261113212359" });
 // 地圖：#BH03278 比爾哈頓廣場（B 級時空）
 // 南：廣場入口（傳送門）、志工醫療站；北：被包圍的精品店；西：抗議的舞台；東：警察的封鎖線；東南：補給車
 // 廣場上飄著催淚瓦斯（白色的煙）：走進去會咳嗽、走路變慢；扛著醫療物資走進去，箱子會掉
@@ -18,14 +18,15 @@
     tent: { x: 720, y: 1620 },                                    // 志工醫療站
     truck: { x: 2460, y: 1740 },                                  // 補給車
     crowd: { x: 1400, y: 520 },                                   // 圍著精品店的人群
+    checkpoint: { x: 1590, y: 1390, w: 40, h: 570 },              // 南邊的臨時封鎖線：補給車和醫療站之間，定時開關（關著的時候走不過去，要繞北邊穿過瓦斯）
     // 催淚瓦斯（會慢慢飄）
     gas: [{ x: 1300, y: 1150, r: 140, vx: 18, vy: 6 }, { x: 1900, y: 1450, r: 120, vx: -14, vy: -8 }, { x: 900, y: 1000, r: 110, vx: 10, vy: 12 }, { x: 1700, y: 850, r: 130, vx: -10, vy: 10 }],
     // 咳到睜不開眼的人（不分哪一邊）
     coughers: [
-      { id: "c1", ch: "學", name: "舉牌子的大學生", side: "抗議的人", x: 620, y: 1100, col: "#d8a04a" },
-      { id: "c2", ch: "警", name: "年輕的警員", side: "警察", x: 2200, y: 600, col: "#3a4a7a" },
-      { id: "c3", ch: "送", name: "路過的外送員", side: "路人", x: 1500, y: 1500, col: "#5a9a5a" },
-      { id: "c4", ch: "郵", name: "退休的郵差爺爺", side: "抗議的人", x: 1050, y: 760, col: "#d8a04a" },
+      { id: "c1", ch: "學", name: "舉牌子的大學生", side: "抗議的人", x: 620, y: 1100, col: "#d8a04a", runner: true },
+      { id: "c2", ch: "警", name: "年輕的警員", side: "警察", x: 1770, y: 1060, col: "#3a4a7a", argue: true },
+      { id: "c3", ch: "送", name: "路過的外送員", side: "路人", x: 1500, y: 1500, col: "#5a9a5a", runner: true },
+      { id: "c4", ch: "郵", name: "退休的郵差爺爺", side: "抗議的人", x: 1650, y: 1060, col: "#d8a04a", argue: true },
       { id: "c5", ch: "盾", name: "拿盾牌的警員", side: "警察", x: 2200, y: 1300, col: "#3a4a7a" },
     ],
     arrive: { x: 520, y: 1820 },

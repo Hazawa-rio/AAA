@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mj44444.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mj44444.js": "20261113212359" });
 // 地圖：#MJ44444 彼岸花盛開的事務所（B 級時空）
 // 北：事務所的辦理窗口（一號～五號）和公告欄；中：亡者的等候區、統計課；南：彼岸花田（傳送門）
 (function () {

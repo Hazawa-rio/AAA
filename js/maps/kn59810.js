@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kn59810.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kn59810.js": "20261113212359" });
 // 地圖：#KN59810 克亞貝魯巴斯諾（A 級時空）
 // 一台空戰射擊街機的內部：南邊是投幣口（傳送門），中間是標題畫面的廣場，北邊是三道關卡門（STAGE 1～3）
 // 西邊是卡在接關畫面的房間，東邊是排行榜的牆。地上偶爾有閃爍的亂碼格子（機台的 bug）

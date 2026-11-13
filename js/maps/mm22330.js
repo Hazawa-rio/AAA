@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330.js": "20261113212359" });
 // 地圖：#MM22330 或許是魔法森林（B 級時空）
 // 一座礦洞：礦脈裡長的是會發光的蘑菇。南邊是礦坑入口和精靈的蘑菇屋村，中間是發光的礦道，北邊是最深處的菇群（暗掉了）
 // 沒有菇光的地方伸手不見五指（只看得到自己身邊一小圈）
@@ -22,7 +22,8 @@
       { x: 260, y: 1050, r: 200, col: "#9ad8ff" }, { x: 1150, y: 1350, r: 180, col: "#ffd88a" }, { x: 1800, y: 1000, r: 200, col: "#9affc8" }, { x: 2450, y: 1050, r: 180, col: "#c8a0ff" },
       { x: 800, y: 300, r: 260, col: "#9ad8ff", north: true }, { x: 1350, y: 250, r: 300, col: "#c8a0ff", north: true }, { x: 1950, y: 300, r: 260, col: "#9affc8", north: true },
     ],
-    growths: [{ id: "g1", x: 860, y: 430 }, { id: "g2", x: 1380, y: 470 }, { id: "g3", x: 1900, y: 440 }],         // 吸光的寄生菇
+    growths: [{ id: "g1", x: 860, y: 430 }, { id: "g2", x: 1380, y: 470 }, { id: "g3", x: 1900, y: 440 }],         // 吸光的寄生菇（每一趟從 growthSpots 隨機挑三個位置）
+    growthSpots: [{ x: 860, y: 430 }, { x: 1380, y: 470 }, { x: 1900, y: 440 }, { x: 420, y: 760 }, { x: 1150, y: 980 }, { x: 2350, y: 820 }, { x: 2600, y: 380 }, { x: 260, y: 300 }, { x: 1650, y: 560 }, { x: 900, y: 1250 }],
     houses: [{ id: "h1", x: 760, y: 1640, col: "#d84a4a" }, { id: "h2", x: 1060, y: 1820, col: "#4a8ad8" }, { id: "h3", x: 1480, y: 1660, col: "#d8a04a" }, { id: "h4", x: 1720, y: 1900, col: "#8a4ad8" }],
     burrow: { x: 2280, y: 1700 },                                                                        // 鼴鼠洞
     // 孢子雨季：七種顏色的孢子（紫色最後才出現；吸到會想睡）

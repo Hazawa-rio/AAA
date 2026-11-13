@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lb00042.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lb00042.js": "20261113212359" });
 // 地圖：#LB00042 美食研究所（室內）
 // 中間（藍）是研究室：左上角有電腦、桌上堆著手稿；上下兩道安全門（橘）通往理性倉庫，右邊的安全門通往微波爐室
 // 理性倉庫（深紅）呈 U 字形圍著研究室，擺滿貨架；左下角是報廢室（黑色叉叉）

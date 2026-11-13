@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/er00119.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/er00119.js": "20261113212359" });
 // 地圖：#ER00119 有點偏執的急診室（B 級時空）
 // 南：掛號大廳（傳送門、福利社）；中：急診病床區（擺著奇怪角度的病床）；東北：手術室；西：地下病房（被完美縫合的病人）
 (function () {
