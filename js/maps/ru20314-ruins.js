@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314-ruins.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314-ruins.js": "20261114045024" });
 // 地圖：#RU20314 古代遺跡內部（場景 RU20314/ruins）
 // 房間的位置和連接照使用者畫的結構圖（5 列）：
 //   藍色＝入口（固定：中間有一塊石台、牆上爬著藤蔓，藤蔓下可能藏一個寶箱）

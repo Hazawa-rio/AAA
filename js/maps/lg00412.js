@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lg00412.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lg00412.js": "20261114045024" });
 // 地圖：#LG00412 傳說的道路（A 級時空）
 // 西半邊是雅典式的城邦：北邊雅典娜神殿、中間市集（廣場）、西邊柱廊（哲學家）、西北的獅子洞、南邊城門外是傳送門
 // 東半邊（出了城的東門）是神話的荒野：東北是鎖著普羅米修斯的山崖、中間是冥河渡口、東南是西西弗斯的山坡

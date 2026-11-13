@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bh03278.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bh03278.js": "20261114045024" });
 // 地圖：#BH03278 比爾哈頓廣場（B 級時空）
 // 南：廣場入口（傳送門）、志工醫療站；北：被包圍的精品店；西：抗議的舞台；東：警察的封鎖線；東南：補給車
 // 廣場上飄著催淚瓦斯（白色的煙）：走進去會咳嗽、走路變慢；扛著醫療物資走進去，箱子會掉

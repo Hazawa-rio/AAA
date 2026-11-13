@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330.js": "20261114045024" });
 // 地圖：#MM22330 或許是魔法森林（B 級時空）
 // 一座礦洞：礦脈裡長的是會發光的蘑菇。南邊是礦坑入口和精靈的蘑菇屋村，中間是發光的礦道，北邊是最深處的菇群（暗掉了）
 // 沒有菇光的地方伸手不見五指（只看得到自己身邊一小圈）
