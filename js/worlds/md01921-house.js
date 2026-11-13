@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921-house.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/md01921-house.js": "20261113145157" });
 // #MD01921 蒙德里安的理想國・MD01921-02「豪宅還是山洞」
 //   3×4 的黃色方形說自己住在豪宅，隔壁的 1×3 白色方形說那是山洞，還在門口掛了「小心落石」
 //   走進黃色方形的家（場景 MD01921/house）：屋裡五樣說不清楚的東西，你看成什麼就是什麼（理想國的規則）

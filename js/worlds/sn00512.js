@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sn00512.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sn00512.js": "20261113145157" });
 // #SN00512 燈塔小鎮：雪地、針葉林、燈塔、結冰的港口
 //   暴風雪會一陣一陣地變大（大約 70 秒一輪）：越大，走得越慢、看得越不清楚；最大的時候冰鈴草才會開花
 //   SN00512-01 燈塔的柴火：柴房裝柴 → 拉雪橇（變慢）送到燈塔門口，兩趟
