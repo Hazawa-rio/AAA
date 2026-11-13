@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/li44444.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/li44444.js": "20261113145157" });
 // 地圖：#LI44444 李家大宅（A 級時空）
 // 中式大宅：南邊是大門和街（傳送門、李守仁、老師傅、唱童謠的孩子、紙紮店），進門是前院（喜轎繞圈的地方）
 // 正中是正廳（供桌、李先生）；東邊廚房（太太）；西邊二房（二哥，門口掛著簾子）；西北是繡樓（大哥從窗戶摔下來的地方）

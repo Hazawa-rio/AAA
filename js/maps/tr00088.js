@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/tr00088.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/tr00088.js": "20261113145157" });
 // 地圖：#TR00088 不停歇的月台（C 級時空）
 // 四座月台（南＝抵達的地方、東、北、西）長得都一樣：上面是一直在跑的列車，中間是月台（有自動販賣機），
 // 下面隔著一排閘門是大廳。列車車廂是另一個場景：找個位子小睡一會，醒來就到了下一座月台（逆時針：南→東→北→西→南）

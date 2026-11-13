@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kn59810.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kn59810.js": "20261113145157" });
 // 地圖：#KN59810 克亞貝魯巴斯諾（A 級時空）
 // 一台空戰射擊街機的內部：南邊是投幣口（傳送門），中間是標題畫面的廣場，北邊是三道關卡門（STAGE 1～3）
 // 西邊是卡在接關畫面的房間，東邊是排行榜的牆。地上偶爾有閃爍的亂碼格子（機台的 bug）
@@ -8,7 +8,7 @@
   const W = 2600, H = 1800;
   R.MAPS.KN59810 = {
     indoor: true, battleRoom: "arcade", arcade: true,
-    bgm: "sounds/bgm-kn.mp3",                // 地圖的音樂（射擊小遊戲裡是 bgm-kn-stg）
+    bgm: "sounds/bgm-kn-stg.mp3",            // 地圖的音樂（射擊小遊戲裡是 bgm-kn；兩首對調過）
     w: W, h: H,
     walk: [{ x: 40, y: 40, w: W - 80, h: H - 80 }],
     solids: [{ x: 2380, y: 600, w: 160, h: 560 }],
@@ -40,8 +40,10 @@
         lines: ["我叫 AAA。因為輸入名字的時候，我按了三次 A。", "第一名本來是我的。直到那個「???」出現。"] },
       { id: "blue", name: "1P 的機師・小藍", x: 290, y: 880, color: "#3a6ae8", face: "藍", quests: ["KN59810-03"],
         lines: ["CONTINUE?……9……8……7……", "我已經在這裡數了好久好久。每次數到 0，又會從 9 開始。"] },
-      { id: "p2", name: "等待加入的 2P", x: 1600, y: 1500, color: "#e85a3a", face: "２",
+      { id: "p2", name: "等待加入的 2P", x: 1600, y: 1500, color: "#e85a3a", face: "２", quests: ["KN59810-05"],
         lines: ["PRESS START TO JOIN……我在等有人按 START。", "我從開機就在這裡了。我看過很多人玩，也看過那個 ??? 玩。"] },
+      { id: "ticket", name: "出票口的小票", x: 1180, y: 1420, color: "#ff9a2a", face: "票", quests: ["KN59810-04"],
+        lines: ["（喀啦……喀啦……）出票口在轉，可是一張票也吐不出來。", "打完關卡就該吐票的。這是街機的規矩。"] },
       { id: "cat", name: "像素貓", x: 1100, y: 760, color: "#8a8a9a", face: "貓",
         lines: ["喵。（嗶）", "喵喵。（嗶嗶）"] },
     ],
