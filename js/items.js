@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261113212359" });
 // 寶物：玩家有 6 格寶物欄，放在欄裡的寶物都會生效
 // 寶物存在角色的成長資料裡（R.Progress），戰鬥開始時帶進場
 (function () {
@@ -216,10 +216,157 @@
     },
   };
 
+  // ===================== 自訂寶物（玩家自己做、自己命名的寶物） =====================
+  // 存在 localStorage「rpg.customItems」：{ id: 資料 }。讀檔的時候用資料重新做出寶物（數值、效果、圖示）
+  //   kind: "paint"＝蒙德里安的畫作（畫布上每一格顏料的「被認為的特質」決定數值，圖示就是那幅畫）
+  //   kind: "forge"＝赫菲斯托斯的鍛造武器（指定一個角色的一個技能：用那個技能時，附加投射／扇形／投擲物的額外傷害）
+  const PAINT = {
+    colors: { red: { name: "紅", hex: "#e8262c" }, blue: { name: "藍", hex: "#1f4fa8" }, yellow: { name: "黃", hex: "#f4c81c" }, white: { name: "白", hex: "#ffffff" }, black: { name: "黑", hex: "#141416" } },
+    // 被認為的特質 → 每一格加多少
+    traits: {
+      life: { name: "有生命力", stat: "hp", per: 1.5, label: "生命" },
+      power: { name: "有力量感", stat: "atk", per: 0.4, label: "攻擊" },
+      calm: { name: "令人安定", stat: "df", per: 0.35, label: "防禦" },
+      magic: { name: "相當神奇", stat: "mp", per: 2, label: "魔力" },
+      speed: { name: "充滿速度", stat: "spd", per: 1 / 6, label: "速度" },
+    },
+  };
+  // 鍛造武器可以鑲的金屬（熔爐飛龍掉的；綁定的那一招本身的傷害提高）和寶石（晶簇烏龜掉的；強化附加攻擊）。w＝掉落的權重
+  const METALS = {
+    bronze: { name: "青銅", col: "#c8843a", w: 55, pct: 0.08, desc: "那一招傷害 +8%" },
+    silver: { name: "白銀", col: "#d8dce4", w: 28, pct: 0.15, desc: "那一招傷害 +15%" },
+    gold: { name: "黃金", col: "#f2c21a", w: 13, pct: 0.25, desc: "那一招傷害 +25%" },
+    adamant: { name: "精金", col: "#6ae8d8", w: 4, pct: 0.4, desc: "那一招傷害 +40%" },
+  };
+  const GEMS = {
+    ruby: { name: "紅寶石", col: "#e8262c", w: 30, dmg: 3, desc: "附加傷害 +3" },
+    topaz: { name: "黃晶", col: "#f2e01a", w: 22, count: 1, desc: "附加攻擊 +1 次" },
+    sapphire: { name: "藍寶石", col: "#1aa0e8", w: 28, range: 0.3, desc: "附加攻擊的射程／範圍 +30%" },
+    emerald: { name: "綠柱石", col: "#a8e01a", w: 12, dmg: 2, range: 0.15, desc: "附加傷害 +2、範圍 +15%" },
+    rose: { name: "粉晶", col: "#f4a8c8", w: 8, dmg: 5, desc: "附加傷害 +5" },
+  };
+  const FORMS = {
+    projectile: { name: "投射", desc: "朝最近的敵人射出一道光矢" },
+    fan: { name: "扇形", desc: "朝最近的敵人揮出一道扇形的熱浪" },
+    throw: { name: "投擲物", desc: "朝目標丟出一顆熔岩彈，落地爆炸" },
+  };
+  function paintIcon(grid, n) {
+    const c = 30 / n;
+    let out = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="0" y="0" width="32" height="32" fill="#141416"/>`;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const g = grid[j * n + i], hex = g ? PAINT.colors[g.c]?.hex : "#c9c4b6";
+      out += `<rect x="${(1 + i * c).toFixed(2)}" y="${(1 + j * c).toFixed(2)}" width="${(c - 0.7).toFixed(2)}" height="${(c - 0.7).toFixed(2)}" fill="${hex}"/>`;
+    }
+    return out + "</svg>";
+  }
+  const FORGE_ICON = {
+    projectile: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27 L22 10" stroke="#8a8e98" stroke-width="4" stroke-linecap="round"/><path d="M19 6 L27 5 L26 13 Z" fill="#ff8a2a" stroke="#7a2a0a" stroke-width="1.5"/><path d="M4 24 L8 28" stroke="#5a3a1a" stroke-width="4"/></svg>',
+    fan: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28 L4 10 A16 16 0 0 1 28 10 Z" fill="#ff8a2a" stroke="#7a2a0a" stroke-width="2" stroke-linejoin="round"/><path d="M16 28 L16 12" stroke="#5a3a1a" stroke-width="3"/></svg>',
+    throw: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="18" r="10" fill="#3a2a2a" stroke="#1d1d1f" stroke-width="2"/><path d="M10 16 Q16 10 22 16 Q16 22 10 16" fill="#ff6a1a"/><path d="M20 8 Q23 4 26 6" stroke="#ff8a2a" stroke-width="2" fill="none"/></svg>',
+  };
+  function buildCustom(d) {
+    if (d.kind === "paint") {
+      const n = d.n || 6, cnt = {};
+      for (const g of d.grid || []) if (g) cnt[g.t] = (cnt[g.t] || 0) + 1;
+      const stats = {}, parts = [];
+      for (const [t, c] of Object.entries(cnt)) {
+        const T = PAINT.traits[t]; if (!T) continue;
+        const v = Math.floor(c * T.per + 1e-9);
+        if (v > 0) { stats[T.stat] = (stats[T.stat] || 0) + v; parts.push(`${T.label} +${v}`); }
+      }
+      const feel = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t]) => PAINT.traits[t]?.name).filter(Boolean);
+      const filled = (d.grid || []).filter(Boolean).length, kinds = Object.keys(cnt).length;
+      return { id: d.id, name: d.name, custom: d, rarity: filled >= 26 && kinds >= 4 ? "epic" : filled >= 14 ? "rare" : "common",
+        desc: `你在蒙德里安的理想國畫的畫。色塊們說它「${feel.slice(0, 3).join("、")}」。${parts.join("、") || "（沒有效果）"}`,
+        source: `蒙德里安的理想國・畫架的畫布（${d.by || "你"}的作品）`, stats, icon: paintIcon(d.grid || [], n) };
+    }
+    if (d.kind === "forge") {
+      const F = FORMS[d.form] || FORMS.projectile;
+      const gems = (d.gems || []).map((g) => GEMS[g]).filter(Boolean), metal = METALS[d.metal];
+      const base = d.base + gems.reduce((a, g) => a + (g.dmg || 0), 0), count = 1 + gems.reduce((a, g) => a + (g.count || 0), 0), rs = 1 + gems.reduce((a, g) => a + (g.range || 0), 0);
+      const extra = [metal && `鑲著${metal.name}：「${d.skillName}」本身的傷害 +${Math.round(metal.pct * 100)}%`, gems.length && `寶石：${gems.map((g) => g.name).join("、")}`].filter(Boolean).join("。");
+      const score = base + (count - 1) * 6 + (rs - 1) * 20 + (metal ? metal.pct * 30 : 0);
+      return { id: d.id, name: d.name, custom: d, rarity: score >= 24 ? "legendary" : score >= 15 ? "epic" : "rare",
+        desc: `赫菲斯托斯的鍛造場打出來的武器。只對${d.charName || "打造它的人"}有用：使用「${d.skillName}」時，${F.desc}${count > 1 ? `（${count} 次）` : ""}，造成 ${base} 點額外傷害（${F.name}${rs > 1 ? `，範圍 ×${rs.toFixed(2)}` : ""}）${extra ? "。" + extra : ""}`,
+        dmgMult(b, u) {
+          if (!metal || b.char?.id !== d.charId) return 1;
+          const sk = b.currentSkill && b.char.skills[b.currentSkill];
+          return sk?.key === d.skill ? 1 + metal.pct : 1;
+        },
+        source: "傳說的道路・裏時空 #LG00412-2 赫菲斯托斯的鍛造場", icon: FORGE_ICON[d.form] || FORGE_ICON.projectile, forge: d,
+        onSkill(b, u, sk, center) {
+          if (!sk || b.char?.id !== d.charId || sk.key !== d.skill) return;
+          const foes = b.enemies().filter((e) => e.alive);
+          if (!foes.length) return;
+          const from = center || u;
+          const near = foes.slice().sort((a, c) => R.dist(a.x, a.y, from.x, from.y) - R.dist(c.x, c.y, from.x, from.y))[0];
+          const note = `（${d.name}）`;
+          // count＞1：投射＝打不同的敵人（不夠就重複打）、扇形＝再揮一次、投擲物＝丟到不同的敵人身上
+          for (let n = 0; n < count; n++) setTimeout(() => {
+            if (b.dead || b.phase === "over") return;
+            const live = b.enemies().filter((e) => e.alive);
+            if (!live.length) return;
+            if (d.form === "projectile") {
+              const order = live.filter((e) => R.dist(e.x, e.y, u.x, u.y) <= 640 * rs).sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y));
+              const t = order[n % Math.max(1, order.length)];
+              if (!t) return;
+              b.emit({ type: "talisman", from: { x: u.x, y: u.y }, to: { x: t.x, y: t.y }, star: true, dur: 260 });
+              b.damage(u, t, base, 1, note);
+            } else if (d.form === "fan") {
+              const tg = live.slice().sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y))[0];
+              const a0 = Math.atan2(tg.y - u.y, tg.x - u.x), R0 = 300 * rs, half = 0.9;
+              b.emit({ type: "forgeFan", x: u.x, y: u.y, a: a0, r: R0, half });
+              for (const e of live) {
+                const dd = R.dist(e.x, e.y, u.x, u.y), da = Math.abs(((Math.atan2(e.y - u.y, e.x - u.x) - a0 + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+                if (dd <= R0 + e.r && da <= half) b.damage(u, e, base, 1, note);
+              }
+            } else {
+              const order = live.slice().sort((a, c) => R.dist(a.x, a.y, from.x, from.y) - R.dist(c.x, c.y, from.x, from.y));
+              const tg = order[n % order.length], p = { x: tg.x, y: tg.y }, RR = 100 * rs;
+              b.emit({ type: "forgeBoom", from: { x: u.x, y: u.y }, x: p.x, y: p.y, r: RR });
+              setTimeout(() => {
+                if (b.dead || b.phase === "over") return;
+                for (const e of b.enemies().filter((x) => x.alive)) if (R.dist(e.x, e.y, p.x, p.y) <= RR + e.r) b.damage(u, e, base, 1, note);
+                b.emit();
+              }, 420);
+            }
+            b.emit();
+          }, n * 220);
+        } };
+    }
+    return null;
+  }
+  const CUSTOM_KEY = "rpg.customItems";
+  const loadCustom = () => { try { return JSON.parse(localStorage.getItem(CUSTOM_KEY)) || {}; } catch (e) { return {}; } };
+  for (const d of Object.values(loadCustom())) { const it = buildCustom(d); if (it) LIST[d.id] = it; }
+
   R.Items = {
     SLOTS: 6,
     RARITY,
-    LIST,
+    LIST, PAINT, FORMS, METALS, GEMS,
+    // 做出一個自訂寶物：存起來、註冊進寶物表，回傳寶物
+    createCustom(d) {
+      const all = loadCustom();
+      d.id = d.id || `cx_${d.kind}_${Date.now().toString(36)}`;
+      d.at = Date.now();
+      all[d.id] = d;
+      try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(all)); } catch (e) { /* 存不了就算了 */ }
+      const it = buildCustom(d);
+      if (it) LIST[d.id] = it;
+      return it;
+    },
+    previewCustom: (d) => buildCustom(d),
+    // 蒙德里安的顏料（局外，跨冒險保留）：[{ c: 顏色, t: 被認為的特質, left: 還能塗幾格 }]
+    paints: {
+      KEY: "rpg.paints", PER_JAR: 4,
+      list() { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch (e) { return []; } },
+      save(a) { try { localStorage.setItem(this.KEY, JSON.stringify(a)); } catch (e) { /* 忽略 */ } },
+      // 隨機一罐（顏色、特質都隨機）
+      roll() { const C = Object.keys(PAINT.colors), T = Object.keys(PAINT.traits); return { c: C[Math.floor(Math.random() * C.length)], t: T[Math.floor(Math.random() * T.length)], left: this.PER_JAR }; },
+      add(n = 1) { const a = this.list(), got = []; for (let i = 0; i < n; i++) { const j = this.roll(); a.push(j); got.push(j); } this.save(a); return got; },
+      label(j) { return `${PAINT.colors[j.c].name}色（${PAINT.traits[j.t].name}）`; },
+    },
+    paintIcon,
     get(id) { return LIST[id]; },
     // 寶物格的 HTML（滑鼠停留顯示名稱與效果）
     slotHtml(id) {

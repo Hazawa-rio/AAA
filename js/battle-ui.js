@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261113212359" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -179,7 +179,7 @@
       const [g0, g1] = ROOMDEF.gold || [0, 0];
       const gold = g0 + Math.floor(Math.random() * (g1 - g0 + 1));
       run.gold += gold;
-      msg = `${ROOMDEF.escort ? "護送成功" : `擊敗了${ROOMDEF.name}`}，獲得 ${gold} 金幣`;
+      msg = `${ROOMDEF.escort ? ROOMDEF.words?.title || "護送成功" : `擊敗了${ROOMDEF.name}`}，獲得 ${gold} 金幣`;
       xpNote += `<span class="reward coin">獲得 ${gold} 金幣（這次冒險持有 ${run.gold}）</span>`;
       // 掉落物：打倒的每一隻敵人各擲一次
       if (R.Bag) {
@@ -214,8 +214,8 @@
       // 護送失敗：委託沒有推進，可以回去再試一次
       run.hp = u.hp;
       run.grace = Date.now() + 3500;
-      msg = "護送失敗了……車隊退回了會合點，可以再試一次";
-      xpNote += `<span class="reward dim">護送失敗：委託進度沒有推進，回到會合點可以再試一次</span>`;
+      msg = ROOMDEF.words?.failMsg || "護送失敗了……車隊退回了會合點，可以再試一次";
+      xpNote += `<span class="reward dim">${ROOMDEF.words?.failTitle || "護送失敗"}：委託進度沒有推進，回到委託地點可以再試一次</span>`;
     } else if (SCARE) {
       // 旅館裡全員嚇破膽：不算戰敗、冒險不會結束；傳送回大廳發抖，這趟沒完成的委託都算失敗
       run.hp = Math.max(1, Math.round(u.maxHp * 0.3));
@@ -329,7 +329,7 @@
     bubbles.length = 0;
     lastBark.clear();
     poses.clear();
-    B = new R.Battle(C, CH.id, ROOM, ROOMDEF.variant);
+    B = new R.Battle(C, CH.id, ROOM, ROOMDEF.variant); R._B = B;          // 測試用
     B.on(onEvent);
     if (R.Bestiary) R.Bestiary.markSeen(foes());
     // 午夜嚇人比賽之類的開場白；暗黑霸王龍變形完會咆哮
@@ -477,6 +477,8 @@
         break;
       case "chargeCancel": for (const c of ev.charges) fx.push({ k: "chargeOut", c, t, dur: 450 }); break;
       case "zoneExpire": for (const z of ev.zones) fx.push({ k: "smokeOut", zone: z, t, dur: 700 }); break;
+      case "forgeFan": fx.push({ k: "forgeFan", x: ev.x, y: ev.y, a: ev.a, r: ev.r, half: ev.half, t, dur: 500 }); break;      // 鍛造武器：扇形的熱浪
+      case "forgeBoom": fx.push({ k: "forgeBoom", from: ev.from, x: ev.x, y: ev.y, r: ev.r, t, dur: 900 }); break;            // 鍛造武器：熔岩彈
       case "ink":        // 凡塔黑的墨水
         fx.push({ k: "ink", x: ev.x, y: ev.y, r: ev.r, t, dur: 1400 });
         break;
@@ -816,7 +818,7 @@
     if (!B) return;
     const u = B.player;
     $("#result").classList.toggle("hidden", B.phase !== "over");
-    $("#resultTitle").textContent = SCARE && B.result === "win" ? "把對手嚇跑了！" : SCARE && B.result === "lose" ? "嚇破膽了……" : B.result === "win" ? (ROOMDEF.escort ? "護送成功！" : "勝利！") : B.result === "escortFail" ? "護送失敗" : B.result === "fled" ? "撤退成功" : FROM_WORLD && B.result === "lose" ? "全員倒下……委託失敗" : "被打倒了…";
+    $("#resultTitle").textContent = SCARE && B.result === "win" ? "把對手嚇跑了！" : SCARE && B.result === "lose" ? "嚇破膽了……" : B.result === "win" ? (ROOMDEF.escort ? `${ROOMDEF.words?.title || "護送成功"}！` : "勝利！") : B.result === "escortFail" ? ROOMDEF.words?.failTitle || "護送失敗" : B.result === "fled" ? "撤退成功" : FROM_WORLD && B.result === "lose" ? "全員倒下……委託失敗" : "被打倒了…";
     $("#resultXp").innerHTML = xpNote;
     const prefight = B.scripted && !B.inFight;      // 教學的說明階段：沒有回合
     $("#roundInfo").textContent = prefight ? "" : B.realtime ? `剩餘 ${Math.ceil(B.escortLeft())} 秒` : `第 ${B.round} 回合`;
@@ -905,7 +907,8 @@
       banner.textContent = obj;
     } else if (B.realtime && B.phase !== "over") {
       const left = Math.ceil(B.escortLeft()), carts = B.wards.filter((w) => w.alive).length;
-      let text = `護送戰：剩 ${left} 秒・馬車 ${carts} / ${B.wards.length}（至少保住 ${ROOMDEF.need} 輛）・行動點每 ${ROOMDEF.apEvery} 秒 +1`;
+      const W = ROOMDEF.words || {};
+      let text = `${W.mode || "護送戰"}：剩 ${left} 秒・${W.noun || "馬車"} ${carts} / ${B.wards.length}（至少保住 ${ROOMDEF.need} ${W.unit || "輛"}）・行動點每 ${ROOMDEF.apEvery} 秒 +1${ROOMDEF.bannerExtra ? ROOMDEF.bannerExtra(B) : ""}`;
       if (mode !== "move") {
         const aim = statusOf(mode).aim?.type;
         text = `「${statusOf(mode).label}」：` + (aim === "direction" ? "點擊方向射出" : aim === "enemy" ? "點選敵人" : "點選位置") + "（右鍵 / Esc 取消）";
@@ -2421,7 +2424,7 @@
     if (u.def.ai === "cultist") return drawCultist(u, now);
     if (u.def.ai === "pope") return drawPope(u, now);
     if (u.def.boss) return drawBoss(u, now);
-    if (u.ward) return drawWagon(u, now);
+    if (u.ward) return u.def.art && R.WardArt?.[u.def.art] ? R.WardArt[u.def.art](ctx, u, pos(u), now, { label, circle, roundRect }) : drawWagon(u, now);
     const off = lungeOffset(u, now);
     const leap = leapProgress(u, now);
     if (leap) {
@@ -2806,6 +2809,30 @@
           ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, H * 0.7); ctx.scale(sc, sc);
           ctx.font = "900 46px 'Noto Sans TC', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.lineWidth = 10; ctx.strokeStyle = "rgba(20,0,0,.85)"; ctx.strokeText(f.text, 0, 0); ctx.fillStyle = f.color; ctx.fillText(f.text, 0, 0);
+          ctx.restore();
+          break;
+        }
+        case "forgeFan": {
+          ctx.save(); ctx.globalAlpha = (1 - k) * 0.8;
+          const g = ctx.createRadialGradient(f.x, f.y, 10, f.x, f.y, f.r * (0.5 + k * 0.5));
+          g.addColorStop(0, "rgba(255,240,180,.9)"); g.addColorStop(0.6, "rgba(255,138,42,.7)"); g.addColorStop(1, "rgba(200,40,10,0)");
+          ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.arc(f.x, f.y, f.r * (0.5 + k * 0.5), f.a - f.half, f.a + f.half); ctx.closePath(); ctx.fill();
+          ctx.restore();
+          break;
+        }
+        case "forgeBoom": {
+          ctx.save();
+          if (k < 0.45) {        // 飛行中：拋物線上的熔岩彈
+            const q = k / 0.45, x = f.from.x + (f.x - f.from.x) * q, y = f.from.y + (f.y - f.from.y) * q - Math.sin(q * Math.PI) * 120;
+            ctx.fillStyle = "#3a2a2a"; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#ff6a1a"; ctx.beginPath(); ctx.arc(x - 3, y - 3, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "rgba(255,106,26,.6)"; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+          } else {
+            const q = (k - 0.45) / 0.55;
+            ctx.globalAlpha = 1 - q;
+            ctx.fillStyle = "rgba(255,138,42,.55)"; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.6 + q * 0.5), 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "rgba(255,230,150,.8)"; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * 0.4 * (1 - q), 0, Math.PI * 2); ctx.fill();
+          }
           ctx.restore();
           break;
         }

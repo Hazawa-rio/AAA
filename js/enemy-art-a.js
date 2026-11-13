@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-a.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-a.js": "20261113212359" });
 // A 級時空的戰鬥造型和戰鬥背景（目前：#LI44444 李家大宅）
 // R.EnemyArt[kind](ctx, u, p, now)；R.Terrains[terrain]：bg(g, W, H) 畫一次、draw(ctx, now, W, H) 每一格都畫
 (function () {
@@ -260,6 +260,66 @@
     draw(ctx, now, W, H) {
       for (let i = 0; i < 40; i++) { const x = (i * 157) % W, y = (i * 91 + now / (6 + (i % 3) * 4)) % H; ctx.fillStyle = i % 3 ? "#8ab0ff" : "#fff"; ctx.fillRect(x, y, 2 + (i % 2), 2 + (i % 2)); }
       ctx.fillStyle = "rgba(0,0,0,.12)"; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);    // 掃描線
+    },
+  };
+  // ===== 護送戰要保護的東西（R.WardArt[def.art]）：櫥窗、病床、雲團 =====
+  const wardBar = (ctx, u, x, y, w = 70, col = "#c98a2a") => {
+    if (!u.alive) return;
+    ctx.fillStyle = "#ece8df"; ctx.fillRect(x - w / 2, y, w, 7);
+    ctx.fillStyle = u.hp / u.maxHp > 0.4 ? col : "#e53935"; ctx.fillRect(x - w / 2, y, w * (u.hp / u.maxHp), 7);
+    ctx.strokeStyle = "#3a2a1a"; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2, y, w, 7);
+  };
+  R.WardArt = {
+    // 精品店的櫥窗：金色的框、玻璃反光、裡面擺著包包；破了就是碎玻璃
+    window(ctx, u, p, now, h) {
+      const w = 92, hh = 70, x = p.x - w / 2, y = p.y - hh / 2;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(x + 4, y + hh, w, 8);
+      ctx.fillStyle = "#2a2a30"; ctx.fillRect(x - 6, y - 6, w + 12, hh + 12);
+      ctx.fillStyle = "#c8a84a"; ctx.fillRect(x - 6, y - 6, w + 12, 6); ctx.fillRect(x - 6, y + hh, w + 12, 6);
+      if (u.alive) {
+        const k = u.hp / u.maxHp;
+        ctx.fillStyle = "#cfe6f0"; ctx.fillRect(x, y, w, hh);
+        ctx.fillStyle = "#8a4a6a"; ctx.fillRect(x + 18, y + 34, 22, 20); ctx.fillStyle = "#c8a84a"; ctx.fillRect(x + 52, y + 30, 24, 24);
+        ctx.strokeStyle = "#8a4a6a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 29, y + 34, 7, Math.PI, 0); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 10, y + hh - 10); ctx.lineTo(x + 36, y + 8); ctx.stroke();
+        if (k < 0.7) { ctx.strokeStyle = "#5a6a7a"; ctx.lineWidth = 1.5; ctx.beginPath(); const cx = x + w * 0.65, cy = y + hh * 0.4; for (let i = 0; i < (k < 0.4 ? 7 : 4); i++) { const a = i * 0.9 + 0.3; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * 40, cy + Math.sin(a) * 30); } ctx.stroke(); }
+      } else {
+        ctx.fillStyle = "#1a1a20"; ctx.fillRect(x, y, w, hh);
+        ctx.fillStyle = "#cfe6f0"; for (let i = 0; i < 9; i++) { ctx.beginPath(); const bx = x + ((i * 37) % w), by = y + hh - 4 + (i % 3) * 4; ctx.moveTo(bx, by); ctx.lineTo(bx + 8, by - 6); ctx.lineTo(bx + 12, by + 2); ctx.closePath(); ctx.fill(); }
+      }
+      ctx.restore();
+      h.label(u.name, p.x, y + hh + 22, u.alive ? "#3a2a1a" : "#8a8478", 12);
+      wardBar(ctx, u, p.x, y - 18);
+    },
+    // 推著的病床：白色床單、躺著的病人、點滴架
+    bed(ctx, u, p, now, h) {
+      const w = 96, hh = 46, x = p.x - w / 2, y = p.y - hh / 2;
+      ctx.save(); ctx.globalAlpha = u.alive ? 1 : 0.45;
+      ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fillRect(x + 4, y + hh + 6, w, 8);
+      for (const dx of [8, w - 8]) { ctx.fillStyle = "#3a3a3a"; ctx.beginPath(); ctx.arc(x + dx, y + hh + 6, 6, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = "#b8c0c8"; ctx.fillRect(x, y + hh - 6, w, 8);
+      ctx.fillStyle = "#f4f6f8"; h.roundRect(x, y, w, hh - 4, 6); ctx.fill(); ctx.strokeStyle = "#8a96a2"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = "#fffaf0"; h.roundRect(x + 6, y + 8, 20, 20, 4); ctx.fill(); ctx.strokeStyle = "#5a8ac8"; ctx.lineWidth = 2; ctx.stroke();      // 病人（方塊）
+      ctx.fillStyle = "#cfe0ea"; ctx.fillRect(x + 28, y + 6, w - 36, hh - 16);                                                            // 被子
+      ctx.strokeStyle = "#8a96a2"; ctx.beginPath(); ctx.moveTo(x + w + 6, y + hh); ctx.lineTo(x + w + 6, y - 30); ctx.stroke();           // 點滴架
+      ctx.fillStyle = u.alive ? "rgba(140,200,240,.85)" : "#8a8a8a"; h.roundRect(x + w - 2, y - 40, 16, 20, 4); ctx.fill();
+      if (!u.alive) { ctx.strokeStyle = "#c84a4a"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 30, y + 4); ctx.lineTo(x + w - 10, y + hh - 10); ctx.moveTo(x + w - 10, y + 4); ctx.lineTo(x + 30, y + hh - 10); ctx.stroke(); }
+      ctx.restore();
+      h.label(u.name, p.x, y + hh + 26, u.alive ? "#3a2a1a" : "#8a8478", 12);
+      wardBar(ctx, u, p.x, y - 52, 70, "#5a9ac8");
+    },
+    // 捏好的雲團：圓滾滾的白雲，被吸走會越縮越小
+    cloud(ctx, u, p, now, h) {
+      const k = u.alive ? 0.55 + 0.45 * (u.hp / u.maxHp) : 0.3, r = (u.r || 34) * k, bob = Math.sin(now / 400 + p.x) * 3;
+      ctx.save(); ctx.globalAlpha = u.alive ? 1 : 0.35;
+      ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.beginPath(); ctx.ellipse(p.x, p.y + r + 6, r * 1.2, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffffff"; ctx.strokeStyle = "#b8d0e8"; ctx.lineWidth = 2;
+      ctx.beginPath(); for (const [dx, dy, rr] of [[-0.6, 0.15, 0.6], [0.6, 0.15, 0.6], [0, -0.2, 0.75], [-0.25, 0.3, 0.55], [0.25, 0.3, 0.55]]) ctx.moveTo(p.x + dx * r + rr * r, p.y + bob + dy * r), ctx.arc(p.x + dx * r, p.y + bob + dy * r, rr * r, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+      h.label(u.name, p.x, p.y + r + 24, u.alive ? "#2a4a6a" : "#8a8478", 12);
+      wardBar(ctx, u, p.x, p.y - r - 18, 60, "#5ab0e8");
     },
   };
 })();

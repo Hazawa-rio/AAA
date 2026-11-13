@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261113212359" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -96,7 +96,7 @@
       // 護送戰：要保護的馬車（會被敵人的攻擊打到，不參與回合）
       this.wards = [];
       for (const w of this.room.escort ? this.room.wagons || [] : []) {
-        const d = { ...this.room.wagon, hp: this.room.wagon.hp, atk: 0, df: 0, spd: 0, ap: 0 };
+        const d = { ...this.room.wagon, ...w, hp: w.hp || this.room.wagon.hp, atk: 0, df: 0, spd: 0, ap: 0 };
         const u = this.add(new Unit("ally", "wagon", d, d, w.x, w.y, d.r || 34));
         u.ward = true;
         this.wards.push(u);
@@ -186,6 +186,7 @@
     // 敵人要打誰：低智力的敵人會被附近的召喚物吸引
     aggroTarget(e) {
       const p = this.player;
+      if (this.room.escort && !e.def.ignoreWards) return this.escortTarget(e);      // 護送戰：一般敵人都衝向要保護的東西（玩家靠近時改打玩家）
       // 被召喚物打到而惹火（例如蒼幽的幽靈魚）：不管智力高低，先反擊那隻召喚物
       const pv = e.state?.provokedBy;
       if (pv && pv.alive && e.state.provokedUntil >= this.round) return pv;
@@ -338,7 +339,7 @@
       this.escortStart = performance.now();
       this.escortWaves = E.waves.map((w) => ({ ...w, done: false }));
       this.player.ap = this.player.maxAp;
-      this.say(`護送開始！限時 ${E.duration} 秒，行動點每 ${E.apEvery} 秒 +1`);
+      this.say(`${E.words?.start || "護送開始！"}限時 ${E.duration} 秒，行動點每 ${E.apEvery} 秒 +1`);
       this.emit({ type: "turn", unit: this.player });
       let lastAp = performance.now(), lastTick = performance.now();
       this._escortTimer = setInterval(() => {
@@ -347,7 +348,7 @@
         // 魔狼照時間表出現
         for (const w of this.escortWaves) if (!w.done && t >= w.t) {
           w.done = true;
-          this.say(w.say || "魔狼群衝向車隊！");
+          this.say(w.say || E.words?.wave || "魔狼群衝向車隊！");
           for (const sp of w.list) this.runRealtimeEnemy(this.spawnEnemy(sp));
           this.emit({ type: "wave" });
         }
@@ -364,6 +365,7 @@
           this.char.onTurnStart?.(this, u);
           this.tickZones(u);
         }
+        E.onTick?.(this, t, 0.1);                 // 護送戰自己的機制（例如海底的氧氣區）
         this.checkEnd();
         this.emit();
       }, 100);
@@ -377,7 +379,8 @@
       await this.wait(0.6 + Math.random() * 0.8);
       while (!this.dead && this.phase !== "over" && u.alive) {
         u.ap = u.maxAp;
-        try { await R.AI[u.def.ai].actOnce(this, u); } catch (e) { console.error(e); }
+        // 沒有「一個動作」版本的 AI（例如船長型的 Boss、槍手）：給 2 點行動點跑一次回合
+        try { const ai = R.AI[u.def.ai]; if (ai.actOnce) await ai.actOnce(this, u); else { u.ap = Math.min(u.maxAp, 2); await ai.takeTurn(this, u); } } catch (e) { console.error(e); }
         this.emit();
         await this.wait(a + Math.random() * (b - a));
       }
@@ -511,9 +514,18 @@
         result = null;
         const alive = this.wards.filter((w) => w.alive).length;
         const allOut = this.escortWaves?.every((w) => w.done);
-        if (alive < this.room.need) { this.finish("escortFail", `馬車只剩 ${alive} 輛……護送失敗`); return true; }
-        if (allOut && !this.mainEnemies().length) { this.finish("win", `擊退了所有魔狼！保住了 ${alive} 輛馬車`); return true; }
-        if (this.escortLeft() <= 0) { this.finish("escortFail", "時間到了……魔狼還在攻擊車隊，護送失敗"); return true; }
+        const W = this.room.words || {}, unit = W.unit || "輛", noun = W.noun || "馬車";
+        if (alive < this.room.need) { this.finish("escortFail", `${noun}只剩 ${alive} ${unit}……${W.fail || "護送失敗"}`); return true; }
+        // goalWin：自己的勝利條件（例如把病床推到走廊的另一頭），打光敵人不算贏
+        if (this.room.goalWin) {
+          if (this.room.goalWin(this)) { this.finish("win", `${W.win || "成功了！"}保住了 ${alive} ${unit}${noun}`); return true; }
+          if (this.escortLeft() <= 0) { this.finish("escortFail", W.timeUp || "時間到了……"); return true; }
+          return false;
+        }
+        // surviveWin：撐到時間結束就算贏（例如守住精品店：暴民會一直來）
+        if (this.room.surviveWin && this.escortLeft() <= 0) { this.finish("win", `${W.win || "撐住了！"}保住了 ${alive} ${unit}${noun}`); return true; }
+        if (allOut && !this.mainEnemies().length) { this.finish("win", `${W.win || "擊退了所有魔狼！"}保住了 ${alive} ${unit}${noun}`); return true; }
+        if (this.escortLeft() <= 0) { this.finish("escortFail", W.timeUp || "時間到了……魔狼還在攻擊車隊，護送失敗"); return true; }
         return false;
       }
       if (!result) return false;
@@ -758,7 +770,7 @@
       if (u.def?.meltOnDeath) for (const e of this.units) if (e.alive && u.def.meltOnDeath.includes(e.kind)) { e.hp = 0; e.alive = false; this.say(`${e.name} 融化了`); this.emit({ type: "death", unit: e }); }
       if (u.ward) {
         const left = this.wards.filter((w) => w.alive).length;
-        this.say(`${u.name}被破壞了！（還剩 ${left} 輛）`);
+        this.say(`${u.name}${this.room.words?.broken || "被破壞了"}！（還剩 ${left} ${this.room.words?.unit || "輛"}）`);
         this.emit({ type: "wardDeath", unit: u });
         return;
       }

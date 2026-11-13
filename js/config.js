@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261113212359" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -835,13 +835,82 @@ RPG.CONFIG = {
   const v2 = (kind, name, desc, xp = 150) => ({ name, desc, xp, gold: [30, 46], playerStart: { x: 640, y: 600 }, wave: [{ kind, x: 470, y: 170 }, { kind, x: 810, y: 170 }] });
   const v3 = (kind, name, desc, xp = 220) => ({ name, desc, xp, gold: [44, 66], playerStart: { x: 640, y: 600 }, wave: [{ kind, x: 340, y: 170 }, { kind, x: 640, y: 120 }, { kind, x: 940, y: 170 }] });
   const vb = (kind, name, desc, help, bgm) => ({ name, desc, xp: 900, gold: [110, 150], retreat: null, bgm: bgm || "sounds/boss-bgm.mp3", playerStart: { x: 640, y: 620 }, wave: [{ kind, x: 640, y: 210 }], help });
+  // 護送戰的變體（守住精品店、推病床、海底的雲團…）：沒有回合，行動點每 apEvery 秒 +1；敵人照時間表出現，衝向要保護的東西
+  //   wagon：要保護的東西（art＝R.WardArt 的造型）；words：戰鬥裡的用詞；surviveWin：撐到時間結束就算贏
+  const escortV = (o) => Object.assign({ escort: true, retreat: null, xp: 420, gold: [60, 90], duration: 60, apEvery: 1.5, tickEvery: 9, enemyAct: [1.8, 3.0], need: 2, wave: [] }, o);
   // #CO00756 雲端上的海洋：天空捕手（盜採深海雲朵的人）
   E.skyCatcher = G_("天空捕手", "#3a6a9a", { hp: 70, shot: { name: "捕雲網槍", ranged: true, ap: 2, length: 560, width: 40, base: 16, reaction: 1.0, sound: "sounds/pirate-gun.mp3" }, drops: [{ item: "cloudFluff", chance: 0.6 }] });
   E.catcherBoss = B_("天空捕手頭目・霍克", "#2a4a7a", {
     sweep: { name: "吸雲機橫掃", ap: 2, radius: 170, base: 18, reaction: 1.1, cooldown: 1, sound: "sounds/boss-electric.mp3" },
     shot: { name: "雲朵炮", ranged: true, ap: 2, length: 680, width: 60, base: 20, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-gun.mp3", words: ["這片海的雲是我的！", "深海的雲最值錢！"] },
     call: { kind: "skyCatcher", ap: 2, every: 3, max: 2, line: "放網！把他也撈起來！" }, sounds: { move: "sounds/robot-move.mp3" } });
+  // 修補海底的雲層（CO00756-01）：三團捏好的雲慢慢往右邊的破洞漂；天空捕手會來吸雲
+  //   海底沒有空氣：氧氣一直往下掉，只有站在隨機冒出來的「氧氣區」（大氣泡）裡才會回滿；氧氣用完會一直扣血
+  const HOLE_X = 1080;
+  const o2Src = { atk: 10, team: "hazard", name: "缺氧", state: {}, def: {} };
+  const cloudV = escortV({
+    name: "修補海底的雲層", desc: "把三團雲送進最底層的破洞", duration: 80,
+    wagon: { name: "雲團", hp: 100, r: 34, art: "cloud" },
+    wagons: [{ x: 180, y: 260, name: "第一團雲" }, { x: 140, y: 400, name: "第二團雲" }, { x: 180, y: 540, name: "第三團雲" }],
+    playerStart: { x: 300, y: 400 },
+    waves: [
+      { t: 4, list: [{ kind: "skyCatcher", x: 700, y: 60 }, { kind: "skyCatcher", x: 700, y: 680 }], say: "天空捕手潛下來了——他們要吸走雲團！" },
+      { t: 26, list: [{ kind: "skyCatcher", x: 1100, y: 80 }, { kind: "skyCatcher", x: 1100, y: 660 }] },
+      { t: 46, list: [{ kind: "skyCatcher", x: 500, y: 60 }, { kind: "skyCatcher", x: 900, y: 680 }, { kind: "skyCatcher", x: 1200, y: 380 }] },
+    ],
+    onStart(b) {
+      b.o2 = 100; b.o2Hurt = 0; b.bubbleT = 4;
+      b.bubbles = [{ x: 340, y: 400, r: 95, t: 0, life: 9 }];
+    },
+    onTick(b, t, dt) {
+      // 雲團：慢慢往右漂（被打到的雲比較小，漂得一樣快）
+      for (const w of b.wards) if (w.alive && w.x < HOLE_X) w.x = Math.min(HOLE_X, w.x + 13 * dt);
+      // 氧氣區：每隔幾秒在隨機的位置冒出一個，持續 6～9 秒
+      if ((b.bubbleT -= dt) <= 0) {
+        b.bubbleT = 3.5 + Math.random() * 2.5;
+        const p = b.player; let x, y;
+        for (let k = 0; k < 8; k++) { x = 160 + Math.random() * 960; y = 130 + Math.random() * 460; if (Math.hypot(x - p.x, y - p.y) > 220) break; }
+        b.bubbles.push({ x, y, r: 80 + Math.random() * 30, t: 0, life: 6 + Math.random() * 3 });
+      }
+      for (const q of b.bubbles) q.t += dt;
+      b.bubbles = b.bubbles.filter((q) => q.t < q.life);
+      const p = b.player;
+      if (!p.alive) return;
+      const inside = b.bubbles.some((q) => q.t > 0.6 && Math.hypot(p.x - q.x, p.y - q.y) < q.r);
+      b.o2 = inside ? Math.min(100, b.o2 + 30 * dt) : Math.max(0, b.o2 - 5 * dt);
+      if (b.o2 <= 0 && (b.o2Hurt -= dt) <= 0) { b.o2Hurt = 1; b.emit({ type: "buff", unit: p, text: "缺氧", color: "#3a7ab8" }); b.damage(o2Src, p, 5, 1, "（缺氧）"); }
+    },
+    goalWin: (b) => b.wards.filter((w) => w.alive).every((w) => w.x >= HOLE_X),
+    bannerExtra: (b) => `・氧氣 ${Math.round(b.o2 ?? 100)}${(b.o2 ?? 100) <= 25 ? "（快沒了！找氣泡）" : ""}・雲團漂到破洞：${Math.round(Math.min(...b.wards.filter((w) => w.alive).map((w) => (w.x - 160) / (HOLE_X - 160))) * 100)}%`,
+    drawRoom(ctx, now, b, H) {
+      // 右邊的破洞
+      ctx.save();
+      ctx.fillStyle = "rgba(60,60,70,.55)"; ctx.beginPath(); ctx.ellipse(HOLE_X + 100, 400, 90, 230, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#e8f4ff"; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = "#e8f4ff"; ctx.font = "900 15px sans-serif"; ctx.textAlign = "center"; ctx.fillText("破洞", HOLE_X + 100, 150);
+      // 氧氣區（大氣泡）：剛冒出來的半透明、快消失的時候閃爍
+      for (const q of b.bubbles || []) {
+        const k = Math.min(1, q.t / 0.6), fade = q.life - q.t < 1.5 ? (Math.floor(now / 120) % 2 ? 0.4 : 1) : 1;
+        ctx.globalAlpha = k * fade;
+        ctx.fillStyle = "rgba(170,230,255,.28)"; ctx.beginPath(); ctx.arc(q.x, q.y, q.r * k, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,.8)"; ctx.beginPath(); ctx.arc(q.x - q.r * 0.35, q.y - q.r * 0.4, q.r * 0.12, 0, Math.PI * 2); ctx.fill();
+        for (let i = 0; i < 4; i++) { const y = q.y + q.r * 0.6 - ((now / 20 + i * 30) % (q.r * 1.2)); ctx.beginPath(); ctx.arc(q.x + Math.sin(now / 300 + i) * q.r * 0.4, y, 4, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.fillStyle = "#2a5a8a"; ctx.font = "900 12px sans-serif"; ctx.fillText("氧氣", q.x, q.y + 4);
+      }
+      ctx.globalAlpha = 1;
+      // 氧氣表（玩家頭上）
+      const p = H.pos(b.player), o = b.o2 ?? 100;
+      ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(p.x - 30, p.y - 70, 60, 6);
+      ctx.fillStyle = o > 25 ? "#5ac8ff" : Math.floor(now / 150) % 2 ? "#e53935" : "#5ac8ff"; ctx.fillRect(p.x - 30, p.y - 70, 60 * o / 100, 6);
+      ctx.restore();
+    },
+    words: { start: "把雲團送進破洞！", wave: "又有天空捕手潛下來了！", noun: "雲團", unit: "團", broken: "被吸走了", win: "雲團都送進破洞了！", timeUp: "時間到了……雲團在半路散開了", title: "破洞補好了", failTitle: "雲團被吸走了",
+      failMsg: "雲團散掉了……回去最底層的破洞旁邊，可以再試一次（雲團還捏在手上）", mode: "修補雲層" },
+    help: "<b>修補海底的雲層</b>：沒有回合，行動點每 1.5 秒 +1。三團雲會慢慢往右邊的<b>破洞</b>漂，全部漂進去就成功（至少保住 2 團）。天空捕手會射網吸雲。<br><b>氧氣</b>：海底沒有空氣，氧氣一直往下掉；站進隨機冒出來的<b>氧氣區（大氣泡）</b>才會回滿。氧氣用完會一直扣血",
+  });
   Rm.skysea = cRoom("雲端上的海洋", "天空色的海裡的戰鬥", "skysea", null, {
+    patch: cloudV,
     catchers: v2("skyCatcher", "天空捕手", "兩個天空捕手"), catchers3: v3("skyCatcher", "天空捕手的船隊", "三個天空捕手"),
     catcherBoss: vb("catcherBoss", "天空捕手頭目", "盜採深海雲朵的頭目", "<b>霍克</b>：吸雲機橫掃（身邊的圓）、雲朵炮（長長的紅框）、叫來手下"),
   });
@@ -852,7 +921,39 @@ RPG.CONFIG = {
     sweep: { name: "手術刀的迴旋", ap: 2, radius: 160, base: 19, reaction: 1.0, cooldown: 1, sound: "sounds/ilshu-slash.mp3" },
     shot: { name: "精準到小數點第五位的注射", ranged: true, ap: 2, length: 640, width: 30, base: 21, reaction: 0.9, cooldown: 1, sound: "sounds/boss-bullet.mp3", words: ["劑量：0.00137 毫升。完美。", "你的姿勢不夠完美。"] },
     call: { kind: "stitched", ap: 2, every: 3, max: 2, line: "我的作品們，過來。" }, sounds: { move: "sounds/robot-move.mp3" } });
+  // 推病床（ER00119-02）：三張病床排成一列，站在病床旁邊（190 以內）病床就會往右邊滑；推到走廊另一頭（x ≥ 1080）就成功
+  //   被完美縫合的病人會從兩邊的病房門撲出來扯點滴（打病床）
+  const BED_END = 1080;
+  const bedV = escortV({
+    name: "推病床", desc: "把睡著的病人推到恢復室", duration: 90,
+    wagon: { name: "病床", hp: 120, r: 44, art: "bed" },
+    wagons: [{ x: 200, y: 230, name: "吳先生的病床" }, { x: 200, y: 380, name: "林小姐的病床" }, { x: 200, y: 530, name: "小高的病床" }],
+    playerStart: { x: 120, y: 380 },
+    waves: [
+      { t: 3, list: [{ kind: "stitched", x: 560, y: 40 }, { kind: "stitched", x: 560, y: 700 }], say: "病房的門打開了——被縫合的病人撲了出來！" },
+      { t: 22, list: [{ kind: "stitched", x: 860, y: 40 }, { kind: "stitched", x: 860, y: 700 }] },
+      { t: 40, list: [{ kind: "stitched", x: 1220, y: 380 }, { kind: "stitched", x: 700, y: 40 }] },
+      { t: 58, list: [{ kind: "stitched", x: 1000, y: 700 }, { kind: "stitched", x: 1000, y: 40 }] },
+    ],
+    onTick(b, t, dt) {
+      const p = b.player;
+      if (!p.alive) return;
+      for (const w of b.wards) if (w.alive && w.x < BED_END && Math.hypot(w.x - p.x, w.y - p.y) < 190) w.x = Math.min(BED_END, w.x + 34 * dt);
+    },
+    goalWin: (b) => b.wards.filter((w) => w.alive).every((w) => w.x >= BED_END),
+    bannerExtra: (b) => `・推到右邊的恢復室：${Math.round(Math.min(...b.wards.filter((w) => w.alive).map((w) => (w.x - 200) / (BED_END - 200))) * 100)}%`,
+    drawRoom(ctx, now, b, H) {
+      // 走廊：兩邊的病房門、盡頭的恢復室
+      ctx.fillStyle = "rgba(90,170,140,.18)"; ctx.fillRect(BED_END + 40, 120, 200, 520);
+      ctx.fillStyle = "#2a8a7a"; ctx.font = "900 16px sans-serif"; ctx.textAlign = "center"; ctx.fillText("恢復室 →", BED_END + 120, 110);
+      for (const x of [560, 700, 860, 1000]) { ctx.fillStyle = "#c8ccd2"; ctx.fillRect(x - 30, 0, 60, 26); ctx.fillRect(x - 30, 694, 60, 26); }
+    },
+    words: { start: "把三張病床推出地下病房！", wave: "又有病房的門打開了……", noun: "病床", unit: "張", broken: "的點滴被扯斷了", win: "病床都推到恢復室了！", timeUp: "時間到了……麻醉退了，病人醒了過來", title: "病床送到了", failTitle: "點滴被扯斷了",
+      failMsg: "病人醒了過來……回地下病房門口，可以再推一次", mode: "推病床" },
+    help: "<b>推病床</b>：沒有回合，行動點每 1.5 秒 +1。<b>站在病床旁邊，病床就會往右邊滑</b>——把三張病床都推到右邊的恢復室就成功（至少保住 2 張）。被完美縫合的病人會從兩邊的病房門撲出來扯點滴；90 秒內沒推到，麻醉就退了",
+  });
   Rm.ward = cRoom("有點偏執的急診室", "病房裡的戰鬥", "ward", null, {
+    beds: bedV,
     stitched: v2("stitched", "被完美縫合的病人", "兩位被完美縫合的病人"), stitched3: v3("stitched", "地下室的病人們", "三位被完美縫合的病人"),
     surgeonBoss: vb("surgeonBoss", "首席外科醫師", "追求完美的主刀醫生", "<b>首席外科醫師</b>：手術刀的迴旋（身邊的圓）、精準的注射（細長的紅框）、叫來被縫合的病人"),
   });
@@ -874,9 +975,27 @@ RPG.CONFIG = {
     sweep: { name: "揮舞鐵管", ap: 2, radius: 160, base: 19, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-slash.mp3" },
     shot: { name: "扔汽油彈", ranged: true, ap: 2, length: 620, width: 70, base: 20, reaction: 1.1, cooldown: 1, sound: "sounds/vivilla-boom.mp3", words: ["搶啊！反正是他的錢！", "誰在乎真相！"] },
     call: { kind: "looter", ap: 2, every: 3, max: 2, line: "兄弟們！店門開了！" }, sounds: { move: "sounds/slime-move.mp3" } });
+  // 守住精品店（BH03278-02）：說出真相的時候講錯越多次（0／1／2+），留下來的暴民越多
+  const shopV = (n) => escortV({
+    name: "守住精品店", desc: "暴民衝向精品店的櫥窗", surviveWin: true, duration: 60,
+    wagon: { name: "櫥窗", hp: 120, r: 40, art: "window" },
+    wagons: [{ x: 400, y: 210, name: "左邊的櫥窗" }, { x: 640, y: 195, name: "正門的櫥窗" }, { x: 880, y: 210, name: "右邊的櫥窗" }],
+    playerStart: { x: 640, y: 380 },
+    waves: [
+      { t: 1, list: [{ kind: "instigator", x: 640, y: 660 }, { kind: "looter", x: 120, y: 640 }, { kind: "looter", x: 1160, y: 640 }], say: "煽動者帶著暴民衝向櫥窗！" },
+      { t: 20, list: [{ kind: "looter", x: 80, y: 360 }, { kind: "looter", x: 1200, y: 360 }].concat(n >= 1 ? [{ kind: "looter", x: 640, y: 700 }] : []) },
+      ...(n >= 1 ? [{ t: 36, list: [{ kind: "looter", x: 300, y: 700 }, { kind: "looter", x: 980, y: 700 }] }] : []),
+      ...(n >= 2 ? [{ t: 46, list: [{ kind: "looter", x: 80, y: 200 }, { kind: "looter", x: 1200, y: 200 }, { kind: "looter", x: 640, y: 700 }], say: "更多人被煽動了！" }] : []),
+    ],
+    words: { start: "暴民衝向精品店！", wave: "又有人衝過來了！", noun: "櫥窗", unit: "片", broken: "被砸破了", win: "人群散了！", fail: "店被砸了", title: "守住精品店", failTitle: "店被砸了",
+      failMsg: "櫥窗被砸破了……店員小羅把剩下的東西拉進後門。回精品店門口可以再試一次", mode: "守住精品店" },
+    help: `<b>守住精品店</b>：沒有回合，行動點每 1.5 秒 +1。暴民會衝向櫥窗（你靠近時改打你），撐過 60 秒、至少保住 2 片櫥窗就成功；打倒煽動者和所有暴民也算成功<br>
+      剛剛說出真相的時候${n ? `講錯了 ${n === 1 ? "一次" : "好幾次"}，留下來被煽動的人比較多` : "一次就說對了，大部分的人都走了"}`,
+  });
   Rm.plaza = cRoom("比爾哈頓廣場", "廣場上的混戰", "plaza", null, {
     looters: v2("looter", "趁亂洗劫的暴民", "兩個暴民"), looters3: v3("looter", "暴民", "三個暴民"),
     instigator: vb("instigator", "暴動的煽動者", "趁亂煽動洗劫的人", "<b>煽動者</b>：揮舞鐵管（身邊的圓）、扔汽油彈（粗粗的紅框）、叫來暴民"),
+    shop0: shopV(0), shop1: shopV(1), shop2: shopV(2),
   });
   // #CD02016 童年時的黑市：時代蓋世太保
   E.eraAgent = G_("時代蓋世太保的臥底", "#3a3a4a", { hp: 72, shot: { name: "沒收令", ranged: true, ap: 2, length: 580, width: 36, base: 16, reaction: 1.0, sound: "sounds/boss-bullet.mp3" }, drops: [{ item: "memoryToken", chance: 0.5 }] });

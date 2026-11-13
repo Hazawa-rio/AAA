@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261113145157" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261113212359" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -575,7 +575,8 @@
     setTimeout(() => location.reload(), 500);
   }
   function questBattle(s) {
-    if (s.st.type === "escort") go(`${base()}&room=escort&quest=${encodeURIComponent(s.id)}&out=1`, "護送開始！");
+    // 護送戰：預設是醃漬馬車；也可以指定 room＋variant（例如守住精品店、推病床、海底的雲團）。時空可以用 HOOK.escortVariant 換變體（例如照前面的表現決定難度）
+    if (s.st.type === "escort") { const v = HOOK.escortVariant?.(s) || s.st.variant; go(`${base()}&room=${encodeURIComponent(s.st.room || "escort")}${v ? `&boss=${encodeURIComponent(v)}` : ""}&quest=${encodeURIComponent(s.id)}&out=1`, s.st.label || "護送開始！"); }
     else if (s.st.room) go(`${base()}&room=${encodeURIComponent(s.st.room)}${s.st.variant ? `&boss=${encodeURIComponent(s.st.variant)}` : ""}&quest=${encodeURIComponent(s.id)}${s.st.chain ? "&chain=1" : ""}`, s.st.label || (SCARE ? "嚇唬！" : "突襲！"), !!s.st.ambush);
     else go(`${base()}&room=encounter&boss=${encodeURIComponent(s.st.variant)}&quest=${encodeURIComponent(s.id)}&init=0&out=1`, "迎戰！");
   }
@@ -882,7 +883,7 @@
       return;
     }
     openPanel(st.spotTitle || (st.type === "escort" ? "東門外的車隊" : st.room === "pirates" ? "北碼頭・老伯恩的漁船" : "草原深處的果樹"), `${(st.lines || []).map((l) => `<p class="wx-p">${esc(l)}</p>`).join("")}
-      <p class="tv-note">委託「${esc(c.title)}」：${esc(st.text)}${st.type === "escort" ? `<br>護送戰：沒有回合，行動點每 1.5 秒 +1。時間內打倒所有魔狼，至少保住 2 輛馬車` : ""}</p>
+      <p class="tv-note">委託「${esc(c.title)}」：${esc(st.text)}${st.type === "escort" ? `<br>${st.note || "護送戰：沒有回合，行動點每 1.5 秒 +1。時間內打倒所有魔狼，至少保住 2 輛馬車"}` : ""}</p>
       <div class="tv-row"><button type="button" class="primary" data-act="qbattle" data-id="${s.id}">${st.button || (st.type === "escort" ? "開始護送" : st.room === "pirates" ? "出海突襲" : "迎戰")}</button><button type="button" class="ghost" data-close>先不要</button></div>`);
   }
 
@@ -1255,7 +1256,7 @@
     if (pt) text(allDone ? "酒館的門（可以回去了）" : "酒館的門（委託完成才會打開）", pt.x, pt.y - 56, allDone ? "#2e7a46" : "#5a3a22", 12, 900);
     // 委託的地點：車隊、果樹的標記
     for (const s of questSpots()) {
-      if (s.st.type === "escort") {
+      if (s.st.type === "escort" && !s.st.room) {
         for (let i = 0; i < 3; i++) {
           const x = s.x - 90 + i * 90, y = s.y;
           ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.fillRect(x - 30, y + 6, 64, 10);
@@ -1265,7 +1266,7 @@
         }
         text("車隊", s.x, s.y + 38, "#3a2a1a", 13, 900);
       }
-      marker(s.x, s.y - (s.st.type === "escort" ? 0 : 10), now, "#f2c200");
+      marker(s.x, s.y - (s.st.type === "escort" && !s.st.room ? 0 : 10), now, "#f2c200");
     }
     // 商店
     for (const s of MAP.shops) {
@@ -1686,10 +1687,13 @@
 
   // 各時空自己的玩法
   // 時空程式初始化失敗時，顯示真正的錯誤訊息（不然瀏覽器只會說 Script error.），遊戲照樣能走
-  if (R.WorldHooks?.[trip.world]) try { HOOK = R.WorldHooks[trip.world]({
+  let API = null;
+  if (R.WorldHooks?.[trip.world]) try { HOOK = R.WorldHooks[trip.world](API = {
     R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, dlg, dlgSeq, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
     ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, pauseBgm: () => { bgmHold = true; bgm?.pause(); }, resumeBgm: () => { bgmHold = false; startBgm(); }, isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
   }) || {}; } catch (e) { console.error(e); showError(`時空程式（${trip.world}${trip.scene ? "/" + trip.scene : ""}）：${e?.message || e}`); HOOK = {}; }
+  // 委託以外的探索（js/wander.js）：每一趟隨機挑幾個事件，在隨機的時間、隨機的地點冒出來
+  if (API && R.Wander && R.WanderPools?.[trip.scene ? `${trip.world}/${trip.scene}` : trip.world]) try { HOOK = R.Wander.mix(HOOK, R.Wander.make(API, R.WanderPools[trip.scene ? `${trip.world}/${trip.scene}` : trip.world])); } catch (e) { console.error(e); showError(`探索事件（${trip.world}）：${e?.message || e}`); }
   document.title = `${W0.code} ${W0.name}`;
   renderMute();
   R.VolumeUI?.mount($("#muteBtn"));
