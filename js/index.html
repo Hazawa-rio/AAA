@@ -2,62 +2,15 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="build" content="20261112133137">
+<meta name="build" content="20261113212359">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>選擇角色</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261112133137">
-<link rel="stylesheet" href="css/home.css?v=20261112133137">
+<title>時空酒館</title>
+<!-- 入口直接進時空酒館（原本的選角頁已經拿掉：選角在酒館的適格者名牌架，戰鬥測試在時空委託欄的「戰鬥測試」分頁） -->
+<meta http-equiv="refresh" content="0; url=tavern.html">
+<style>body{margin:0;background:#1f2933;color:#f2e6cc;font-family:system-ui,sans-serif;display:grid;place-items:center;height:100vh}a{color:#f2d79a}</style>
 </head>
 <body>
-<div id="home">
-  <header class="home-head">
-    <h1>選擇適格者 <a class="tavern-link" href="tavern.html">前往時空酒館（地圖測試）→</a></h1>
-    <p class="muted">適格者擁有在時空間穿梭、執行任務的耐受性，每一位都來自不同的時空。選好角色和房間後開始戰鬥</p>
-  </header>
-
-  <p id="forcedNote" class="notice hidden">新手引導房固定使用教學版伊爾舒，角色選擇不會影響這個房間。</p>
-  <section id="cards" aria-label="角色"></section>
-
-  <section id="detail" class="hidden">
-    <div class="detail-main">
-      <div class="detail-title">
-        <span id="dIcon" class="icon big"></span>
-        <div><h2 id="dName"></h2><p id="dSub" class="muted"></p></div>
-      </div>
-      <p id="dDesc"></p>
-      <div id="dStats" class="stats"></div>
-    </div>
-    <div class="detail-skills">
-      <h3>技能</h3>
-      <ul id="dSkills"></ul>
-    </div>
-  </section>
-
-  <section>
-    <h3 class="sec-title">選擇房間</h3>
-    <div id="rooms"></div>
-  </section>
-
-  <div class="join">
-    <p class="muted">行動順序在第一回合由 1d20 ＋ 速度 決定，之後沿用</p>
-    <button type="button" id="goBtn" class="primary">進入房間</button>
-  </div>
-</div>
-<script src="js/config.js?v=20261112133137"></script>
-<script src="js/battle.js?v=20261112133137"></script>
-<script src="js/characters/firsler.js?v=20261112133137"></script>
-<script src="js/characters/ilshu.js?v=20261112133137"></script>
-<script src="js/characters/vivilla.js?v=20261112133137"></script>
-<script src="js/characters/guan.js?v=20261112133137"></script>
-<script src="js/characters/hoffman.js?v=20261112133137"></script>
-<script src="js/characters/marika.js?v=20261112133137"></script>
-<script src="js/characters/cangyou.js?v=20261112133137"></script>
-<script src="js/characters/ilshu-tutorial.js?v=20261112133137"></script>
-<script src="js/progression.js?v=20261112133137"></script>
-<script src="js/home.js?v=20261112133137"></script>
-<script src="js/version-check.js?v=20261112133137"></script>
+<p>正在前往時空酒館……（沒有自動跳轉的話，請點 <a href="tavern.html">這裡</a>）</p>
+<script>location.replace("tavern.html" + location.search + location.hash);</script>
 </body>
 </html>
