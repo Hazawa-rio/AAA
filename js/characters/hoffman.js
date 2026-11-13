@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261113145157" });
 // 角色：霍夫曼（怪鼠機關屋的主人）
 // 被動「時間壓縮」：回合結束時消耗所有剩下的行動點存起來（最多 5）；滿了也照樣消耗
 // 大招「壓縮加速機」：把存起來的行動點換回來，展開齒輪領域，普攻變成在領域裡直線來回撞擊
