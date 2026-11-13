@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ru20314.js": "20261114042342" });
 // 地圖：#RU20314 古代遺跡科考隊（B 級時空）
 // 南：森林外的草地（傳送門，C 級委託在這裡調查魔物痕跡）
 // 中：森林中央的科考隊營地；北：古代遺跡的石門（遺跡內部還在準備中）

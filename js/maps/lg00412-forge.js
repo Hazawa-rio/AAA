@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lg00412-forge.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/lg00412-forge.js": "20261114042342" });
 // 地圖：#LG00412-2 赫菲斯托斯的鍛造場（傳說的道路的裏時空；完成傳說的道路全部的委託才打得開）
 // 火山肚子裡的鍛造場：北邊中間是鐵砧（赫菲斯托斯），西北是熔爐和風箱，東北是淬火的水槽，南半邊是礦坑（有會噴發的熔岩口）
 (function () {

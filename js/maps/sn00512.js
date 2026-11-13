@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sn00512.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sn00512.js": "20261114042342" });
 // 地圖：#SN00512 燈塔小鎮（C 級時空）
 // 北邊是積雪的針葉林（柴房、林子深處長冰鈴草的地方，熊在林子裡遊蕩）
 // 中間是小鎮（藥鋪、雜貨店、民宅），東邊海岬上是燈塔，南邊是結冰的港口（冰上鑿了釣魚的洞）

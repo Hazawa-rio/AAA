@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/cd02016.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/cd02016.js": "20261114042342" });
 // 地圖：#CD02016 童年時的黑市（B 級時空）
 // 巷子底的鐵門後面：中央是回憶的攤位，北邊是倉庫（一整面牆的玻璃罐，裝著 2016 年的童年），東邊是倉庫後門
 (function () {

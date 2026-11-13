@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kt33233.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/kt33233.js": "20261114042342" });
 // 地圖：#KT33233 巨人的生態盒（C 級時空）
 // 兩個並排的巨大生態盒，中間隔著一道玻璃牆，牆上有一個剛好讓你鑽過去的小洞
 // 左盒：西瓜蟲的家、螞蟻窩、糧倉（邪惡大魔王・長頸鹿鉅鍬形蟲睡在糧倉上面）

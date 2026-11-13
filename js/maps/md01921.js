@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/md01921.js": "20261114042342" });
 // 地圖：#MD01921 蒙德里安的理想國（B 級時空，使用者畫的地圖）
 // 一大片由黑色粗線分隔的紅、黃、藍、白色塊。黑線是路；每一塊色塊都是一位藝術家的家，也是他的名字（n×m 的 o 色方形）
 // 座標：照使用者的圖（約 770 × 665）放大 4 倍

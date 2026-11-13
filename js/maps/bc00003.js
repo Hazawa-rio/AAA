@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bc00003.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/bc00003.js": "20261114042342" });
 // 地圖：#BC00003 黑原市（C 級時空）
 // 棋盤狀的街道：中間一條東西向的大道（上面有一座天橋），南邊是廣場（酒館的門、飛天車的停機坪）
 // 委託要用的飛天車（最多七人；多人時指名一位駕駛）停在廣場上：坐上去可以飛過大樓

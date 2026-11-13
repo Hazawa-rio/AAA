@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/co00756.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/co00756.js": "20261114042342" });
 // 地圖：#CO00756 雲端上的海洋（B 級時空）
 // 上面是雲做的港口（酒館的門、潛水用品店），往下是天空色的海：沒有水的阻力，但會浮起來、要換氣
 // 中層有可以捏的雲床、能換氣的空氣雲；最底下是深海雲層（破洞、天空捕手的吸雲管）
