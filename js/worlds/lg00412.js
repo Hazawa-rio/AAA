@@ -1,8 +1,9 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261114042342" });
 // #LG00412 傳說的道路（A 級）
 //   宙斯的噴嚏：在城裡走動時，偶爾地上會亮起一個金色的圈，一下子就會打雷（站在裡面會受傷）
 //   LG00412-01 眾神的考驗：向三位哲學家請教 → 到獅子洞跟獅子辯論（三輪，選錯了從頭來）→ 獅子被說動搖了，打一場 → 牠承認自己輸了
-//   LG00412-02 失蹤的橄欖枝：抓住在市集亂竄的荷米斯三次（他出現之前，會先有一根羽毛飄下來）→ 把橄欖枝放回雅典娜的祭壇
+//   LG00412-02 失蹤的橄欖枝：抓住在市集亂竄的荷米斯三次（他出現之前，會先有一根羽毛飄下來）
+//                            → 荷米斯不服氣，要跟你賽跑（js/race.js；贏了才還橄欖枝，輸了可以再跑）→ 把橄欖枝放回雅典娜的祭壇
 //   LG00412-03 代罰：替普羅米修斯趕走老鷹三次（這輪冒險孵出了普羅米修斯小雞的話：保護小雞別被吃掉）
 //                    → 替西西弗斯把石頭推上山頂 → 站上石頭，和西西弗斯一起高速滑到山底（他只是想分享他的快樂）
 (function () {
@@ -85,23 +86,56 @@
     const H = { spot: null, next: null, showUntil: 0, nextAt: performance.now() + 1500, featherAt: 0 };
     function updateHermes(now) {
       if (!K.is("LG00412-02", "lgHermes")) { H.spot = null; return; }
+      // 抓到三次以後：荷米斯站在原地等你賽跑
+      if (Q2.caught >= 3) { H.spot = H.last || MAP.hermesSpots[0]; H.next = null; H.showUntil = Infinity; return; }
       if (H.spot && now > H.showUntil) { H.spot = null; H.nextAt = now + 1400; }
       if (!H.spot && !H.next && now > H.nextAt - 1400) { let s; do s = MAP.hermesSpots[Math.floor(Math.random() * MAP.hermesSpots.length)]; while (s === H.last); H.next = s; H.featherAt = now; }
       if (!H.spot && H.next && now > H.nextAt) { H.spot = H.next; H.last = H.next; H.next = null; H.showUntil = now + 2600; }
     }
+    const HM = { name: "荷米斯", color: "#e8c84a", face: "荷" };
     function catchHermes() {
       if (!H.spot) return;
+      if (Q2.caught >= 3) return K.reach({ x: H.spot.x, y: H.spot.y + 60 }, 90, racePanel);
       if (dist(me.x, me.y, H.spot.x, H.spot.y) > 170) return toast("太遠了——荷米斯對你揮揮手，咻地不見了");
       Q2.caught++; save(); api.renderHud();
       api.sfx?.("sounds/guan-chime.mp3");
       api.fx.push({ k: "ring", x: H.spot.x, y: H.spot.y, r: 60, color: "#e8c84a", t: performance.now(), dur: 600 });
       H.spot = null; H.nextAt = performance.now() + 2400;
-      const HM = { name: "荷米斯", color: "#e8c84a", face: "荷" };
-      if (Q2.caught >= 3) {
-        BAG.add(run.items, "oliveBranch", 1); save();
-        api.dlg("市集", HM, "好啦好啦，被你抓到三次，算你厲害。橄欖枝還你——我只是想看看祭司們找東西的樣子嘛。雅典娜那傢伙，連生氣都很有智慧，好無聊。", `<button type="button" class="primary" data-close>收下橄欖枝</button>`);
-        K.adv("LG00412-02", "拿回橄欖枝了。放回雅典娜神殿的祭壇");
-      } else toast(["抓到了！……荷米斯從你手裡溜走：「再一次！」（1 / 3）", "又抓到了！「欸欸欸，你怎麼知道我會出現在這裡？」（2 / 3）"][Q2.caught - 1]);
+      if (Q2.caught >= 3) { H.showUntil = Infinity; racePanel(true); }
+      else toast(["抓到了！……荷米斯從你手裡溜走：「再一次！」（1 / 3）", "又抓到了！「欸欸欸，你怎麼知道我會出現在這裡？」（2 / 3）"][Q2.caught - 1]);
+    }
+    // ===== 和荷米斯賽跑（js/race.js） =====
+    function racePanel(first) {
+      const txt = first
+        ? "好啦好啦，被你抓到三次，算你厲害。……可是！抓人跟跑得快是兩回事。跟我比一場——跑贏我，橄欖枝就還你。跑輸了嘛，嘿嘿，我就再拿去玩一陣子。"
+        : Q2.raceLost ? `還要再跑一次？我可是一點都不累喔。（輸了 ${Q2.raceLost} 次）` : "跑道已經畫好了。準備好了嗎？";
+      api.dlg("市集", HM, txt, `<button type="button" class="primary" data-act="lgRace">開始賽跑</button><button type="button" class="ghost" data-close>等一下</button>`,
+        "七條跑道，你從中間那條起跑。←／→ 換跑道閃開祂丟過來的東西，↑ 或滑鼠左鍵 把金蘋果打回去讓祂減速；彎道照畫面按 Q／W／E，按得越快過彎越快；加速量表滿了按空白鍵衝刺");
+    }
+    function startRace() {
+      api.closePanel?.();
+      R.Race.play({
+        ch: CH, rival: { name: "荷米斯", face: "荷", color: "#e8c84a", wing: true },
+        host: document.getElementById("wxStage"), busy: (v) => api.setBusy(v), muted: () => api.isMuted?.(), sfx: (src) => api.sfx?.(src),
+        say: {
+          start: ["跟得上就來吧！", "眾神的信使可不會等人喔～"],
+          throw: ["接好～", "小心腳下！", "這個送你！", "市集買的，別客氣！"],
+          stun: ["哎唷！", "誰教你這招的！", "我的帽子——！"],
+          passed: ["欸？！", "等、等一下！", "你什麼時候跑到前面的？！"],
+          win: ["嘿嘿，我先到囉～"], lose: ["……好啦，算你贏。"],
+        },
+        onDone: (r) => {
+          if (r.win) {
+            BAG.add(run.items, "oliveBranch", 1); save();
+            api.dlg("市集", HM, `（荷米斯撐著膝蓋喘氣）……居然跑輸了。${r.time ? `${r.time.toFixed(1)} 秒，` : ""}好啦，橄欖枝還你——我只是想看看祭司們找東西的樣子嘛。雅典娜那傢伙，連生氣都很有智慧，好無聊。……下次再比一場！`, `<button type="button" class="primary" data-close>收下橄欖枝</button>`);
+            K.adv("LG00412-02", "跑贏荷米斯，拿回橄欖枝了。放回雅典娜神殿的祭壇");
+            return;
+          }
+          if (!r.quit) { Q2.raceLost = (Q2.raceLost || 0) + 1; save(); }
+          if (r.again) return startRace();
+          toast(r.quit ? "荷米斯：「不跑了？那橄欖枝我再借一下囉～」" : "荷米斯：「再來啊？我在這裡等你！」");
+        },
+      });
     }
     function altar() {
       if (!K.is("LG00412-02", "lgAltar")) return api.dlg("雅典娜的祭壇", { name: "祭壇", color: "#7a9a4a", face: "壇" }, "大理石的祭壇，中間有一個插橄欖枝的小洞。洞是空的。");
@@ -252,6 +286,7 @@
       if (a === "lgDebate") { debate(0); return true; }
       if (a === "lgSay") { say(+b.dataset.i, +b.dataset.k); return true; }
       if (a === "lgRide") { startRide(); return true; }
+      if (a === "lgRace") { startRace(); return true; }
       if (a === "lgWine") { api.dlg("東門外", npc("kros"), "酒神大人的餐宴？那當然要用我最好的酒！……拿去拿去。喝的時候記得想起我——不過你大概會什麼都想不起來，哈哈！", `<button type="button" class="primary" data-close>謝謝</button>`); gotFeast("wineJar", "克洛斯把一罈葡萄酒塞到你懷裡"); return true; }
       return false;
     }
@@ -373,7 +408,7 @@
     function stageText(id, st) {
       if (st?.type === "lgFeast") return `${st.text}（${FEAST.filter((x) => BAG.count(run.items, x)).length} / 3）`;
       if (st?.type === "lgLearn") return `${st.text}（${Object.keys(Q1.learned).length} / 3）`;
-      if (st?.type === "lgHermes") return `${st.text}（${Q2.caught} / 3）`;
+      if (st?.type === "lgHermes") return Q2.caught >= 3 ? "在市集和荷米斯賽跑（跑贏祂，才會還你橄欖枝）" : `${st.text}（${Q2.caught} / 3）`;
       if (st?.type === "lgEagle") return chickMode() ? `到高加索的山崖：保護普羅米修斯小雞，別讓老鷹吃掉（${Q3.shoo} / 3）` : `${st.text}（${Q3.shoo} / 3）`;
       if (st?.type === "lgBoulder") return `${st.text}（離山頂還有 ${Math.max(0, Math.round((boulder.y - HL.top) / 10))} 步）`;
       return null;

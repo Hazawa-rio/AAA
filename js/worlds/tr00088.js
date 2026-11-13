@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/tr00088.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/tr00088.js": "20261114042342" });
 // #TR00088 不停歇的月台：四座月台＋一節車廂
 //   閘門：要感應周遊券才會開（閘門旁邊可以買一張，整趟都能用）
 //   上車：在月台邊「跳上車」→ 車廂；在車廂裡點座位「小睡一會」→ 醒來就到了下一座月台（逆時針：南→東→北→西→南）

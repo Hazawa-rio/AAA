@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bh03278.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/bh03278.js": "20261114042342" });
 // #BH03278 比爾哈頓廣場
 //   催淚瓦斯：白色的煙隨風飄（風向每隔一陣子會變）。走進去會咳嗽（走路變慢）
 //   BH03278-01 廣場上的醫療站：從補給車搬三箱醫療物資到醫療站。扛著箱子碰到瓦斯，箱子會掉在原地（煙散了再撿）

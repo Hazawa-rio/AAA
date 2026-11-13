@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/b-kit.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/b-kit.js": "20261114042342" });
 // B 級時空共用的小工具（雲端上的海洋、急診室、魔法森林、比爾哈頓廣場、童年時的黑市、彼岸花盛開的事務所）
 // const K = R.BKit(api)：K.active(id)、K.stage(id)、K.q(id)（這一趟的委託資料）、K.reach(位置, 距離, fn)、K.adv(id, 提示)
 //   K.enemyArt(e, now, red, 表)：地圖上的魔物用戰鬥造型畫（表：{ 變體: [造型, 幾隻] }）

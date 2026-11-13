@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330.js": "20261114042342" });
 // #MM22330 或許是魔法森林
 //   黑暗：沒有菇光的地方只看得到身邊一小圈（行囊裡有「發光的蘑菇傘」會亮一點）
 //   紫色孢子：走進飄著紫色孢子的地方（或採到紫色孢子）會很想睡，走路變慢
