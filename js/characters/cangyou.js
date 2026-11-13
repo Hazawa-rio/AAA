@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261114045024" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261114045024" });
 // 角色：觀知命（卜卦人）
 // 吉位／兇位是場上的區域（zones 的 lucky / unlucky）。從吉位打兇位的敵人傷害更高
 // 魔力角色：趨吉避凶、陰陽兩和、乾坤挪移花魔力；被動「天明道法」：給護盾時魔力夠就消耗雙倍魔力，護盾 ×1.5

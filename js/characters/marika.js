@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261114045024" });
 // 角色：瑪莉卡（索德綜合學院埃里托德分校的優秀畢業生，用蛇腹劍）
 // 魔力角色：只有在「燃火狀態」下，普攻和所有技能才會花魔力
 // 被動「烈火之舞」：燃火狀態下，所有攻擊都會在攻擊範圍留下火焰；敵人在火焰裡移動、或回合開始時站在火焰裡，就會被燒傷（傷害隨攻擊力提高）

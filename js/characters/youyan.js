@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261114042342" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261114045024" });
 // 角色：悠魘（洋紅色的「悠」，卡池角色）
 // 表面上：來自■■■■的魔法少女，和使魔咕哩咕妞簽了契約，用魔法守護愛與正義
 // 隱藏簡介（酒館名牌架滑鼠移到簡介上才看得到）：鮫島事件時空的少女，人格被那裡的「異常現象」吃掉，成了高危異常現象的容器
@@ -12,10 +12,10 @@
 // E「魔法結晶」（魘：詭異血繭）：做出一顆結晶，湊滿三顆就一起射向最近的敵人
 // W「夢想變身」（10 次行動充能；隱藏名：攝食至死）：伸出觸手吸取指定的敵人，傷害多少就回復多少，
 //   回到滿血或回復了一半生命就變身：一瞬間露出「真身」→ 被抖動的黑色馬賽克蓋住 → 變成魘
-// 大招強化（四選一）：
-//   奧秘之瞳：部分特效太獵奇——全場的悠魘都改用和諧特效（血肉→紅色的光、真身→紅色光球、黑色馬賽克→黑屏）
-//   夢想變身：變身時 +2 行動值；變回悠時補滿生命，但這場戰鬥的最大生命少掉原本的 25%（累積）；一場最多用三次
-//   咕哩咕妞：吸完血不變成魘，而是變成巨大的咕哩咕妞（不可操作）——全螢幕抖動的黑色馬賽克、黑屏中間抖動的紅字「Samejima Jiken」
+// 大招強化（三選一）：
+// 奧秘之瞳（不是強化，是酒館名牌架上的開關 rpg.calmYouyan；沒抽到悠魘也能開關）：獵奇的主要是咕哩咕妞本體——打開後，變身時的真身換成紅色光球、咕哩咕妞的大招只剩黑屏和紅字
+//   夢想變身：大招充能 10 → 12（照十二星座；每 3 點唸一段變身詠唱）；變回悠時補滿生命，但這場戰鬥的最大生命少掉原本的 25%（累積）；一場最多用三次
+//   咕哩咕妞：大招要充能三輪（36）——前兩輪沒有效果，大招的名字慢慢被侵蝕；吸完血不變成魘，而是變成巨大的咕哩咕妞（不可操作）——全螢幕抖動的黑色馬賽克、黑屏中間抖動的紅字「Samejima Jiken」
 //     （不時閃成 Wingdings），動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠（一半生命）
 //   我的夢想：獵奇的變身動畫後再被粉紅色的星星罩住，變成在兩個樣子之間閃爍切換的型態（其實還是魘）；每次用技能都會附加一圈粉紅星星（打到周圍的敵人）
 // 數值都是暫定；個性台詞之後由使用者提供；音效暫用現有的
@@ -38,9 +38,9 @@
   // youyan-magic＝閃耀的魔法、youyan-grow＝血肉生長、youyan-flesh＝血肉；其他暫用現有的
   const SND = { staff: "sounds/ilshu-slash.mp3", flesh: "sounds/youyan-flesh.mp3", magic: "sounds/youyan-magic.mp3", grow: "sounds/youyan-grow.mp3", beam: "sounds/boss-laser.mp3", shot: "sounds/boss-bullet.mp3", tentacle: "sounds/boss-tentacle.mp3" };
   const PINK = "#d4147a", RED = "#c40a1e";
-  // 奧秘之瞳：場上只要有一個悠魘選了它，全場的悠魘都用和諧特效
+  // 奧秘之瞳：酒館名牌架上的開關（存在 rpg.calmYouyan）
   let CALM = false;
-  const calmOf = (b) => !!b?.units?.some((x) => x.team === "player" && x.upg?.w1 === "eye");
+  const calmOf = () => { try { return localStorage.getItem("rpg.calmYouyan") === "1"; } catch (e) { return false; } };
   // Wingdings：Samejima Jiken
   const WING = { S: "☂", a: "♋", m: "❍", e: "♏", j: "🙰", i: "♓", J: "☺", k: "🙵", n: "■", " ": " " };
   const wing = (str) => [...str].map((c) => (WING[c] ? WING[c] + "\uFE0E" : c)).join("");      // \uFE0E：用文字樣式（黑白），不要彩色表情符號
@@ -78,6 +78,11 @@
       // 變身：先說一串亂碼，馬賽克蓋上來時，台詞也跟著變成「■■■■■■■■」
       // （chance 大於 1＝一定說，而且蓋得掉 2.5 秒內的上一句）
       dream: { chance: 1, lines: ["％何＊儺＠考！皆"] },
+      // 變身詠唱（夢想變身／咕哩咕妞強化：每 3 點大招充能唸一段）
+      chant3: { chance: 1, lines: ["我見到了你啊，咕哩咕妞，守護世界一直以來都是我的夢想"] },          // 雙子座
+      chant6: { chance: 1, lines: ["老師，謝謝你一直以來的關心...我是魔法少女悠魘，我已經不是以前的我了"] },   // 處女座
+      chant9: { chance: 1, lines: ["俊也，我會記得你對我的所有付出，照著你的心意射擊的！"] },            // 射手座
+      chant12: { chance: 1, lines: ["泳池邊緣的泡沫...這間學校，我還能記得多少呢..."] },               // 雙魚座
       dreamMosaic: { chance: 1.01, lines: ["■■■■■■■■"] },
       morph: { chance: 1.02, lines: ["擊潰邪惡的存在...僅此而已..."] },
       revert: { chance: 1.03, lines: ["哎呀...我恍神了..."] },
@@ -135,9 +140,8 @@
         skill: "dream",
         tiers: [
           [
-            { id: "eye", name: "奧秘之瞳", desc: "悠魘的部分技能特效太過獵奇——改用簡化的和諧特效（場上所有的悠魘都會用和諧特效）" },
-            { id: "morph", name: "夢想變身", desc: "變身時多 2 點行動值；變回悠時生命補滿，但這場戰鬥的最大生命少掉 25%（會累積）。一場戰鬥最多只能用三次" },
-            { id: "guri", name: "咕哩咕妞", desc: "吸完血不會變成魘，而是變成巨大的咕哩咕妞（不可操作）。動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠" },
+            { id: "morph", name: "夢想變身", desc: "大招要充能 12 次（照著十二星座，每 3 次唸一段變身詠唱）；變回悠時生命補滿，但這場戰鬥的最大生命少掉 25%（會累積）。一場戰鬥最多只能用三次" },
+            { id: "guri", name: "咕哩咕妞", desc: "大招要充能三輪（36 次）才能放——前兩輪充滿了也沒有效果，大招會慢慢由夢想變身被侵蝕成咕哩咕妞。吸完血不會變成魘，而是變成巨大的咕哩咕妞（不可操作）。動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠" },
             { id: "mine", name: "我的夢想", desc: "變身後再被粉紅色的星星罩住，變成在兩個樣子之間閃爍的型態（其實還是魘）；每次用技能，身邊都會炸開一圈粉紅星星，打到周圍的敵人" },
           ],
         ],
@@ -158,6 +162,21 @@
     ],
 
     // ===== 型態、支付 =====
+    // ===== 大招充能：夢想變身 12（十二星座）、咕哩咕妞 36（三輪） =====
+    chargeNeed(b, u) { const w = upg(u).w1; return w === "guri" ? 36 : w === "morph" ? 12 : C.skills.dream.charge; },
+    // 咕哩咕妞：大招的名字慢慢被侵蝕
+    ultLabel(u) {
+      if (upg(u).w1 !== "guri") return C.skills.dream.name;
+      const c = u.charge || 0;
+      return c >= 36 ? "咕哩咕妞" : c >= 24 ? "咕哩咕變身" : c >= 12 ? "夢想咕身" : "夢想變身";
+    },
+    // 變身詠唱：每 3 點充能唸一段（雙子座、處女座、射手座、雙魚座）
+    onCharge(b, u, c) {
+      const w = upg(u).w1;
+      if (w !== "morph" && w !== "guri") return;
+      if (c % 3 === 0) b.bark(u, "chant" + (((c - 1) % 12) + 1));
+      if (w === "guri" && (c === 12 || c === 24)) { b.say(c === 12 ? "大招充滿了……可是什麼都沒有發生。夢想變身好像被什麼侵蝕了。" : "又充滿了一次……大招的名字，越來越不像夢想變身了。"); b.emit({ type: "buff", unit: u, text: "侵蝕", color: RED }); }
+    },
     init(b, u) { u.state.form = "you"; u.name = "悠"; u.state.crystals = 0; u.state.dreamUses = 0; CALM = calmOf(b); },
     // 角色方塊的樣子：魘＝紅底、灰色的「魘」字
     barkKey(b, u, key) { return yan(u) && key === "hurt" ? "yanHurt" : key; },
@@ -386,8 +405,9 @@
         status(b, u) {
           if (yan(u)) return { ready: false, cost: this.ap, label: this.hiddenName, note: "魘", reason: "魘型態不能使用大招" };
           if (upg(u).w1 === "morph" && (u.state.dreamUses || 0) >= 3) return { ready: false, cost: this.ap, label: this.name, note: "3/3", reason: "夢想變身一場最多用三次" };
-          if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
-          return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range } };
+          const need = C.chargeNeed(b, u), label = C.ultLabel(u);
+          if (u.charge < need) return { ready: false, cost: this.ap, label, note: `${u.charge}/${need}`, reason: upg(u).w1 === "guri" && u.charge >= 12 ? `大招被侵蝕中……（還要 ${need - u.charge} 次行動）` : `還要 ${need - u.charge} 次行動才能使用` };
+          return { ready: true, cost: this.ap, label, aim: { type: "enemy", range: this.range } };
         },
         predict(b, u, arg) {
           const t = arg.target;
@@ -432,7 +452,7 @@
           b.bark(u, "morph", delay + 2.1);
           b.say("……變身。");
           b.emit({ type: "buff", unit: u, text: "魘", color: RED });
-          if (W === "morph") { u.ap += 2; b.emit({ type: "buff", unit: u, text: "行動值 +2", color: PINK }); b.say(`夢想變身：多 2 點行動值（這場還能用 ${3 - u.state.dreamUses} 次）`); }
+          if (W === "morph") b.say(`夢想變身（這場還能用 ${3 - u.state.dreamUses} 次）`);
           if (W === "mine") { b.emit({ type: "yyStars", unit: u, delay: delay + 2 }); u.state.morphAt = now() + (delay + 2.6) * 1000; }
         },
         // 咕哩咕妞：全螢幕演出（約 5.5 秒，不可操作），結束時消耗所有生命，對全地圖的敵人造成巨大傷害
@@ -475,8 +495,7 @@
           ctx.globalAlpha = 1 - k * 0.7;
           ctx.strokeStyle = ev.yan ? "rgba(160,10,30,.8)" : "rgba(212,20,122,.75)"; ctx.lineWidth = ev.yan ? 16 : 10;
           ctx.beginPath(); ctx.arc(ev.x, ev.y, ev.radius * 0.8, a0, a1); ctx.stroke();
-          if (ev.yan && CALM) for (let i = 0; i < 5; i++) { const a = a0 + (a1 - a0) * ((i + 0.5) / 5), r = ev.radius * (0.6 + 0.1 * (i % 3)); star(ctx, ev.x + Math.cos(a) * r, ev.y + Math.sin(a) * r, 5, "#ff9a9a"); }
-          else if (ev.yan) { ctx.strokeStyle = "rgba(90,0,10,.8)"; ctx.lineWidth = 2; for (let i = 0; i < 6; i++) { const a = a0 + (a1 - a0) * (i / 6), r = ev.radius * 0.8; ctx.beginPath(); ctx.moveTo(ev.x + Math.cos(a) * (r - 8), ev.y + Math.sin(a) * (r - 8)); ctx.quadraticCurveTo(ev.x + Math.cos(a + 0.05) * r, ev.y + Math.sin(a + 0.05) * r, ev.x + Math.cos(a + 0.1) * (r + 9), ev.y + Math.sin(a + 0.1) * (r + 9)); ctx.stroke(); } }
+          if (ev.yan) { ctx.strokeStyle = "rgba(90,0,10,.8)"; ctx.lineWidth = 2; for (let i = 0; i < 6; i++) { const a = a0 + (a1 - a0) * (i / 6), r = ev.radius * 0.8; ctx.beginPath(); ctx.moveTo(ev.x + Math.cos(a) * (r - 8), ev.y + Math.sin(a) * (r - 8)); ctx.quadraticCurveTo(ev.x + Math.cos(a + 0.05) * r, ev.y + Math.sin(a + 0.05) * r, ev.x + Math.cos(a + 0.1) * (r + 9), ev.y + Math.sin(a + 0.1) * (r + 9)); ctx.stroke(); } }
           else for (let i = 0; i < 5; i++) { const a = a0 + (a1 - a0) * ((i + 0.5) / 5), r = ev.radius * (0.6 + 0.1 * (i % 3)); star(ctx, ev.x + Math.cos(a) * r, ev.y + Math.sin(a) * r, 5 + (i % 2) * 2, "#ffd6ec"); }
           // 法杖
           const sa = a1, sl = ev.radius * 0.75;
@@ -495,8 +514,7 @@
           ctx.globalAlpha = 1 - k; H.circle(ev.x, ev.y, ev.r * (0.8 + k * 0.5), ev.yan ? RED : PINK, null, 4);
           for (let i = 0; i < 8; i++) {
             const q = (k * 1.6 + i / 8) % 1, x = ev.x + Math.sin(i * 2.3) * w * 0.8, y = ev.y - q * 480;
-            if (ev.yan && CALM) star(ctx, x, y, 5, "#ffb0b0");
-            else if (ev.yan) { ctx.fillStyle = "rgba(140,0,20,.85)"; ctx.beginPath(); ctx.arc(x, y, 5 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill(); }
+            if (ev.yan) { ctx.fillStyle = "rgba(140,0,20,.85)"; ctx.beginPath(); ctx.arc(x, y, 5 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill(); }
             else star(ctx, x, y, 5, "#fff");
           }
           break;
@@ -506,7 +524,7 @@
             const q = Math.min(1, Math.max(0, (k - i * 0.15) / 0.45)), x = ev.x + (p.x - ev.x) * q, y = ev.y + (p.y - ev.y) * q;
             if (q <= 0 || q >= 1) return;
             ctx.globalAlpha = 1;
-            if (ev.yan && !CALM) drawCocoon(ctx, x, y, 9, t); else drawCrystal(ctx, x, y, 10, Math.atan2(p.y - ev.y, p.x - ev.x), ev.yan);
+            if (ev.yan) drawCocoon(ctx, x, y, 9, t); else drawCrystal(ctx, x, y, 10, Math.atan2(p.y - ev.y, p.x - ev.x));
           });
           break;
         }
@@ -516,12 +534,6 @@
           if (!p) break;
           const L = Math.hypot(p.x - ev.x, p.y - ev.y) * Math.min(1, q), a = Math.atan2(p.y - ev.y, p.x - ev.x);
           ctx.save(); ctx.translate(ev.x, ev.y); ctx.rotate(a); ctx.globalAlpha = k > 0.85 ? (1 - k) / 0.15 : 1;
-          if (CALM) {
-            // 和諧：一條紅色的光帶，尖端一顆光點
-            ctx.strokeStyle = "rgba(232,38,44,.35)"; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.stroke();
-            ctx.strokeStyle = "#ffb0b0"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.stroke();
-            star(ctx, L, 0, 9, "#fff"); ctx.restore(); break;
-          }
           ctx.strokeStyle = "#c40a1e"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L, 0); ctx.stroke();
           ctx.strokeStyle = "#e8262c"; ctx.lineWidth = 3.5; ctx.beginPath();
           for (let x = 0; x <= L; x += 4) { const y = Math.sin(x / 14 + t / 90) * 9; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
@@ -624,13 +636,7 @@
         if (z.type !== "yyCircle") continue;
         const appear = Math.min(1, (t - z.born) / 400);
         ctx.save(); ctx.globalAlpha = appear;
-        if (z.yan && CALM) {
-          // 和諧：紅色的法陣
-          ctx.fillStyle = "rgba(196,10,30,.1)"; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = RED; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
-          ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(z.x, z.y, z.r * 0.82, 0, Math.PI * 2); ctx.stroke();
-          for (let i = 0; i < 12; i++) { const a = t / 1600 + (i / 12) * Math.PI * 2; star(ctx, z.x + Math.cos(a) * z.r * 0.91, z.y + Math.sin(a) * z.r * 0.91, 3, RED); }
-        } else if (z.yan) {
+        if (z.yan) {
           // 血肉囚牢：肉色的地面＋一根一根向內彎的肋骨
           ctx.fillStyle = "rgba(150,10,25,.18)"; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = "#8a0f14"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
@@ -663,7 +669,7 @@
         const p = H.pos ? H.pos(u) : u;
         for (let i = 0; i < n; i++) {
           const a = t / 700 + (i / 3) * Math.PI * 2, x = p.x + Math.cos(a) * 36, y = p.y + Math.sin(a) * 26 - 6;
-          if (yan(u) && !CALM) drawCocoon(ctx, x, y, 8, t); else drawCrystal(ctx, x, y, 8, a, yan(u));
+          if (yan(u)) drawCocoon(ctx, x, y, 8, t); else drawCrystal(ctx, x, y, 8, a);
         }
       }
     },
