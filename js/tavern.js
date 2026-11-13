@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261113145157" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -52,6 +52,37 @@
     { id: "bestiary", label: "魔物圖鑑", at: { x: 930, y: 590 }, box: { x: 890, y: 440, w: 80, h: 64 } },
     { id: "door", label: "出入口（前往時空）", at: { x: 640, y: 662 }, box: { x: 596, y: 684, w: 88, h: 36 } },
   ];
+  // ===== 遊戲角落（左邊牆角）：時空小遊戲的機台。買下來的收在倉庫裡，一次擺一台出來；可以隨時收回、換別台 =====
+  //   之後別的時空的小遊戲：在 CORNER_GAMES 加一項（解鎖條件 unlockKey、買下來 ownKey、價格、畫機台 draw、面板 panel）
+  //   存檔：rpg.corner＝正在擺的機台 id（空字串＝空著）
+  const ARCADE = { box: { x: 22, y: 286, w: 66, h: 116 }, at: { x: 132, y: 346 } };
+  const CORNER_GAMES = [
+    { id: "kn", name: "克亞貝魯巴斯諾", kind: "直立式街機", from: "#KN59810", price: 2000, unlockKey: "knGalaxy", ownKey: "knArcade",
+      desc: "裡面就是你去過的那個空戰射擊遊戲。接關免費。", draw: (now) => drawKnCabinet(now), panel: () => knPanel() },
+  ];
+  const gameOwned = (g) => !!P.unlocked?.(g.ownKey);
+  const gameAvail = (g) => gameOwned(g) || !!P.unlocked?.(g.unlockKey);
+  const cornerOpen = () => CORNER_GAMES.some(gameAvail);
+  const cornerGame = () => {
+    const id = store.get("rpg.corner");
+    if (id === null) return CORNER_GAMES.find(gameOwned) || null;          // 還沒設定過（例如舊存檔已經買了街機）：擺第一台買過的
+    const g = CORNER_GAMES.find((x) => x.id === id);
+    return g && gameOwned(g) ? g : null;
+  };
+  function syncArcade() {
+    const i = THINGS.findIndex((t) => t.id === "arcade");
+    if (i >= 0) THINGS.splice(i, 1);
+    const g = cornerGame();
+    if (cornerOpen()) THINGS.push({ id: "arcade", label: g ? `${g.kind}・${g.name}` : "遊戲角落", at: ARCADE.at, box: ARCADE.box, via: { x: 380, y: 290 } });
+    const k = RECTS.indexOf(ARCADE.box);
+    if (g && k < 0) RECTS.push(ARCADE.box);
+    if (!g && k >= 0) RECTS.splice(k, 1);
+  }
+  function setCorner(id) {
+    store.set("rpg.corner", id || "");
+    syncArcade();
+    if (blocked(me.x, me.y)) { me.x = ARCADE.at.x; me.y = ARCADE.at.y; }      // 站的位置被機台擋住的話，挪到機台前面
+  }
 
   // ===== 玩家 =====
   const me = { x: 640, y: 640, half: 17, speed: 260, target: null, then: null, stuck: 0 };
@@ -90,6 +121,7 @@
     near = nearestThing();
   }
   function arrive() {
+    if (me.next) { me.target = me.next; me.next = null; me.stuck = 0; return; }      // 先繞到中繼點（例如繞過桌子去街機）
     const then = me.then;
     me.target = null; me.then = null; me.stuck = 0;
     if (then && dist(me.x, me.y, then.at.x, then.at.y) < 90) open(then.id);
@@ -244,6 +276,54 @@
       ctx.fillStyle = bottles[i % bottles.length];
       rr(bx, by - h, 10, h, 3); ctx.fill(); ctx.fillRect(bx + 3, by - h - 6, 4, 7);
     }
+  }
+  function drawArcade(now) {
+    if (!cornerOpen()) return;
+    const b = ARCADE.box, g = cornerGame();
+    if (g) return g.draw(now);
+    // 空著：地上貼了一圈膠帶
+    ctx.setLineDash([6, 5]); ctx.strokeStyle = "rgba(242,215,154,.7)"; ctx.lineWidth = 2; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.setLineDash([]);
+    text("遊戲", b.x + b.w / 2, b.y + b.h / 2 - 9, "#f2d79a", 12, 900); text("角落", b.x + b.w / 2, b.y + b.h / 2 + 9, "#f2d79a", 12, 900);
+  }
+  function drawKnCabinet(now) {
+    const b = ARCADE.box;
+    // 直立式的街機：深藍機身、粉紅色的側板、螢幕上是標題畫面
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(b.x + 4, b.y + b.h - 4, b.w, 8);
+    ctx.fillStyle = "#1a1a3a"; ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = "#e85aa8"; ctx.fillRect(b.x, b.y, 6, b.h); ctx.fillRect(b.x + b.w - 6, b.y, 6, b.h);
+    ctx.fillStyle = "#ff5ac8"; ctx.fillRect(b.x + 6, b.y + 4, b.w - 12, 12); text("KN", b.x + b.w / 2, b.y + 10, "#fff", 10, 900);
+    ctx.fillStyle = "#0a0a24"; ctx.fillRect(b.x + 10, b.y + 22, b.w - 20, 40);
+    for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 3 ? "#8ab0ff" : "#fff"; ctx.fillRect(b.x + 12 + ((i * 13) % (b.w - 24)), b.y + 24 + ((i * 7 + now / 40) % 36), 2, 2); }
+    ctx.fillStyle = "#c8c8e8"; ctx.beginPath(); ctx.moveTo(b.x + b.w / 2, b.y + 44); ctx.lineTo(b.x + b.w / 2 + 6, b.y + 54); ctx.lineTo(b.x + b.w / 2 - 6, b.y + 54); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#2a2a4a"; ctx.fillRect(b.x + 6, b.y + 68, b.w - 12, 20);
+    ctx.fillStyle = "#e83a3a"; ctx.beginPath(); ctx.arc(b.x + 20, b.y + 78, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffd84a"; ctx.beginPath(); ctx.arc(b.x + 40, b.y + 78, 4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#3ab0e8"; ctx.beginPath(); ctx.arc(b.x + 50, b.y + 78, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#3a3a5a"; ctx.fillRect(b.x + b.w / 2 - 6, b.y + 96, 12, 8);
+    if (Math.floor(now / 600) % 2) text("INSERT COIN", b.x + b.w / 2, b.y + b.h + 12, "#ffd84a", 10, 900);
+  }
+  const knBest = () => { try { return JSON.parse(store.get("rpg.knBest") || "{}") || {}; } catch (e) { return {}; } };
+  let knErrorUsed = false;
+  function playArcade(stage, her) {
+    closePanel();
+    panelOpen = true;
+    R.KnStg.play({
+      stage, ch: curChar(), her, music: "sounds/bgm-kn.mp3",
+      busy: (v) => { panelOpen = v; keys.clear(); me.target = null; },
+      pauseBgm: () => jazz.pause(), resumeBgm: () => applyRadio(),
+      coinOpen: () => true,                      // 酒館這台已經修好了
+      rival: 74400, best: (st) => knBest()[st] || 0,
+      errorUsed: () => knErrorUsed, useError: () => { knErrorUsed = true; },
+      onDone: (r) => {
+        if (r.clear && !r.her) { const b = knBest(); b[stage] = Math.max(b[stage] || 0, r.score); store.set("rpg.knBest", JSON.stringify(b)); }
+      },
+    });
+  }
+  function knPanel() {
+    const b = knBest(), her = P.unlocked?.("knHer");
+    return `<p class="tv-note" style="margin:0 0 10px">酒館的街機。方向鍵／WASD 移動（Shift 慢速），自動射擊，<b>空白鍵＝駕駛員技能</b>。接關免費；第三關的頭目已經修好了。出擊的駕駛員：<b>${esc(curChar().name)}</b></p>
+        <div class="tv-row" style="flex-wrap:wrap">${[1, 2, 3].map((st) => `<button type="button" class="primary" data-act="arcadePlay" data-s="${st}">STAGE ${st}${b[st] ? `（BEST ${b[st]}）` : ""}</button>`).join("")}
+        ${her ? `<button type="button" class="primary" data-act="arcadePlay" data-s="1" data-her="1" style="background:#e85aa8;border-color:#e85aa8">她的戰機（STAGE 1）</button>` : ""}</div>
+        <p class="tv-note" style="margin:10px 0 0">……傳說中的隱藏關卡，好像在這台機台裡也還在。</p>`;
   }
   function drawTelescope() {
     const { x, y } = TELESCOPE;
@@ -406,6 +486,7 @@
       drawFloor();
       drawWalls(now);
       drawTelescope();
+      drawArcade(now);
       for (const t of TABLES) drawTable(t);
       drawBook();
       drawNpc(now);
@@ -436,9 +517,10 @@
     if (t) {
       if (dist(me.x, me.y, t.at.x, t.at.y) < 90) return open(t.id);
       me.target = { ...t.at }; me.then = t;            // 先走過去再互動
+      if (t.via && me.x > t.via.x + 40) { me.next = me.target; me.target = { ...t.via }; }
       return;
     }
-    me.target = p; me.then = null;
+    me.target = p; me.then = null; me.next = null;
   });
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT") return;
@@ -584,6 +666,24 @@
         <div class="tv-row" style="margin-top:8px"><button type="button" class="primary" data-act="radioYt">播放這個連結</button></div>
         ${radioMsg ? `<p class="tv-note" style="margin:8px 0 0">${esc(radioMsg)}</p>` : ""}
         <p class="tv-note">YouTube 的音樂會在右下角的小視窗播放（可以收起）。換到其他頁面（例如出發去時空）時音樂會停。</p>`;
+      return;
+    }
+    if (panelId === "arcade") {
+      const g = cornerGame();
+      if (g) {
+        title.textContent = g.name;
+        body.innerHTML = g.panel() + `<div class="tv-row" style="margin-top:12px;border-top:1px dashed rgba(0,0,0,.15);padding-top:10px"><button type="button" class="ghost" data-act="cornerStow">收回倉庫（之後可以換別台）</button></div>`;
+        return;
+      }
+      // 空著：買過的機台可以擺出來；解鎖了還沒買的可以買
+      title.textContent = "遊戲角落";
+      const coins = P.coins(), list = CORNER_GAMES.filter(gameAvail);
+      body.innerHTML = `<p class="tv-note" style="margin:0 0 10px">牆角空著，地上貼著一圈膠帶。從時空帶回來的小遊戲機台，一次可以擺一台在這裡；收回倉庫之後隨時能換別台。</p>
+        ${list.map((x) => `<div style="display:flex;align-items:center;gap:10px;margin:0 0 8px">
+          <div style="flex:1"><b>${esc(x.name)}</b><span class="muted">・${esc(x.kind)}・${esc(x.from)}</span><br><small>${esc(x.desc)}</small></div>
+          ${gameOwned(x) ? `<button type="button" class="primary" data-act="cornerPut" data-id="${x.id}">擺出來</button>`
+            : `<button type="button" class="primary" data-act="cornerBuy" data-id="${x.id}" ${coins < x.price ? "disabled" : ""}>買下來（${x.price} 時空幣）</button>`}</div>`).join("")}
+        ${list.some((x) => !gameOwned(x) && coins < x.price) ? `<p class="tv-note" style="margin:4px 0 0">時空幣不足（你有 ${coins}）</p>` : ""}`;
       return;
     }
     if (panelId === "phone") {
@@ -811,6 +911,15 @@
   }
 
   function act(a, data) {
+    if (a === "cornerBuy") {
+      const g = CORNER_GAMES.find((x) => x.id === data.id);
+      if (!g || gameOwned(g) || !gameAvail(g) || P.coins() < g.price) return;
+      P.addCoins(-g.price); P.unlock(g.ownKey); setCorner(g.id);      // 買了就直接擺出來
+      renderTop(); return renderPanel();
+    }
+    if (a === "cornerPut") { const g = CORNER_GAMES.find((x) => x.id === data.id); if (g && gameOwned(g)) setCorner(g.id); return renderPanel(); }
+    if (a === "cornerStow") { setCorner(null); return renderPanel(); }
+    if (a === "arcadePlay") return playArcade(+data.s, data.her === "1");
     if (a === "bxTab") { bxTab = data.w; return renderPanel(); }
     if (a === "ask") { panel.dataset.chat = TALK[data.q]; renderPanel(); delete panel.dataset.chat; return; }
     if (a === "chat") { panel.dataset.chat = LINES[Math.floor(Math.random() * LINES.length)]; renderPanel(); delete panel.dataset.chat; return; }
@@ -1015,6 +1124,7 @@
     $("#awayNote").innerHTML = `你還在 <b>${W.code} ${esc(W.name)}</b>。接下的委託全部完成之前，回不了酒館。`;
     $("#away").classList.remove("hidden");
   }
+  syncArcade();
   requestAnimationFrame(frame);
 
   // 除錯用

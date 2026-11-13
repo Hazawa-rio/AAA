@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-a.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-a.js": "20261113145157" });
 // A 級時空的戰鬥造型和戰鬥背景（目前：#LI44444 李家大宅）
 // R.EnemyArt[kind](ctx, u, p, now)；R.Terrains[terrain]：bg(g, W, H) 畫一次、draw(ctx, now, W, H) 每一格都畫
 (function () {
@@ -239,6 +239,17 @@
   A.pixelJet.top = 24;
   A.pixelGrunt = (ctx, u, p, now) => { alive(ctx, u); const s = u.r / 2.8; px(ctx, p.x - 3 * s, p.y - 2.5 * s + (Math.floor(now / 250) % 2) * 2, s, GRUNT, { a: "#3ab0e8", b: "#1d1d1f" }); ctx.globalAlpha = 1; };
   A.pixelGrunt.top = 22;
+  // 銀河大元帥的戰機：紫色的大型戰艦、金色的裝甲、中間一顆閃爍的紅星，頂著一頂元帥帽
+  const MARSHAL = ["......aaaa......", "....aabbbbaa....", "..aaabbccbbaaa..", "aaaabbbccbbbaaaa", "addaaabbbbaaadda", "a..aaaaddaaaa..a", ".....aa..aa....."];
+  A.galaxyMarshal = (ctx, u, p, now) => {
+    alive(ctx, u); const s = u.r / 7.5, y = p.y + Math.sin(now / 300) * 3;
+    ctx.fillStyle = "rgba(200,106,255,.18)"; ctx.beginPath(); ctx.ellipse(p.x, y + 4, u.r * 1.3, u.r * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    px(ctx, p.x - 8 * s, y - 3.5 * s, s, MARSHAL, { a: "#6a3ab8", b: "#ffd84a", c: Math.floor(now / 150) % 2 ? "#ff3a5a" : "#ffffff", d: "#c8c8e8" });
+    ctx.fillStyle = "#1d1d3a"; ctx.fillRect(p.x - 3 * s, y - 6 * s, 6 * s, 2.5 * s); ctx.fillRect(p.x - 4 * s, y - 4 * s, 8 * s, s);        // 元帥帽
+    ctx.fillStyle = "#ffd84a"; ctx.font = `900 ${Math.round(s * 2)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("★", p.x, y - 4.8 * s); ctx.textBaseline = "alphabetic";
+    ctx.globalAlpha = 1;
+  };
+  A.galaxyMarshal.top = 50;
   T.arcade = {
     bg(g, W, H) {
       g.fillStyle = "#0a0a24"; g.fillRect(0, 0, W, H);

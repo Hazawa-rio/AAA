@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261113145157" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -979,6 +979,18 @@ RPG.CONFIG = {
     jets: v2("pixelJet", "像素敵機", "兩架像素敵機", 300), jets3: v3("pixelJet", "敵機編隊", "三架像素敵機", 380),
     grunts: v2("pixelGrunt", "像素小兵", "兩個像素小兵", 300),
   });
+  // 傳說中的隱藏關卡：在扭曲次元墜落之後，和「銀河大元帥的戰機」在戰鬥系統裡打（數值暫定，比 A 級的 Boss 稍強）
+  E.galaxyMarshal = B_("銀河大元帥的戰機", "#6a3ab8", { hp: 1250, atk: 28, df: 9, spd: 14, ap: 4, r: 52,
+    sweep: { name: "銀河艦砲・全方位", ap: 2, radius: 190, base: 24, reaction: 1.0, cooldown: 1, sound: "sounds/boss-electric.mp3" },
+    shot: { name: "超光速雷射", ranged: true, ap: 2, length: 760, width: 64, base: 27, reaction: 0.95, cooldown: 1, sound: "sounds/boss-bullet.mp3", words: ["跪下吧，地上的機師！", "銀河就是我的彈幕！", "這裡是扭曲次元——沒有接關！"] },
+    call: { kind: "pixelJet", ap: 2, every: 3, max: 2, line: "「護衛艦隊，出擊！」" },
+    // 星之彈幕：星星排成網，一波一波往四周撒（找縫鑽）
+    web: { name: "星之彈幕", line: "「看清楚了——這就是銀河！」", ap: 3, cooldown: 2, reaction: 1.1, count: 16, waves: 4, interval: 0.55, speed: 250, r: 12, base: 16, radius: 320, color: "#ffd84a",
+      sound: "sounds/boss-bullet.mp3", words: ["★", "☆", "✦", "★", "✧", "★"] },
+    sounds: { move: "sounds/robot-move.mp3" } });
+  Rm.arcade.variants.galaxy = Object.assign(vb("galaxyMarshal", "銀河大元帥", "扭曲次元的主人：傳說中的隱藏關卡",
+    "<b>銀河大元帥的戰機</b>：銀河艦砲・全方位（身邊的圓）、超光速雷射（長長的粗紅框）、叫來護衛艦隊（像素敵機）<br><b>星之彈幕</b>：星星排成網，一波一波往四周撒——每一波錯開半格，站在星星和星星的縫裡",
+    "sounds/bgm-kn.mp3"), { xp: 1600, gold: [200, 260], terrain: "arcade" });
   // 酒神狄俄倪索斯的餐宴：特殊戰鬥「拚酒」——喝滿十杯就算贏（酒神打不倒；上方的條＝還要喝幾杯）
   //   場上一直有三杯酒，走到酒杯上就喝掉（喝完會在別的地方再倒一杯）
   //   喝得越多越醉：每次移動，落腳的位置會晃開一點（醉意越高晃得越遠）

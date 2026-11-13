@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/profile.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/profile.js": "20261113145157" });
 // 玩家資料（局外）：名字、時空幣、手上的特調
 // 測試版存在瀏覽器（localStorage）；線上版之後改成帳號資料
 (function () {
@@ -60,6 +60,10 @@
     logout() { try { localStorage.removeItem("rpg.profile"); } catch (e) { /* 忽略 */ } },
 
     coins() { return get("rpg.coins", 0); },
+    // 永久解鎖（不會隨冒險結束消失）：knGalaxy＝打倒了銀河大元帥（可以買街機）、knArcade＝酒館裡擺了克亞貝魯巴斯諾、knHer＝拿過她的戰機
+    unlocks() { return get("rpg.unlocks", {}) || {}; },
+    unlocked(k) { return !!this.unlocks()[k]; },
+    unlock(k, v = true) { const u = this.unlocks(); u[k] = v; set("rpg.unlocks", u); },
     addCoins(n) { const c = Math.max(0, this.coins() + n); set("rpg.coins", c); return c; },
 
     // 特調：{ base, adds: ["cherry", ...] }，下一次進入戰鬥時生效

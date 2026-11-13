@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261113145157" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -69,9 +69,9 @@
   // ===== 音效、BGM =====
   let muted = false;
   try { muted = localStorage.getItem("rpg.muted") === "1"; } catch (e) { /* 忽略 */ }
-  let bgm = null;
+  let bgm = null, bgmHold = false;          // bgmHold：時空的小遊戲在放自己的音樂（例如街機的射擊小遊戲），點畫面、按鍵都不要把地圖音樂叫回來
   function startBgm() {
-    if (!MAP.bgm || muted) return;
+    if (!MAP.bgm || muted || bgmHold) return;
     if (!bgm) { bgm = new Audio(MAP.bgm + "?v=" + (document.querySelector("meta[name=build]")?.content || "")); bgm.loop = true; bgm.volume = R.CONFIG.bgmVolume; }
     if (bgm.paused) bgm.play().catch(() => {});
   }
@@ -1688,7 +1688,7 @@
   // 時空程式初始化失敗時，顯示真正的錯誤訊息（不然瀏覽器只會說 Script error.），遊戲照樣能走
   if (R.WorldHooks?.[trip.world]) try { HOOK = R.WorldHooks[trip.world]({
     R, MAP, trip, run, me, CH, BAG, CM, save, heal, maxHp, toast, say, bark, dlg, dlgSeq, openPanel, closePanel, goTo, dist, esc, renderHud, panel,
-    ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, pauseBgm: () => bgm?.pause(), resumeBgm: () => startBgm(), isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
+    ctx: () => ctx, text, rr, marker, inRect, blocked, sfx, isMuted: () => muted, pauseBgm: () => { bgmHold = true; bgm?.pause(); }, resumeBgm: () => { bgmHold = false; startBgm(); }, isBusy: () => busy, hop: () => { me.hop = performance.now(); }, moving: () => !!me.target, lucky: () => Date.now() < (run.luckUntil || 0), ambushBattle, changeScene, openPortal, questBattle, go, base, hasFlag, setFlag, talk, unstick, setBusy: (v) => { busy = v; }, fx, $, resetPaths: () => { freeGrid = null; },
   }) || {}; } catch (e) { console.error(e); showError(`時空程式（${trip.world}${trip.scene ? "/" + trip.scene : ""}）：${e?.message || e}`); HOOK = {}; }
   document.title = `${W0.code} ${W0.name}`;
   renderMute();

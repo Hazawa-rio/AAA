@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261113040753" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261113145157" });
 // 角色成長介面：等級（可手動調整）、強化點分配、技能強化樹
 // 選角頁和戰鬥頁共用：R.BuildPanel.open(角色 id, { onClose(changed) {} })
 (function () {
