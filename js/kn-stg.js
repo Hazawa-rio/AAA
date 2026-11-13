@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/kn-stg.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/kn-stg.js": "20261114042342" });
 // #KN59810 克亞貝魯巴斯諾的射擊小遊戲（直式捲軸）：時空裡的關卡門、酒館裡買下來的街機都用這一份
 //   R.KnStg.play(env)：env = {
 //     stage, ch（角色）, her（她的戰機）, host（蓋在哪個元素上，預設 body）, music（預設 sounds/bgm-kn.mp3）

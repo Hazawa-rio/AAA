@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261114042342" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {

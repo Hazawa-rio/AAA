@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/gacha.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/gacha.js": "20261114042342" });
 // 觀測（抽角色）的動畫：圓形的鏡框在時空亂流中掃視，最後找到一顆星星
 // 星星的顏色＝這次結果裡最好的：稀有藍、史詩紫、傳奇金；抽到適格者是角色自己的顏色＋額外的閃光（抽到多個就隨機挑一個）
 (function () {

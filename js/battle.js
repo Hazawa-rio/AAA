@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261114042342" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -629,6 +629,9 @@
     }
 
     afterPlayerAction() {
+      // 角色的長演出（例如蒼幽的靜謐遊行、悠魘的咕哩咕妞）還沒播完：等演出結束再結算、換回合
+      const wait = (this.lockUntil || 0) - (typeof performance !== "undefined" ? performance.now() : Date.now());
+      if (wait > 0) { this.emit(); clearTimeout(this._lockWait); this._lockWait = setTimeout(() => this.afterPlayerAction(), Math.min(wait, 400) + 30); return; }
       if (this.checkEnd()) return;
       if (this.scripted && !this.inFight) { this.emit(); this.tutorial?.afterAction?.(); return; }
       if (this.realtime) { this.emit(); return; }        // 護送戰：沒有回合

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/volume.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/volume.js": "20261114042342" });
 // 音量：音效、音樂分開調（存在這台電腦的瀏覽器裡）。所有頁面共用
 // R.CONFIG.volume／bgmVolume 讀出來的值會自動乘上玩家調的比例；調整時發出 "rpg:volume" 事件，正在播的音樂跟著變
 // R.VolumeUI.mount(元素)：在元素後面放一個「音量」按鈕（點開兩條拉桿）

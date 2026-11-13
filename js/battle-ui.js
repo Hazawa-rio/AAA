@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261114042342" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -50,6 +50,7 @@
   let B = null;            // 目前的戰鬥
   let mode = "move";       // move 或技能 id
   const mouse = { x: -999, y: -999, in: false };
+  R._bMouse = mouse;                            // 角色的即時技能用（例如蒼幽的靜謐遊行跟著滑鼠轉向）
   const disp = new Map();  // 畫面位置（平滑移動）
   const fx = [];
   const zoneSeen = new Map();   // 煙霧第一次出現的時間（做浮現動畫）
@@ -579,6 +580,7 @@
   }
 
   function act(fn) {
+    if (B && performance.now() < (B.lockUntil || 0)) return toast("……");       // 不可操作的大招動畫中
     try { fn(); } catch (e) { if (e instanceof R.ActionError) toast(e.message); else throw e; }
   }
 
@@ -2412,6 +2414,7 @@
 
   function drawUnit(u, now) {
     if (u.state?.dived) return;                 // 潛到地底：看不到
+    if (CH.hideUnit?.(B, u, now)) return;       // 角色的特效接手畫這個單位（例如被瑪莉卡甩上天的敵人）
     if (u.kind === "giantShroom") return drawGiant(u, now);
     if (!u.demon && !u.cage && u.kind !== "mentor") drawDebuffs(u, pos(u));      // 負面狀態掛在名字下面（敵我都會）
     if (u.summon && CH.drawSummon && u.alive) { ctx.save(); const done = CH.drawSummon(ctx, u, now, { pos, label, circle, line }); ctx.restore(); if (done) return; }   // 角色自己畫的召喚物（例如蒼幽的魚群）

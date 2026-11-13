@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261114042342" });
 // 魔物圖鑑（酒館桌上的那本書）：以時空分類列出會戰鬥的生物
 // 遇到過＝顯示名字；完成一次戰鬥（打贏）＝顯示技能和數值
 // 同一個物種可以出現在好幾個時空（例如奇儂鎮和科考隊森林邊的魔狼）；遇到、打贏的紀錄是全部時空共用的
