@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261114042342" });
 // 角色：瑪莉卡（索德綜合學院埃里托德分校的優秀畢業生，用蛇腹劍）
 // 魔力角色：只有在「燃火狀態」下，普攻和所有技能才會花魔力
 // 被動「烈火之舞」：燃火狀態下，所有攻擊都會在攻擊範圍留下火焰；敵人在火焰裡移動、或回合開始時站在火焰裡，就會被燒傷（傷害隨攻擊力提高）
@@ -100,8 +100,8 @@
         skill: "salamander",
         tiers: [
           [
-            { id: "dozen", name: "十二連鞭", desc: "薩拉曼達揮鞭的次數從 8 下變成 12 下（每下傷害稍低）" },
-            { id: "stage", name: "灼熱舞台", desc: "薩拉曼達一定會留下大片火焰（就算沒有燃火）；燃火時火焰更大" },
+            { id: "dozen", name: "愈加炙熱", desc: "薩拉曼達揮鞭的次數從 8 下變成 12 下（每下傷害稍低）" },
+            { id: "stage", name: "炙熱燃焰", desc: "薩拉曼達改成指定一個敵人：用蛇腹劍綁住它，瑪莉卡起跳、在空中甩著它旋轉，再把它像火球一樣砸回原位——對它造成大量傷害，周圍的敵人也被波及，留下一大片火焰" },
           ],
         ],
       },
@@ -289,16 +289,53 @@
         ap: 2, charge: 5, dist: 160, radius: 130, base: 3, atkScale: 0.19, hits: 8, dozenBase: 2.4, dozenScale: 0.15, mp: 20,
         desc: "對前方的圓形範圍連續揮鞭八下",
         n(u) { return upg(u).w1 === "dozen" ? 12 : this.hits; },
+        // 炙熱燃焰：綁住一個敵人、甩上天、砸回原位
+        blaze: { range: 340, splash: 150, mult: 1.25, splashMult: 0.45, air: 1.5 },
+        isBlaze(u) { return upg(u).w1 === "stage"; },
         circle(u, arg) { const d = dirOf(u, arg); return { shape: "circle", x: u.x + d.dx * this.dist, y: u.y + d.dy * this.dist, radius: this.radius, ang: d.ang }; },
         status(b, u) {
           const mp = C.costOf(b, u, this.mp);
           if (u.charge < this.charge) return { ready: false, cost: this.ap, mp, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
+          if (this.isBlaze(u)) return { ready: true, cost: this.ap, mp, label: "炙熱燃焰", note: mp ? `${mp} MP` : undefined, aim: { type: "enemy", range: this.blaze.range } };
           return { ready: true, cost: this.ap, mp, label: this.name, note: mp ? `${mp} MP` : undefined, aim: { type: "direction" } };
         },
-        predict(b, u, arg) { const c = this.circle(u, arg); return b.targetsFor(u).filter((e) => R.dist(e.x, e.y, c.x, c.y) <= c.radius + e.r); },
-        preview(b, u, arg) { const c = this.circle(u, arg); return { shapes: [c], hits: this.predict(b, u, arg) }; },
-        areaCenter(b, u, arg) { const c = this.circle(u, arg); return { x: c.x, y: c.y }; },
+        predict(b, u, arg) {
+          if (this.isBlaze(u)) {
+            const t = arg.target;
+            if (!t || !t.alive || t.team === u.team) err("請點選一個敵人");
+            if (b.reach(u, t) > this.blaze.range) err("距離太遠");
+            return [t, ...b.targetsFor(u).filter((e) => e !== t && e.alive && R.dist(e.x, e.y, t.x, t.y) <= this.blaze.splash + e.r)];
+          }
+          const c = this.circle(u, arg); return b.targetsFor(u).filter((e) => R.dist(e.x, e.y, c.x, c.y) <= c.radius + e.r);
+        },
+        preview(b, u, arg) {
+          if (this.isBlaze(u)) { const t = arg.target; return t ? { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: t.x, y2: t.y, width: 10 }, { shape: "circle", x: t.x, y: t.y, radius: this.blaze.splash }], hits: this.predict(b, u, arg) } : { shapes: [], hits: [] }; }
+          const c = this.circle(u, arg); return { shapes: [c], hits: this.predict(b, u, arg) };
+        },
+        areaCenter(b, u, arg) { if (this.isBlaze(u)) return { x: arg.target.x, y: arg.target.y }; const c = this.circle(u, arg); return { x: c.x, y: c.y }; },
+        // 炙熱燃焰：綁住 → 起跳旋轉 → 像火球一樣砸回原位，炸出大片火焰
+        useBlaze(b, u, arg) {
+          const t = arg.target, B = this.blaze, fire = C.useFire(b, u, this.mp), at = { x: t.x, y: t.y };
+          const total = (this.base + u.atk * this.atkScale) * this.hits * B.mult * (fire ? 1.15 : 1);
+          u.charge = 0; u.facing = Math.atan2(t.y - u.y, t.x - u.x);
+          b.say(`${u.name}：「炙熱燃焰」！`);
+          b.bark(u, "ult");
+          b.emit({ type: "sfx", sound: WHIP });
+          b.emit({ type: "sfx", sound: FIRE, delay: 0.35 });
+          b.emit({ type: "sfx", sound: SLASH, delay: B.air - 0.1 });
+          // 瑪莉卡起跳，敵人被甩上天
+          b.emit({ type: "leap", unit: u, from: { x: u.x, y: u.y }, to: { x: u.x, y: u.y }, duration: B.air, height: 90 });
+          b.emit({ type: "mkBlaze", ux: u.x, uy: u.y, tx: at.x, ty: at.y, tid: t.id, air: B.air, splash: B.splash });
+          C._blaze = { tid: t.id, until: performance.now() + B.air * 1000 };
+          const splash = b.targetsFor(u).filter((e) => e !== t && e.alive && R.dist(e.x, e.y, at.x, at.y) <= B.splash + e.r);
+          b.hitDelay = B.air;
+          if (t.alive) b.damage(u, t, total, 1, "（炙熱燃焰）");
+          for (const e of splash) if (e.alive) b.damage(u, e, total * B.splashMult, 1, "（炙熱燃焰・波及）");
+          b.hitDelay = 0;
+          setTimeout(() => { if (b.phase !== "over") { C.leaveFire(b, u, at.x, at.y, 1.6); b.emit(); } }, B.air * 1000);
+        },
         use(b, u, arg) {
+          if (this.isBlaze(u)) return this.useBlaze(b, u, arg);
           const fire = C.useFire(b, u, this.mp), c = this.circle(u, arg), n = this.n(u), base = n > this.hits ? this.dozenBase + u.atk * this.dozenScale : this.base + u.atk * this.atkScale;
           u.charge = 0; u.facing = c.ang;
           b.say(`${u.name}：「薩拉曼達」！`);
@@ -312,11 +349,49 @@
           const hits = this.predict(b, u, arg);
           for (let i = 0; i < n; i++) { b.hitDelay = i * 0.26 + 0.12; for (const e of hits) if (e.alive) b.damage(u, e, base, 1, `（第 ${i + 1} 下）`); }
           b.hitDelay = 0;
-          if (fire || upg(u).w1 === "stage") C.leaveFire(b, u, c.x, c.y, (c.radius / C.passive.radius) * (fire ? 1 : 0.75));
+          if (fire) C.leaveFire(b, u, c.x, c.y, c.radius / C.passive.radius);
         },
       },
     },
   };
+
+  // 炙熱燃焰的畫面：蛇腹劍綁住敵人 → 在空中繞著瑪莉卡轉圈（拖著火尾）→ 像火球一樣砸回原位
+  C.fxEvents = Object.assign(C.fxEvents || {}, { mkBlaze: (ev) => ev.air * 1000 + 700 });
+  const prevDraw = C.drawFx;
+  C.drawFx = function (ctx, ev, k, t, H) {
+    if (ev.type !== "mkBlaze") return prevDraw?.call(this, ctx, ev, k, t, H);
+    const T = ev.air * 1000 + 700, ms = k * T, air = ev.air * 1000;
+    const cx = ev.ux, cy = ev.uy - 90 * Math.sin(Math.min(1, ms / air) * Math.PI);        // 瑪莉卡在空中的位置
+    ctx.save();
+    let fx, fy;
+    if (ms < air * 0.18) {            // 綁住：鞭子飛過去
+      const q = ms / (air * 0.18);
+      fx = ev.tx; fy = ev.ty;
+      ctx.strokeStyle = "#e8781e"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ev.ux, ev.uy); ctx.lineTo(ev.ux + (ev.tx - ev.ux) * q, ev.uy + (ev.ty - ev.uy) * q); ctx.stroke();
+    } else if (ms < air * 0.85) {     // 甩上天、繞圈
+      const q = (ms - air * 0.18) / (air * 0.67), a0 = Math.atan2(ev.ty - ev.uy, ev.tx - ev.ux), a = a0 + q * Math.PI * 4, rr = 110;
+      fx = cx + Math.cos(a) * rr; fy = cy - 60 + Math.sin(a) * rr * 0.6;
+      for (let i = 1; i <= 8; i++) { const aa = a - i * 0.18; ctx.fillStyle = `rgba(255,${140 - i * 10},30,${0.5 - i * 0.05})`; ctx.beginPath(); ctx.arc(cx + Math.cos(aa) * rr, cy - 60 + Math.sin(aa) * rr * 0.6, 18 - i, 0, Math.PI * 2); ctx.fill(); }
+    } else if (ms < air) {            // 砸回原位
+      const q = (ms - air * 0.85) / (air * 0.15), a = Math.atan2(ev.ty - ev.uy, ev.tx - ev.ux) + Math.PI * 4;
+      const sx = cx + Math.cos(a) * 110, sy = cy - 60 + Math.sin(a) * 66;
+      fx = sx + (ev.tx - sx) * q; fy = sy + (ev.ty - sy) * q;
+    }
+    if (ms < air) {
+      ctx.strokeStyle = "#c8501e"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(fx, fy); ctx.stroke();
+      const g = ctx.createRadialGradient(fx, fy, 4, fx, fy, 30); g.addColorStop(0, "rgba(255,240,180,.95)"); g.addColorStop(0.5, "rgba(255,120,30,.85)"); g.addColorStop(1, "rgba(200,40,10,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx, fy, 30, 0, Math.PI * 2); ctx.fill();
+    } else {                          // 落地：火焰炸開
+      const q = (ms - air) / 700;
+      ctx.globalAlpha = 1 - q;
+      const g = ctx.createRadialGradient(ev.tx, ev.ty, 10, ev.tx, ev.ty, ev.splash * (0.6 + q * 0.6)); g.addColorStop(0, "rgba(255,240,170,.9)"); g.addColorStop(0.5, "rgba(255,120,30,.7)"); g.addColorStop(1, "rgba(200,40,10,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ev.tx, ev.ty, ev.splash * (0.6 + q * 0.6), 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#7a2a0a"; ctx.lineWidth = 3; for (let i = 0; i < 8; i++) { const a = i * 0.785 + 0.3; ctx.beginPath(); ctx.moveTo(ev.tx + Math.cos(a) * 20, ev.ty + Math.sin(a) * 20); ctx.lineTo(ev.tx + Math.cos(a) * ev.splash * 0.8, ev.ty + Math.sin(a) * ev.splash * 0.8); ctx.stroke(); }
+    }
+    ctx.restore();
+  };
+  // 被甩上天的敵人：在空中的時候不畫在原地（由特效畫成火球）
+  C.hideUnit = function (b, u, t) { const f = C._blaze; return f && f.tid === u.id && t < f.until; };
 
   R.CHARACTERS[C.id] = C;
 })();

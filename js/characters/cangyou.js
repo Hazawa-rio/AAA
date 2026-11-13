@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261114042342" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血
@@ -112,8 +112,8 @@
         skill: "manta",
         tiers: [
           [
-            { id: "storm", name: "泡沫暴雨", desc: "蝠鱝夫人噴射的泡泡從 12 顆變成 20 顆" },
-            { id: "escort", name: "夫人的護衛", desc: "蝠鱝夫人每撞到一個敵人，蒼幽獲得 6 護盾" },
+            { id: "parade", name: "靜謐遊行", desc: "蝠鱝夫人放出去以後會一直往前游（留下一串泡泡），方向跟著滑鼠轉。碰到幽靈魚，魚會加入遊行一起游，游的距離也變長；遊行的魚越多，撞到敵人的傷害越高" },
+            { id: "shelter", name: "溫柔庇護", desc: "蝠鱝夫人從外圍繞著圈游向蒼幽（撞到路上的敵人），游到蒼幽身上時給予大量護盾" },
           ],
         ],
       },
@@ -443,7 +443,76 @@
           return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2, width: this.width }, { shape: "circle", x: p.x2, y: p.y2, radius: this.sprayLen }], hits: this.predict(b, u, arg) };
         },
         areaCenter(b, u, arg) { const p = this.path(u, arg); return { x: p.x2, y: p.y2 }; },
+        // ----- 靜謐遊行：即時游動，方向跟著滑鼠 -----
+        parade(b, u, arg) {
+          const d = dirOf(u, arg), P = { x: u.x, y: u.y, a: d.ang, left: this.range, speed: 360, fish: [], hit: new Set(), trail: [], t0: now() };
+          u.charge = 0; u.facing = d.ang;
+          b.say(`${u.name}「蝠鱝夫人」——靜謐遊行！（用滑鼠帶路）`);
+          b.bark(u, "ult");
+          b.emit({ type: "sfx", sound: SND.whale });
+          C._parade = P;
+          b.lockUntil = now() + 99999;
+          const W = R.CONFIG?.arena?.w || 1280, Hh = R.CONFIG?.arena?.h || 720, sk = this;
+          let last = now();
+          const tick = () => {
+            const tn = now(), dt = Math.min(0.05, (tn - last) / 1000); last = tn;
+            if (b.phase === "over" || b.dead) return end();
+            const m = R._bMouse;
+            if (m?.in) { const want = Math.atan2(m.y - P.y, m.x - P.x); let da = ((want - P.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; P.a += Math.max(-3.2 * dt, Math.min(3.2 * dt, da)); }
+            const step = P.speed * dt;
+            P.x += Math.cos(P.a) * step; P.y += Math.sin(P.a) * step; P.left -= step;
+            if (Math.random() < 0.6) P.trail.push({ x: P.x - Math.cos(P.a) * 40 + (Math.random() - 0.5) * 30, y: P.y - Math.sin(P.a) * 40 + (Math.random() - 0.5) * 30, t: tn, r: 4 + Math.random() * 6 });
+            P.trail = P.trail.filter((q) => tn - q.t < 1400);
+            // 碰到幽靈魚：加入遊行，游得更遠
+            for (const f of fishOf(u)) if (!P.fish.includes(f) && R.dist(f.x, f.y, P.x, P.y) < sk.width / 2 + 24) { P.fish.push(f); P.left += 180; b.emit({ type: "buff", unit: f, text: "加入遊行", color: "#3a7bd5" }); }
+            // 魚群排成一列跟在後面
+            P.fish.forEach((f, i) => { const back = 70 + i * 46; f.x = P.x - Math.cos(P.a) * back; f.y = P.y - Math.sin(P.a) * back; f.face = P.a; });
+            // 撞到敵人（每個敵人撞一次）：魚越多越痛
+            for (const e of b.targetsFor(u)) if (e.alive && !P.hit.has(e.id) && R.dist(e.x, e.y, P.x, P.y) <= sk.width / 2 + e.r) {
+              P.hit.add(e.id);
+              b.damage(u, e, sk.base * (1 + 0.35 * P.fish.length), 1, `（靜謐遊行・魚群 ${P.fish.length}）`);
+              b.emit({ type: "fishRam", x: e.x, y: e.y });
+            }
+            if (P.left <= 0 || P.x < 10 || P.x > W - 10 || P.y < 10 || P.y > Hh - 10) return end();
+            b.emit();
+            P.timer = setTimeout(tick, 30);
+          };
+          const end = () => {
+            clearTimeout(P.timer);
+            P.x = Math.max(20, Math.min(W - 20, P.x)); P.y = Math.max(20, Math.min(Hh - 20, P.y));
+            C._parade = null; b.lockUntil = 0;
+            if (b.phase === "over") return;
+            const n = sk.spray, list = [];
+            for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + P.a; list.push({ x: P.x, y: P.y, dx: Math.cos(a), dy: Math.sin(a), len: sk.sprayLen * (0.7 + 0.3 * ((i * 53) % 10) / 10) }); }
+            b.emit({ type: "sfx", sound: sk.sound });
+            C.shootBubbles(b, u, list, sk.sprayBase, "（蝠鱝噴射的泡泡）", 0);
+            b.say(`遊行結束：${P.fish.length} 隻魚一起游、撞到 ${P.hit.size} 個敵人`);
+            b.checkEnd?.();
+            b.emit();
+          };
+          tick();
+        },
+        // ----- 溫柔庇護：從外圍繞圈游向蒼幽，給護盾 -----
+        shelter(b, u, arg) {
+          const d = dirOf(u, arg), R0 = 320, turns = 1.4, dur = 1.3;
+          u.charge = 0; u.facing = d.ang;
+          b.say(`${u.name}「蝠鱝夫人」——溫柔庇護`);
+          b.bark(u, "ult");
+          b.emit({ type: "sfx", sound: SND.whale });
+          b.emit({ type: "mantaSpiral", x: u.x, y: u.y, a0: d.ang, r0: R0, turns, dur });
+          // 螺旋路上的敵人：撞一次
+          const hit = new Set();
+          for (let i = 0; i <= 60; i++) {
+            const q = i / 60, a = d.ang + q * turns * Math.PI * 2, r = R0 * (1 - q), x = u.x + Math.cos(a) * r, y = u.y + Math.sin(a) * r;
+            for (const e of b.targetsFor(u)) if (e.alive && !hit.has(e.id) && R.dist(e.x, e.y, x, y) <= this.width / 2 + e.r) { hit.add(e.id); b.hitDelay = q * dur; b.damage(u, e, this.base, 1, "（溫柔庇護・蝠鱝撞擊）"); }
+          }
+          b.hitDelay = 0;
+          const sh = Math.round(30 + u.maxHp * 0.25);
+          setTimeout(() => { if (b.phase === "over" || !u.alive) return; b.addShield(u, sh, "（溫柔庇護）"); b.emit({ type: "seaPuff", unit: u }); b.emit(); }, dur * 1000);
+        },
         use(b, u, arg) {
+          if (upg(u).w1 === "parade") return this.parade(b, u, arg);
+          if (upg(u).w1 === "shelter") return this.shelter(b, u, arg);
           const p = this.path(u, arg), hits = this.predict(b, u, arg);
           u.charge = 0; u.facing = p.d.ang;
           b.say(`${u.name}「蝠鱝夫人」！`);
@@ -451,8 +520,7 @@
           b.emit({ type: "sfx", sound: SND.whale });
           b.emit({ type: "manta", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2 });
           for (const e of hits) if (e.alive) b.damage(u, e, this.base, 1, "（蝠鱝撞擊）");
-          if (upg(u).w1 === "escort" && hits.length) b.addShield(u, 6 * hits.length, "（夫人的護衛）");
-          const n = upg(u).w1 === "storm" ? 20 : this.spray, list = [];
+          const n = this.spray, list = [];
           for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + p.d.ang; list.push({ x: p.x2, y: p.y2, dx: Math.cos(a), dy: Math.sin(a), len: this.sprayLen * (0.7 + 0.3 * ((i * 53) % 10) / 10) }); }
           setTimeout(() => b.emit({ type: "sfx", sound: this.sound }), 600);
           C.shootBubbles(b, u, list, this.sprayBase, "（蝠鱝噴射的泡泡）", 0.6);
@@ -467,6 +535,7 @@
       bite: () => 450,
       fishRam: () => 380,
       manta: () => 700,
+      mantaSpiral: (ev) => ev.dur * 1000 + 200,
       seaPuff: () => 700,
       fishEvolve: () => 900,
     },
@@ -497,6 +566,16 @@
           drawManta(ctx, x, y, a, t);
           break;
         }
+        case "mantaSpiral": {
+          // 溫柔庇護：從外圍繞著圈游進來，身後一串泡泡
+          const q = Math.min(1, k * (ev.dur * 1000 + 200) / (ev.dur * 1000));
+          const P = (qq) => { const a = ev.a0 + qq * ev.turns * Math.PI * 2, r = ev.r0 * (1 - qq); return { x: ev.x + Math.cos(a) * r, y: ev.y + Math.sin(a) * r, a: a + Math.PI / 2 }; };
+          for (let i = 1; i <= 10; i++) { const qq = q - i * 0.03; if (qq <= 0) break; const p = P(qq); ctx.globalAlpha = 0.6 - i * 0.05; drawBubble(ctx, p.x, p.y, 4 + (i % 3) * 2, t); }
+          const p = P(q);
+          ctx.globalAlpha = q >= 1 ? 1 - (k * (ev.dur * 1000 + 200) - ev.dur * 1000) / 200 : 0.9;
+          drawManta(ctx, p.x, p.y, p.a, t);
+          break;
+        }
         case "seaPuff": {
           const u = ev.unit;
           for (let i = 0; i < 5; i++) { const q = (k + i * 0.18) % 1; ctx.globalAlpha = 1 - q; drawBubble(ctx, u.x + 26 - q * 26 + Math.sin(i * 2) * 8, u.y - 30 + q * 20, 6 + i, t); }
@@ -524,6 +603,13 @@
     },
     drawBattle(ctx, t, b, H) {
       const u = b.player;
+      // 靜謐遊行：泡泡軌跡＋游動中的蝠鱝夫人
+      const P = C._parade;
+      if (P) {
+        for (const q of P.trail) { ctx.globalAlpha = Math.max(0, 1 - (t - q.t) / 1400) * 0.8; drawBubble(ctx, q.x, q.y - (t - q.t) / 40, q.r, t); }
+        ctx.globalAlpha = 0.95; drawManta(ctx, P.x, P.y, P.a, t); ctx.globalAlpha = 1;
+        H.label(`遊行中・魚群 ${P.fish.length}`, P.x, P.y - 74, "#1f3a8a", 12);
+      }
       // 留在場上的泡泡
       for (const z of b.zones) if (z.type === "bubble" && t >= z.born) { ctx.globalAlpha = z.turnsLeft <= 0 ? 0.55 : 0.9; drawBubble(ctx, z.x, z.y + Math.sin(t / 500 + z.x) * 3, z.r * 0.8, t); }
       ctx.globalAlpha = 1;

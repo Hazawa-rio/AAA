@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261113212359" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261114042342" });
 // 角色：巴斯提安（昇華角色・近戰・塔盾）
 // 一座已經陷落的城的守門人，背著比門板還寬的塔盾和一把短矛
 // 被動「不退之門」：面向的正前方（±60°）受到的傷害 ×0.65；擋下來的傷害累積成「壓力」（上限 60）
@@ -7,6 +7,9 @@
 // Q「破城衝鋒」：舉盾往前衝，撞到第一個敵人就停下來，把它撞開（Boss 太重撞不動）
 // E「立盾」：把塔盾插在指定方向（轉身），獲得護盾；到下一回合之前正面的減傷變成 ×0.4
 // W「城門崩落」：把塔盾高高舉起砸向地面，釋放所有壓力：身邊一圈的敵人受到傷害、被震開、下一回合少 1 行動點
+// 大招強化（二選一）：
+//   我即城門：城門崩落時在面前立起一道血量很高的單向掩體（3 回合）——從正面來的衝刺、投射物、移動和攻擊都會被擋下；從後方發動的技能可以穿過
+//   城牆塌陷：城門崩落時砸出一道突出地面的鋒利岩脊，一路刺向全場攻擊力最高的敵人（路上的敵人也會被刺到）
 // 數值都是暫定；個性台詞之後由使用者提供
 (function () {
   const R = window.RPG;
@@ -114,8 +117,8 @@
         skill: "gatefall",
         tiers: [
           [
-            { id: "aftershock", name: "餘震", desc: "城門崩落的範圍 ×1.3，被震到的敵人麻痺 1 回合" },
-            { id: "repay", name: "全數奉還", desc: "城門崩落把壓力轉成傷害的比例 ×1.6" },
+            { id: "gate", name: "我即城門", desc: "城門崩落時，在面前立起一道血量很高的單向掩體（3 回合）：從正面來的衝刺、投射物、移動和攻擊都會被擋下；從後方發動的技能可以穿過" },
+            { id: "ridge", name: "城牆塌陷", desc: "城門崩落時砸出一道突出地面的鋒利岩脊，一路刺向全場攻擊力最高的敵人，路上的敵人也會被刺到" },
           ],
         ],
       },
@@ -145,6 +148,49 @@
     onTurnStart(b, unit) {
       if (unit !== b.player) return;
       unit.state.braceTurn = false;
+      const g = unit.state.gate;
+      if (g && b.round > g.until) { unit.state.gate = null; b.say("城門的時間到了，塌成了一堆碎石"); }
+    },
+
+    // ===== 我即城門：單向掩體 =====
+    // side>0：在城門的正面（敵人那一側）
+    gateSide(g, x, y) { return (x - g.x) * Math.cos(g.ang) + (y - g.y) * Math.sin(g.ang); },
+    // 一條線段從正面穿到背面，而且穿過的點在城門上 → 回傳穿過的點
+    gateCross(g, x1, y1, x2, y2, pad = 0) {
+      const s1 = this.gateSide(g, x1, y1), s2 = this.gateSide(g, x2, y2);
+      if (!(s1 > 0) || s2 > 0) return null;
+      const q = s1 / (s1 - s2), x = x1 + (x2 - x1) * q, y = y1 + (y2 - y1) * q;
+      const lat = -(x - g.x) * Math.sin(g.ang) + (y - g.y) * Math.cos(g.ang);
+      return Math.abs(lat) <= g.half + pad ? { x, y } : null;
+    },
+    liveGate(b) { const g = b.player?.state?.gate; return g && g.hp > 0 ? g : null; },
+    // 從正面打向城門後面（我方）的攻擊，全部打在城門上
+    intercept(b, src, dst, base, mult) {
+      const g = this.liveGate(b);
+      if (!g || !src || !dst || src.team !== "enemy" || dst.team !== "player" || !Number.isFinite(src.x)) return false;
+      const p = this.gateCross(g, src.x, src.y, dst.x, dst.y, dst.r || 0);
+      if (!p) return false;
+      const n = Math.max(1, Math.round((base || 0) * (mult || 1)));
+      g.hp = Math.max(0, g.hp - n);
+      b.emit({ type: "bsGateHit", x: p.x, y: p.y, n });
+      b.emit({ type: "sfx", sound: SND.block });
+      b.say(`城門擋下了 ${src.name} 的攻擊（−${n}，剩 ${g.hp}）`);
+      if (g.hp <= 0) { b.say("城門被打破了！"); b.emit({ type: "bsGateBreak", x: g.x, y: g.y, ang: g.ang, half: g.half }); b.player.state.gate = null; }
+      return true;
+    },
+    // 從正面穿過城門的移動、衝刺：退回城門前面
+    onEnemyAction(b, e, from) {
+      const g = this.liveGate(b);
+      if (!g || !from || !e.alive) return;
+      if (!this.gateCross(g, from.x, from.y, e.x, e.y, e.r)) return;
+      const n = { x: Math.cos(g.ang), y: Math.sin(g.ang) }, s = this.gateSide(g, e.x, e.y), back = -s + e.r + 6;
+      let to = { x: e.x + n.x * back, y: e.y + n.y * back };
+      if (b.blocked(e, to.x, to.y)) to = { x: from.x, y: from.y };
+      const was = { x: e.x, y: e.y };
+      e.x = to.x; e.y = to.y;
+      b.emit({ type: "leap", unit: e, from: was, to, duration: 0.15 });
+      b.emit({ type: "bsGateHit", x: was.x - n.x * (s - 0), y: was.y - n.y * s, n: 0 });
+      b.say(`${e.name} 被城門擋住了`);
     },
 
     tune: [
@@ -285,8 +331,8 @@
         tags: ["area", "melee"],
         ap: 2, charge: 5, base: 16, perPressure: 0.55, radius: 170, knock: 70,
         desc: "把塔盾高高舉起砸向地面，釋放所有壓力：身邊一圈的敵人受到傷害（基礎＋壓力 × 0.55）、被震開，下一回合少 1 行動點",
-        rad(u) { return this.radius * (upg(u).w1 === "aftershock" ? 1.3 : 1); },
-        power(u) { return this.base + (u.state.pressure || 0) * this.perPressure * (upg(u).w1 === "repay" ? 1.6 : 1); },
+        rad(u) { return this.radius; },
+        power(u) { return this.base + (u.state.pressure || 0) * this.perPressure; },
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
           return { ready: true, cost: this.ap, label: this.name, note: `壓力 ${u.state.pressure || 0}`, aim: { type: "none" } };
@@ -311,7 +357,36 @@
             push(b, e, Math.atan2(e.y - u.y, e.x - u.x), this.knock);
             e.state.apPenalty = (e.state.apPenalty || 0) + 1;
             b.emit({ type: "buff", unit: e, text: "行動點 −1", color: "#7a3fb0" });
-            if (upg(u).w1 === "aftershock") { e.state.slowUntil = b.round + 1; e.state.slowMult = 0.5; b.emit({ type: "buff", unit: e, text: "麻痺", color: "#7a3fb0" }); }
+          }
+          b.hitDelay = 0;
+          if (upg(u).w1 === "gate") this.raiseGate(b, u);
+          if (upg(u).w1 === "ridge") this.ridge(b, u, base);
+        },
+        // 我即城門：面前立起一道單向掩體
+        gateHp: 60, gateHpScale: 1.6, gateTurns: 3, gateHalf: 130,
+        raiseGate(b, u) {
+          const a = u.facing, d = u.r + 46, hp = Math.round(this.gateHp + u.maxHp * this.gateHpScale);
+          u.state.gate = { x: u.x + Math.cos(a) * d, y: u.y + Math.sin(a) * d, ang: a, half: this.gateHalf, hp, maxHp: hp, until: b.round + this.gateTurns, born: performance.now() };
+          b.say(`${u.name}：「我即城門」——面前立起了一道城門（${hp}）`);
+          b.emit({ type: "bsGateRise", x: u.state.gate.x, y: u.state.gate.y, ang: a, half: this.gateHalf, delay: 0.45 });
+        },
+        // 城牆塌陷：岩脊刺向全場攻擊力最高的敵人
+        ridgeSpeed: 650, ridgeWidth: 46, ridgeMult: 0.7,
+        ridge(b, u, power) {
+          const foes = b.targetsFor(u).filter((e) => e.alive);
+          if (!foes.length) return;
+          const tgt = foes.reduce((m, e) => ((e.atk || 0) > (m.atk || 0) ? e : m), foes[0]);
+          const L = R.dist(u.x, u.y, tgt.x, tgt.y);
+          if (L < 1) return;
+          const dx = (tgt.x - u.x) / L, dy = (tgt.y - u.y) / L;
+          b.say(`地面裂開，鋒利的岩脊一路刺向攻擊力最高的 ${tgt.name}！`);
+          b.emit({ type: "bsRidge", x1: u.x, y1: u.y, x2: tgt.x, y2: tgt.y, delay: 0.5, dur: L / this.ridgeSpeed });
+          b.emit({ type: "sfx", sound: SND.quake, delay: 0.5 + L / this.ridgeSpeed });
+          for (const e of foes) {
+            const s = (e.x - u.x) * dx + (e.y - u.y) * dy;
+            if (e !== tgt && (s < 0 || s > L || Math.abs((e.x - u.x) * dy - (e.y - u.y) * dx) > this.ridgeWidth / 2 + e.r)) continue;
+            b.hitDelay = 0.5 + s / this.ridgeSpeed;
+            b.damage(u, e, power * this.ridgeMult * (e === tgt ? 1.3 : 1), 1, "（城牆塌陷・岩脊）");
           }
           b.hitDelay = 0;
         },
@@ -319,7 +394,7 @@
     },
 
     // ===== 畫面 =====
-    fxEvents: { bsBash: () => 320, bsCharge: () => 420, bsPlant: () => 600, bsQuake: () => 900 },
+    fxEvents: { bsBash: () => 320, bsCharge: () => 420, bsPlant: () => 600, bsQuake: () => 900, bsGateRise: () => 500, bsGateHit: () => 400, bsGateBreak: () => 700, bsRidge: (ev) => ev.dur * 1000 + 900 },
     drawFx(ctx, ev, k, t) {
       switch (ev.type) {
         case "bsBash": {
@@ -343,6 +418,42 @@
           ctx.beginPath(); ctx.arc(ev.x, ev.y, 46 + k * 30, ev.ang - 1.05, ev.ang + 1.05); ctx.stroke();
           break;
         }
+        case "bsGateRise": {
+          // 城門從地面升起
+          ctx.save(); ctx.translate(ev.x, ev.y); ctx.rotate(ev.ang + Math.PI / 2); ctx.globalAlpha = 1 - k;
+          ctx.fillStyle = "rgba(120,90,50,.35)"; ctx.fillRect(-ev.half - 10, -24 - k * 20, ev.half * 2 + 20, 48 + k * 40);
+          ctx.restore();
+          break;
+        }
+        case "bsGateHit": {
+          ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#e0c070"; ctx.lineWidth = 3;
+          for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3, r = 8 + k * 22; ctx.beginPath(); ctx.moveTo(ev.x + Math.cos(a) * r * 0.4, ev.y + Math.sin(a) * r * 0.4); ctx.lineTo(ev.x + Math.cos(a) * r, ev.y + Math.sin(a) * r); ctx.stroke(); }
+          break;
+        }
+        case "bsGateBreak": {
+          ctx.globalAlpha = 1 - k;
+          for (let i = 0; i < 14; i++) {
+            const l = (i / 13 - 0.5) * 2 * ev.half, bx = ev.x - Math.sin(ev.ang) * l, by = ev.y + Math.cos(ev.ang) * l;
+            ctx.fillStyle = i % 2 ? "#8a6a3a" : "#6a5030"; ctx.fillRect(bx + Math.cos(i * 2.1) * k * 40 - 6, by + Math.sin(i * 2.1) * k * 40 + k * k * 30 - 6, 12, 12);
+          }
+          break;
+        }
+        case "bsRidge": {
+          // 一路從地面刺出來的鋒利岩脊（往目標延伸，最後一起碎掉）
+          const D = ev.dur * 1000, tot = D + 900, now = k * tot, grow = Math.min(1, now / D), fade = now > D + 500 ? 1 - (now - D - 500) / 400 : 1;
+          const L = Math.hypot(ev.x2 - ev.x1, ev.y2 - ev.y1), a = Math.atan2(ev.y2 - ev.y1, ev.x2 - ev.x1);
+          ctx.save(); ctx.translate(ev.x1, ev.y1); ctx.rotate(a); ctx.globalAlpha = Math.max(0, fade);
+          ctx.strokeStyle = "rgba(90,60,30,.6)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L * grow, 0); ctx.stroke();
+          for (let s = 30; s < L * grow; s += 26) {
+            const h = 20 + ((s * 7) % 13), w = 11, tip = s === 30 ? 1 : 1;
+            ctx.fillStyle = (s / 26) % 2 < 1 ? "#8a7a68" : "#6e6050"; ctx.strokeStyle = "#3a3028"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(s - w, 4); ctx.lineTo(s + w * 0.3, -h * tip); ctx.lineTo(s + w, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(s - w * 0.6, -2); ctx.lineTo(s + w * 0.1, h * 0.6); ctx.lineTo(s + w * 0.7, -2); ctx.closePath(); ctx.fill(); ctx.stroke();
+          }
+          if (grow >= 1) { const r = 30 * Math.min(1, (now - D) / 200); ctx.fillStyle = "#7a6a58"; ctx.strokeStyle = "#3a3028"; for (let i = 0; i < 5; i++) { const aa = i * 1.26; ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(L + Math.cos(aa) * r + 4, Math.sin(aa) * r); ctx.lineTo(L + Math.cos(aa + 0.3) * r * 0.5, Math.sin(aa + 0.3) * r * 0.5); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
+          ctx.restore();
+          break;
+        }
         case "bsQuake": {
           // 地面裂開的圈＋往外的裂痕
           ctx.globalAlpha = 1 - k; ctx.strokeStyle = "#7a4a1a"; ctx.lineWidth = 6;
@@ -359,6 +470,32 @@
       const u = b.player;
       if (!u?.alive) return;
       const p = H.pos ? H.pos(u) : u, br = braced(b, u), a = u.facing, half = C.passive.half * DEG;
+      // 我即城門：一道石砌的城門（正面有尖刺，背面是木頭的門閂）
+      const g = u.state.gate;
+      if (g && g.hp > 0) {
+        const up = Math.min(1, (t - g.born - 450) / 300);
+        if (up > 0) {
+          ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.ang + Math.PI / 2); ctx.globalAlpha = up;
+          const L = g.half, th = 22;
+          ctx.fillStyle = "#8a7a68"; ctx.strokeStyle = "#3a3028"; ctx.lineWidth = 2;
+          ctx.fillRect(-L, -th / 2, L * 2, th); ctx.strokeRect(-L, -th / 2, L * 2, th);
+          for (let x = -L + 22; x < L; x += 22) { ctx.beginPath(); ctx.moveTo(x, -th / 2); ctx.lineTo(x, th / 2); ctx.stroke(); }
+          ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0); ctx.stroke();
+          // 正面（敵人那一側＝旋轉後的 -y）：尖刺
+          ctx.fillStyle = "#5a4a3a";
+          for (let x = -L + 11; x < L; x += 22) { ctx.beginPath(); ctx.moveTo(x - 6, -th / 2); ctx.lineTo(x, -th / 2 - 10); ctx.lineTo(x + 6, -th / 2); ctx.closePath(); ctx.fill(); }
+          // 背面：木頭的門閂
+          ctx.fillStyle = "#9a6a2a"; ctx.fillRect(-L * 0.7, th / 2, L * 1.4, 5);
+          ctx.restore();
+          const bw = 80, by = g.y + Math.sin(g.ang) * 0 + 4;
+          const lx = g.x + Math.cos(g.ang) * 44, ly = g.y + Math.sin(g.ang) * 44 - 8;
+          ctx.save(); ctx.globalAlpha = up;
+          ctx.fillStyle = "rgba(29,29,31,.25)"; ctx.fillRect(lx - bw / 2, ly, bw, 5);
+          ctx.fillStyle = "#c8742a"; ctx.fillRect(lx - bw / 2, ly, (bw * g.hp) / g.maxHp, 5);
+          H.label?.(`城門 ${g.hp}・到第 ${g.until} 回合`, lx, ly + 14, "#6a4a1a", 10);
+          ctx.restore();
+        }
+      }
       ctx.save();
       ctx.globalAlpha = br ? 0.95 : 0.6; ctx.strokeStyle = br ? "#d8a040" : "#9a6a2a"; ctx.lineWidth = br ? 8 : 5;
       if (br && upg(u).e2 === "allround") { ctx.beginPath(); ctx.arc(p.x, p.y, u.r + 12, 0, Math.PI * 2); ctx.stroke(); }
