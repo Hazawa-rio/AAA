@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261114045024" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261115234444" });
 // 角色：悠魘（洋紅色的「悠」，卡池角色）
 // 表面上：來自■■■■的魔法少女，和使魔咕哩咕妞簽了契約，用魔法守護愛與正義
 // 隱藏簡介（酒館名牌架滑鼠移到簡介上才看得到）：鮫島事件時空的少女，人格被那裡的「異常現象」吃掉，成了高危異常現象的容器
@@ -10,13 +10,14 @@
 // Q「魔導法陣」（魘：血肉囚牢）：法陣把「整個被關在裡面」的敵人困住（走不出去），但我方也打不到裡面的敵人（打下去會打在法陣上）；
 //   法陣有耐久，被打壞（我方打、裡面的敵人撞）會立刻噴出較弱的光束；沒被打壞的話，下次輪到悠魘時向上噴出光束
 // E「魔法結晶」（魘：詭異血繭）：做出一顆結晶，湊滿三顆就一起射向最近的敵人
-// W「夢想變身」（10 次行動充能；隱藏名：攝食至死）：伸出觸手吸取指定的敵人，傷害多少就回復多少，
+// W「夢想變身」（12 次行動充能，照十二星座；隱藏名：攝食至死）：伸出觸手吸取指定的敵人，傷害多少就回復多少，
 //   回到滿血或回復了一半生命就變身：一瞬間露出「真身」→ 被抖動的黑色馬賽克蓋住 → 變成魘
-// 大招強化（三選一）：
+//   充能每 3 點唸一段變身詠唱（雙子座、處女座、射手座、雙魚座）
+//   魘的生命耗盡變回悠：生命補滿，但這場戰鬥的最大生命少掉原本的 25%（累積）；一場戰鬥最多變身三次
+// 大招強化（二選一）：
 // 奧秘之瞳（不是強化，是酒館名牌架上的開關 rpg.calmYouyan；沒抽到悠魘也能開關）：獵奇的主要是咕哩咕妞本體——打開後，變身時的真身換成紅色光球、咕哩咕妞的大招只剩黑屏和紅字
-//   夢想變身：大招充能 10 → 12（照十二星座；每 3 點唸一段變身詠唱）；變回悠時補滿生命，但這場戰鬥的最大生命少掉原本的 25%（累積）；一場最多用三次
 //   咕哩咕妞：大招要充能三輪（36）——前兩輪沒有效果，大招的名字慢慢被侵蝕；吸完血不變成魘，而是變成巨大的咕哩咕妞（不可操作）——全螢幕抖動的黑色馬賽克、黑屏中間抖動的紅字「Samejima Jiken」
-//     （不時閃成 Wingdings），動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠（一半生命）
+//     （不時閃成 Wingdings），動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠（生命補滿、最大生命 −25%）
 //   我的夢想：獵奇的變身動畫後再被粉紅色的星星罩住，變成在兩個樣子之間閃爍切換的型態（其實還是魘）；每次用技能都會附加一圈粉紅星星（打到周圍的敵人）
 // 數值都是暫定；個性台詞之後由使用者提供；音效暫用現有的
 (function () {
@@ -57,7 +58,7 @@
     profileHidden: "來自鮫島事件時空的少女，位於那裏的「異常現象」吃掉了她的人格，她成了某個高危異常現象的容器，她的認知被修改成了一位魔法少女，咕哩咕妞並不需要寄生在人類身上生存，只是對於一位為了虛假的幻象活著的人，感到有趣而已",
     desc: "揮動法杖的魔法少女。法陣困住敵人再噴出光束、湊滿三顆魔法結晶一起射擊；普攻也要花魔力，不夠就用生命支付。大招吸取敵人的生命變身成「魘」，所有技能大幅強化，但只能用生命支付、無法回復。",
     style: { role: "中距離・魔法少女（魔力）", text: "用法陣把敵人關起來、等光束噴發的魔法少女。法陣裡的敵人走不出來，但我方也打不到裡面，要算好時機；魔法結晶湊滿三顆就一起射出。魔力不夠時會用生命支付。大招吸取敵人的生命變身，變身後的技能強得多，代價是只能用生命、無法回復。" },
-    stats: { hp: 80, mp: 110, atk: 15, df: 3, spd: 11, ap: 6 },     // 暫定
+    stats: { hp: 70, mp: 110, atk: 15, df: 2, spd: 11, ap: 6 },     // 暫定
     growth: { hp: 3.4, mp: 3.5, atk: 0.9, df: 0.25, spd: 0.1 },
     mpRegen: 0.25,
     field: {
@@ -83,6 +84,16 @@
       chant6: { chance: 1, lines: ["老師，謝謝你一直以來的關心...我是魔法少女悠魘，我已經不是以前的我了"] },   // 處女座
       chant9: { chance: 1, lines: ["俊也，我會記得你對我的所有付出，照著你的心意射擊的！"] },            // 射手座
       chant12: { chance: 1, lines: ["泳池邊緣的泡沫...這間學校，我還能記得多少呢..."] },               // 雙魚座
+      // 咕哩咕妞強化：第二輪（開始被侵蝕）
+      chant3_2: { chance: 1, lines: ["我見到了你啊，咕哩咕妞，咕哩咕妞一直以來都是我的夢想"] },
+      chant6_2: { chance: 1, lines: ["老師，謝謝你一直以來的關■...我是魔法少女悠魘，我已經不是以前的■了"] },
+      chant9_2: { chance: 1, lines: ["俊也，我會記得你對我的所■付出，照著咕哩咕妞的心意射■的！"] },
+      chant12_2: { chance: 1, lines: ["泳池邊緣的泡沫...泡沫...這間學校，我還能記得多少■..."] },
+      // 咕哩咕妞強化：第三輪（幾乎被吃光）
+      chant3_3: { chance: 1, lines: ["我見到了你啊，咕哩咕妞，咕哩咕妞咕哩咕妞咕哩咕妞是我的夢想"] },
+      chant6_3: { chance: 1, lines: ["老■，謝■你一直以來的■■...我是咕哩咕妞，我已經不是■■■■了"] },
+      chant9_3: { chance: 1, lines: ["俊■，％何＊儺＠考■■■...咕哩咕妞的心意！"] },
+      chant12_3: { chance: 1, lines: ["泡沫泡沫泡沫泡沫...這間學校...■■■■■■■■"] },
       dreamMosaic: { chance: 1.01, lines: ["■■■■■■■■"] },
       morph: { chance: 1.02, lines: ["擊潰邪惡的存在...僅此而已..."] },
       revert: { chance: 1.03, lines: ["哎呀...我恍神了..."] },
@@ -140,7 +151,6 @@
         skill: "dream",
         tiers: [
           [
-            { id: "morph", name: "夢想變身", desc: "大招要充能 12 次（照著十二星座，每 3 次唸一段變身詠唱）；變回悠時生命補滿，但這場戰鬥的最大生命少掉 25%（會累積）。一場戰鬥最多只能用三次" },
             { id: "guri", name: "咕哩咕妞", desc: "大招要充能三輪（36 次）才能放——前兩輪充滿了也沒有效果，大招會慢慢由夢想變身被侵蝕成咕哩咕妞。吸完血不會變成魘，而是變成巨大的咕哩咕妞（不可操作）。動畫結束後消耗所有生命，對全地圖的敵人造成巨大傷害，然後變回悠" },
             { id: "mine", name: "我的夢想", desc: "變身後再被粉紅色的星星罩住，變成在兩個樣子之間閃爍的型態（其實還是魘）；每次用技能，身邊都會炸開一圈粉紅星星，打到周圍的敵人" },
           ],
@@ -163,7 +173,7 @@
 
     // ===== 型態、支付 =====
     // ===== 大招充能：夢想變身 12（十二星座）、咕哩咕妞 36（三輪） =====
-    chargeNeed(b, u) { const w = upg(u).w1; return w === "guri" ? 36 : w === "morph" ? 12 : C.skills.dream.charge; },
+    chargeNeed(b, u) { return upg(u).w1 === "guri" ? C.skills.dream.charge * 3 : C.skills.dream.charge; },
     // 咕哩咕妞：大招的名字慢慢被侵蝕
     ultLabel(u) {
       if (upg(u).w1 !== "guri") return C.skills.dream.name;
@@ -173,8 +183,9 @@
     // 變身詠唱：每 3 點充能唸一段（雙子座、處女座、射手座、雙魚座）
     onCharge(b, u, c) {
       const w = upg(u).w1;
-      if (w !== "morph" && w !== "guri") return;
-      if (c % 3 === 0) b.bark(u, "chant" + (((c - 1) % 12) + 1));
+      // 咕哩咕妞：每一輪的詠唱都被侵蝕得更詭異（第二輪 _2、第三輪 _3）
+      const round = Math.ceil(c / 12);
+      if (c % 3 === 0) b.bark(u, "chant" + (((c - 1) % 12) + 1) + (w === "guri" && round > 1 ? "_" + round : ""));
       if (w === "guri" && (c === 12 || c === 24)) { b.say(c === 12 ? "大招充滿了……可是什麼都沒有發生。夢想變身好像被什麼侵蝕了。" : "又充滿了一次……大招的名字，越來越不像夢想變身了。"); b.emit({ type: "buff", unit: u, text: "侵蝕", color: RED }); }
     },
     init(b, u) { u.state.form = "you"; u.name = "悠"; u.state.crystals = 0; u.state.dreamUses = 0; CALM = calmOf(b); },
@@ -207,21 +218,16 @@
       if (!yan(u)) b.bark(u, "devote", 0.3);
       if (u.hp <= 0) this.onLethal(b, u);
     },
-    // 生命歸零：魘會變回一半生命的悠（悠就是真的倒下）
+    // 生命歸零：魘會變回悠（生命補滿、最大生命 −25%；悠就是真的倒下）
     onLethal(b, u) {
       if (!yan(u)) return false;
       u.state.form = "you"; u.name = "悠";
-      if (upg(u).w1 === "morph") {
-        // 夢想變身：變回悠時補滿生命，但這場戰鬥的最大生命永久少掉原本的 25%（用三次只剩 25%）
-        u.state.baseMaxHp = u.state.baseMaxHp || u.maxHp;
-        u.maxHp = Math.max(1, Math.round(u.maxHp - u.state.baseMaxHp * 0.25));
-        u.hp = u.maxHp;
-        b.say(`魘的生命耗盡了……變回了悠（生命補滿，但最大生命剩 ${u.maxHp}）`);
-        b.emit({ type: "buff", unit: u, text: "最大生命 −25%", color: RED });
-      } else {
-        u.hp = Math.max(1, Math.round(u.maxHp * 0.5));
-        b.say("魘的生命耗盡了……變回了悠（生命剩一半）");
-      }
+      // 變回悠時補滿生命，但這場戰鬥的最大生命永久少掉原本的 25%（變身三次只剩 25%）
+      u.state.baseMaxHp = u.state.baseMaxHp || u.maxHp;
+      u.maxHp = Math.max(1, Math.round(u.maxHp - u.state.baseMaxHp * 0.25));
+      u.hp = u.maxHp;
+      b.say(`魘的生命耗盡了……變回了悠（生命補滿，但最大生命剩 ${u.maxHp}）`);
+      b.emit({ type: "buff", unit: u, text: "最大生命 −25%", color: RED });
       b.emit({ type: "yyRevert", unit: u });
       b.emit({ type: "buff", unit: u, text: "變回悠", color: PINK });
       b.emit({ type: "sfx", sound: SND.magic });
@@ -400,11 +406,11 @@
       dream: {
         name: "夢想變身", hiddenName: "攝食至死", slot: "W", key: "w", ultimate: true, sound: SND.tentacle,
         tags: ["melee"],
-        ap: 2, charge: 10, range: 380, base: 6, atkScale: 0.3, ticks: 10,
-        desc: "伸出觸手吸取指定的敵人：造成多少傷害就回復多少生命，回到滿血或回復了一半生命就變身成「魘」（所有技能換成隱藏名、大幅強化；只用生命支付、無法回復；生命耗盡變回悠）。魘型態不能使用",
+        ap: 2, charge: 12, range: 380, base: 6, atkScale: 0.3, ticks: 10,
+        desc: "伸出觸手吸取指定的敵人：造成多少傷害就回復多少生命，回到滿血或回復了一半生命就變身成「魘」（所有技能換成隱藏名、大幅強化；只用生命支付、無法回復；生命耗盡變回悠：生命補滿，但這場戰鬥的最大生命少掉 25%）。魘型態不能使用；一場戰鬥最多變身三次。充能每 3 次唸一段變身詠唱",
         status(b, u) {
           if (yan(u)) return { ready: false, cost: this.ap, label: this.hiddenName, note: "魘", reason: "魘型態不能使用大招" };
-          if (upg(u).w1 === "morph" && (u.state.dreamUses || 0) >= 3) return { ready: false, cost: this.ap, label: this.name, note: "3/3", reason: "夢想變身一場最多用三次" };
+          if ((u.state.dreamUses || 0) >= 3) return { ready: false, cost: this.ap, label: this.name, note: "3/3", reason: "夢想變身一場最多用三次" };
           const need = C.chargeNeed(b, u), label = C.ultLabel(u);
           if (u.charge < need) return { ready: false, cost: this.ap, label, note: `${u.charge}/${need}`, reason: upg(u).w1 === "guri" && u.charge >= 12 ? `大招被侵蝕中……（還要 ${need - u.charge} 次行動）` : `還要 ${need - u.charge} 次行動才能使用` };
           return { ready: true, cost: this.ap, label, aim: { type: "enemy", range: this.range } };
@@ -452,7 +458,7 @@
           b.bark(u, "morph", delay + 2.1);
           b.say("……變身。");
           b.emit({ type: "buff", unit: u, text: "魘", color: RED });
-          if (W === "morph") b.say(`夢想變身（這場還能用 ${3 - u.state.dreamUses} 次）`);
+          b.say(`（這場還能變身 ${3 - u.state.dreamUses} 次）`);
           if (W === "mine") { b.emit({ type: "yyStars", unit: u, delay: delay + 2 }); u.state.morphAt = now() + (delay + 2.6) * 1000; }
         },
         // 咕哩咕妞：全螢幕演出（約 5.5 秒，不可操作），結束時消耗所有生命，對全地圖的敵人造成巨大傷害
@@ -471,8 +477,12 @@
           setTimeout(() => {
             if (b.phase === "over" || !u.alive) return;
             u.state.form = "you"; u.name = "悠";
-            u.hp = Math.max(1, Math.round(u.maxHp * 0.5));
-            b.say(`咕哩咕妞消耗了所有生命（${spent}），變回了悠（生命剩一半）`);
+            // 和魘變回悠一樣：生命補滿，但這場戰鬥的最大生命少掉原本的 25%（累積）
+            u.state.baseMaxHp = u.state.baseMaxHp || u.maxHp;
+            u.maxHp = Math.max(1, Math.round(u.maxHp - u.state.baseMaxHp * 0.25));
+            u.hp = u.maxHp;
+            b.say(`咕哩咕妞消耗了所有生命（${spent}），變回了悠（生命補滿，但最大生命剩 ${u.maxHp}）`);
+            b.emit({ type: "buff", unit: u, text: "最大生命 −25%", color: RED });
             b.emit({ type: "damage", unit: u, amount: spent, text: `-${spent} 生命` });
             b.emit({ type: "yyRevert", unit: u });
             b.emit();
