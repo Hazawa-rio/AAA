@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261115234444" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261116002724" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -51,6 +51,7 @@
     { id: "telescope", label: "天文望遠鏡", at: { x: 165, y: 236 }, box: { x: 120, y: 120, w: 100, h: 96 } },
     { id: "bestiary", label: "魔物圖鑑", at: { x: 930, y: 590 }, box: { x: 890, y: 440, w: 80, h: 64 } },
     { id: "door", label: "出入口（前往時空）", at: { x: 640, y: 662 }, box: { x: 596, y: 684, w: 88, h: 36 } },
+    { id: "uno", label: "桌上的牌（UNO）", at: { x: 360, y: 500 }, box: { x: 200, y: 390, w: 90, h: 80 } },
   ];
   // ===== 遊戲角落（左邊牆角）：時空小遊戲的機台。買下來的收在倉庫裡，一次擺一台出來；可以隨時收回、換別台 =====
   //   之後別的時空的小遊戲：在 CORNER_GAMES 加一項（解鎖條件 unlockKey、買下來 ownKey、價格、畫機台 draw、面板 panel）
@@ -454,6 +455,23 @@
     text("桑", x, y + bob + 1, "#2f6f6a", 16, 900);
     text("酒保 桑恩", x, y - 30, "#f3e6d0", 12, 700);
   }
+  // 桌上的一疊牌（UNO）
+  function drawCards() {
+    const t = TABLES[0];
+    ctx.save(); ctx.translate(t.x, t.y - 4); ctx.rotate(0.3);
+    for (let i = 0; i < 4; i++) { ctx.fillStyle = "#1d1d1f"; rr(-16 + i * 1.5, -22 - i * 1.5, 30, 44, 4); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); }
+    ctx.fillStyle = "#e84a4a"; ctx.font = "900 9px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("UNO", -10, -28);
+    for (const [dx, c, r] of [[26, "#2a8ad8", 0.4], [36, "#f2c200", -0.2]]) { ctx.save(); ctx.translate(dx, 6); ctx.rotate(r); ctx.fillStyle = c; rr(-13, -19, 26, 38, 4); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
+    ctx.restore();
+  }
+  // 聊天的對話框（打字的優先於角色台詞：有聊天的時候只顯示聊天）
+  function drawBubble(x, y, text0) {
+    ctx.font = '700 13px "Noto Sans TC", sans-serif';
+    const t = text0.length > 26 ? text0.slice(0, 25) + "…" : text0, w = Math.min(300, ctx.measureText(t).width + 18);
+    rr(x - w / 2, y - 26, w, 24, 10); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#5a3a22"; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 6, y - 2); ctx.lineTo(x, y + 6); ctx.lineTo(x + 6, y - 2); ctx.closePath(); ctx.fillStyle = "#fffaf0"; ctx.fill();
+    text(t, x, y - 14, "#5a3a22", 13, 700);
+  }
   function drawMe() {
     const s = me.half * 2;
     ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(me.x, me.y + me.half + 3, me.half, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -467,6 +485,7 @@
     const w = ctx.measureText(name).width + 14;
     rr(me.x - w / 2, me.y - me.half - 28, w, 20, 10); ctx.fillStyle = "rgba(29,29,31,.75)"; ctx.fill();
     text(name, me.x, me.y - me.half - 18, "#fff", 13, 700);
+    const b = bubbles.get(myChatId()); if (b && performance.now() < b.until) drawBubble(me.x, me.y - me.half - 34, b.text);
   }
   // 互動提示：顯示在玩家名字上方，並把物件框起來
   function drawPrompt(t, now) {
@@ -479,11 +498,59 @@
     rr(x - w / 2, ty - 12, w, 24, 12); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#d9b45a"; ctx.stroke();
     text(msg, x, ty, "#5a3a22", 13, 700);
   }
+  // ===== 多人：同一間酒館裡的其他人（懸掛電話連上之後） =====
+  // 每個人每 0.1 秒把自己的位置送給房主；房主把所有人的位置發給大家（房主說了算）
+  const others = new Map();                     // id → { x, y, tx, ty, name, letter, color, host, born }
+  let netT = 0;
+  function netTick(dt) {
+    const N = R.Net;
+    if (!N?.online) { if (others.size) others.clear(); return; }
+    netT -= dt;
+    if (netT <= 0) {
+      netT = 0.1;
+      const pos = { x: Math.round(me.x), y: Math.round(me.y) };
+      if (N.isHost) {
+        const list = [{ id: N.myId, ...pos }];
+        for (const [id, o] of others) list.push({ id, x: Math.round(o.tx), y: Math.round(o.ty) });
+        N.send({ t: "poses", list });
+      } else N.send({ t: "pos", ...pos });
+    }
+    // 不在房間裡的人拿掉
+    const ids = new Set(N.members.map((m) => m.id));
+    for (const id of [...others.keys()]) if (!ids.has(id)) others.delete(id);
+    for (const o of others.values()) { const k = Math.min(1, dt * 10); o.x += (o.tx - o.x) * k; o.y += (o.ty - o.y) * k; }
+  }
+  function setOther(id, x, y) {
+    const N = R.Net; if (id === N.myId) return;
+    const m = N.members.find((mm) => mm.id === id); if (!m) return;
+    let o = others.get(id);
+    if (!o) { o = { x, y, tx: x, ty: y, born: performance.now() }; others.set(id, o); }
+    Object.assign(o, { tx: x, ty: y, name: m.name, letter: m.letter, color: m.color, host: m.host });
+  }
+  function drawOthers(now) {
+    for (const [id, o] of others) {
+      const s = me.half * 2, k = Math.min(1, (now - o.born) / 600);
+      // 剛從電話那頭過來：一圈一圈的光
+      if (k < 1) { ctx.strokeStyle = `rgba(242,215,154,${1 - k})`; ctx.lineWidth = 3; for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(o.x, o.y, 10 + i * 14 * k, 0, Math.PI * 2); ctx.stroke(); } }
+      ctx.globalAlpha = k;
+      ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(o.x, o.y + me.half + 3, me.half, 5, 0, 0, Math.PI * 2); ctx.fill();
+      rr(o.x - me.half, o.y - me.half, s, s, 7); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.lineWidth = 3.5; ctx.strokeStyle = o.color || "#1d1d1f"; ctx.stroke();
+      text(o.letter || "?", o.x, o.y + 1, o.color || "#1d1d1f", 16, 900);
+      const name = `${o.name || ""}${o.host ? "（房主）" : ""}`;
+      ctx.font = '700 13px "Noto Sans TC", sans-serif';
+      const w = ctx.measureText(name).width + 14;
+      rr(o.x - w / 2, o.y - me.half - 28, w, 20, 10); ctx.fillStyle = "rgba(58,108,160,.85)"; ctx.fill();
+      text(name, o.x, o.y - me.half - 18, "#fff", 13, 700);
+      ctx.globalAlpha = 1;
+      const b = bubbles.get(id); if (b && now < b.until) drawBubble(o.x, o.y - me.half - 34, b.text);
+    }
+  }
   function frame(now) {
     const dt = Math.min(0.05, (now - (frame.last || now)) / 1000);
     frame.last = now;
     try {
       update(dt);
+      netTick(dt);
       ctx.clearRect(0, 0, W, H);
       drawFloor();
       drawWalls(now);
@@ -491,11 +558,13 @@
       drawArcade(now);
       for (const t of TABLES) drawTable(t);
       drawBook();
+      drawCards();
       drawNpc(now);
       drawBar();
       drawRadio(now);
       if (hover && hover !== near) { const b = hover.box; rr(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 8); ctx.lineWidth = 2; ctx.strokeStyle = "rgba(242,215,154,.7)"; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]); }
       if (me.target) { ctx.beginPath(); ctx.arc(me.target.x, me.target.y, 6 + Math.sin(now / 120) * 2, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,250,240,.8)"; ctx.lineWidth = 2; ctx.stroke(); }
+      drawOthers(now);
       drawMe();
       if (near && !panelOpen) drawPrompt(near, now);
     } catch (e) { showError(e); return; }
@@ -538,6 +607,7 @@
   const panel = $("#tvPanel");
   let panelId = null, mixState = null, myCode = null, dialed = "", bxTab = null, netMsg = "", callMsg = "";
   function open(id) {
+    if (id === "uno") return openUno();
     panelId = id; panelOpen = true; keys.clear(); me.target = null;
     panel.classList.remove("hidden");
     if (id === "bartender") mixState = null;
@@ -1052,7 +1122,12 @@
       if (dialed.length !== 6) { callMsg = "房號是 6 位數"; return renderPanel(); }
       if (dialed === myCode && R.Net.online) { callMsg = "這是你自己的訊號"; return renderPanel(); }
       callMsg = `撥打 ${dialed}……`; renderPanel();
-      R.Net.join(dialed, netMe()).then(() => { callMsg = ""; renderPanel(); }).catch((e) => { callMsg = e.message; renderPanel(); });
+      R.Net.join(dialed, netMe()).then(() => {
+        // 撥通了：從電話那頭走進房主的酒館（出現在懸掛電話前面）
+        callMsg = ""; me.x = 340; me.y = 200; me.target = null; me.then = null;
+        R.Net.status = "已經連上房間——你現在在房主的酒館裡";
+        renderPanel();
+      }).catch((e) => { callMsg = e.message; renderPanel(); });
       return;
     }
     if (a === "netLeave") { R.Net.leave(); myCode = null; netMsg = R.Net.isHost ? "" : ""; return renderPanel(); }
@@ -1083,7 +1158,62 @@
       },
     });
   }
+  // ===== 聊天欄（連線時、或在牌桌上） =====
+  //   Enter：打開／送出；Esc：收起。打的字會變成頭上的對話框（優先於角色台詞），也會留在聊天紀錄裡
+  //   連線時：送給房主，房主發給大家（"chat" → "chatB"）；牌桌上打「UNO」＝喊 UNO（房規是聊天欄喊的時候）
+  const bubbles = new Map();                   // id → { text, until }
+  const chatLog = [];
+  const myChatId = () => (R.Net?.online ? R.Net.myId : "me");
+  const chatBar = document.createElement("div");
+  chatBar.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:450;width:min(420px,calc(100vw - 32px));display:none;flex-direction:column;gap:6px;font-family:'Noto Sans TC',sans-serif";
+  chatBar.innerHTML = `<div class="chat-log" style="display:flex;flex-direction:column;gap:3px;max-height:180px;overflow:hidden;justify-content:flex-end"></div>
+    <form class="chat-form" style="display:flex;gap:6px"><input class="chat-in" maxlength="80" placeholder="按 Enter 聊天（打 UNO 可以喊 UNO）" autocomplete="off" style="flex:1;font:14px 'Noto Sans TC',sans-serif;padding:8px 12px;border-radius:999px;border:2px solid #d9b45a;background:rgba(255,250,240,.95)"><button type="submit" class="primary">送出</button></form>`;
+  document.body.appendChild(chatBar);
+  const chatIn = chatBar.querySelector(".chat-in"), chatBox = chatBar.querySelector(".chat-log");
+  function chatVisible() { return !!(R.Net?.online || R._uno); }
+  function syncChatBar() { chatBar.style.display = chatVisible() ? "flex" : "none"; }
+  setInterval(syncChatBar, 300);
+  function showChat(id, name, textMsg) {
+    bubbles.set(id, { text: textMsg, until: performance.now() + 5000 });
+    chatLog.push({ name, text: textMsg, at: Date.now() });
+    if (chatLog.length > 30) chatLog.shift();
+    chatBox.innerHTML = chatLog.slice(-7).map((c) => `<div style="background:rgba(29,29,31,.7);color:#fff;border-radius:8px;padding:3px 10px;font-size:13px;width:fit-content;max-width:100%"><b style="color:#f2d79a">${esc(c.name)}</b>：${esc(c.text)}</div>`).join("");
+    if (R.Net?.isHost || !R.Net?.online) R._uno?.chatUno(textMsg, id === "me" ? null : id);
+  }
+  chatBar.querySelector(".chat-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const t = chatIn.value.trim(); chatIn.value = "";
+    chatIn.blur();                              // 送出後收起，才能繼續走路
+    if (!t) return;
+    const name = P.get()?.name || "玩家";
+    if (R.Net?.online) {
+      if (R.Net.isHost) { R.Net.send({ t: "chatB", id: R.Net.myId, name, text: t }); showChat(R.Net.myId, name, t); }
+      else R.Net.send({ t: "chat", text: t, name });
+    } else showChat("me", name, t);
+  });
+  chatIn.addEventListener("keydown", (e) => { if (e.key === "Escape") { chatIn.blur(); e.stopPropagation(); } });
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !chatVisible() || document.activeElement === chatIn) return;
+    if (document.activeElement?.tagName === "INPUT") return;
+    e.preventDefault(); e.stopPropagation(); chatIn.focus();
+  }, true);
+
+  // ===== 桌上的牌（UNO） =====
+  function openUno() {
+    if (R._uno) return;
+    panelOpen = true; keys.clear(); me.target = null;
+    const N = R.Net?.online ? R.Net : null;
+    R.Uno.open({ me: { name: P.get()?.name || "玩家" }, net: N, members: N ? N.members : null, onClose: () => { panelOpen = false; } });
+    syncChatBar();
+  }
+
   if (R.Net) {
+    R.Net.on("chat", (m, from) => { if (!R.Net.isHost) return; const mm = R.Net.members.find((x) => x.id === from); const name = mm?.name || m.name || "玩家"; R.Net.send({ t: "chatB", id: from, name, text: m.text }); showChat(from, name, m.text); });
+    R.Net.on("chatB", (m) => { if (!R.Net.isHost) showChat(m.id, m.name, m.text); });
+    // 房主開了牌局：還沒坐上牌桌的人自動坐上去
+    R.Net.on("unoStart", () => { if (!R.Net.isHost && !R._uno) { closePanel(); openUno(); } });
+    R.Net.on("pos", (m, from) => { if (R.Net.isHost) setOther(from, m.x, m.y); });
+    R.Net.on("poses", (m) => { if (!R.Net.isHost) for (const p of m.list) setOther(p.id, p.x, p.y); });
     R.Net.on("lobby", () => { if (panelId === "phone") renderPanel(); });
     R.Net.on("hostLost", () => { if (panelId === "phone") { R.Net.leave(); callMsg = "房主斷線了，房間關閉"; renderPanel(); } });
     // 房主開始（或再開一場）：還在上一場結果畫面的人，先關掉上一場

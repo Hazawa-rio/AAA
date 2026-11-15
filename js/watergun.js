@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/watergun.js": "20261115234444" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/watergun.js": "20261116002724" });
 // 水槍大戰（俯視的搶旗遊戲；多利島主題公園的水池區、懸掛電話的連線房間）
 //   R.WaterGun.play(env)：env = { ch（角色）, host, busy(v), sfx(src), onDone(result), net }  result = { win, draw, score: [我方, 對方], quit, again }
 // 規則：
@@ -83,6 +83,7 @@
     const keys = {}, mouse = { x: CENTER.x, y: CENTER.y, down: false, click: false };
     let myWeapon = "gun";
     const kd = (e) => {
+      if (e.target?.tagName === "INPUT") return;              // 在聊天欄打字
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
       keys[k] = true;
@@ -91,7 +92,7 @@
       if (k === "e") myWeapon = "balloon";
       e.stopPropagation();
     };
-    const ku = (e) => { keys[e.key.toLowerCase()] = false; e.stopPropagation(); };
+    const ku = (e) => { keys[e.key.toLowerCase()] = false; if (e.target?.tagName !== "INPUT") e.stopPropagation(); };
     const toArena = (e) => { const r = cv.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * GW, y: ((e.clientY - r.top) / r.height) * GH }; };
     const mm = (e) => Object.assign(mouse, toArena(e));
     const md = (e) => { if (e.button !== 0) return; e.preventDefault(); Object.assign(mouse, toArena(e)); mouse.down = true; mouse.click = true; };

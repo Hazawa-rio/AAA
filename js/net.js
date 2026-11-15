@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/net.js": "20261115234444" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/net.js": "20261116002724" });
 // 多人連線（懸掛電話）：房主說了算的星狀連線——房主收每個人的輸入、算完再發給大家
 //   連線方式：
 //     peer  ＝PeerJS（點對點；懸掛電話的 6 位數房號＝房主的連線代號 "dorrpg-<房號>"；第一次用時才從 CDN 載入 PeerJS）
