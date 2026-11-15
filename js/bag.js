@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261114045024" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261115234444" });
 // 冒險的行囊（道具欄 20 格）：任務道具、消耗品、素材
 // 地圖探索、地圖上的戰鬥、酒館（酒保烤肉）都會用到
 // use：{ hp: 回復最大生命的比例, mp: 回復最大魔力的比例 }；field = 地圖上可以用、battle = 戰鬥中可以用（花 1 行動點）
@@ -50,6 +50,14 @@
     grapes: { name: "一串葡萄", desc: "東邊平原的葡萄藤上摘的，紫得發亮", color: "#6a2a7a", icon: "berry", stack: 1, quest: true },
     figs: { name: "一籃無花果", desc: "市集攤位買的無花果，甜得黏手", color: "#8a4a8a", icon: "berry", stack: 1, quest: true },
     wineJar: { name: "一罈葡萄酒", desc: "半人馬克洛斯珍藏的葡萄酒。打開蓋子就醉了一半", color: "#7a3a8a", icon: "bottle", stack: 1, quest: true },
+    // #WP00716 多利島主題公園
+    wpFloat: { name: "借來的造型泳圈", desc: "一隻充氣火鶴泳圈。抱著它就能從海灘步道游進水上樂園", color: "#ff7ac8", icon: "drop", stack: 1, quest: true },
+    wpGoggles: { name: "小朋友的蛙鏡", desc: "造浪池淺水區撈到的兒童蛙鏡，綁帶上寫著「小宇」", color: "#5ac8f0", icon: "drop", stack: 1, quest: true },
+    wpPouch: { name: "防水手機袋", desc: "入園廣場有人弄丟的防水手機袋，裡面的手機還在震動", color: "#3a8ad8", icon: "block", stack: 1, quest: true },
+    wpFries: { name: "被搶走的薯條", desc: "從海鷗嘴裡搶回來的薯條。少了三根", color: "#f2c200", icon: "meat", stack: 1, quest: true },
+    wpSurvey: { name: "填好的問卷", desc: "生復製藥的遊客滿意度問卷。最後幾題問得有點奇怪", color: "#e8f4f8", icon: "leaf", stack: 9, quest: true },
+    wpNessie: { name: "尼斯水怪造型泳圈", desc: "勇闖大浪的獎品：一隻縮小版的塑膠尼斯水怪泳圈。可以賣給商店，也可以抱回酒館當紀念", color: "#3ab86a", icon: "block", stack: 9, sell: 60, mat: true },
+    wpIceCream: { name: "消暑冰淇淋", desc: "水上樂園販賣部的冰淇淋，回復 30% 生命", color: "#ffb0d0", icon: "bottle", stack: 9, use: { hp: 0.3 }, field: true, battle: true, price: 30, sell: 10 },
     oliveBranch: { name: "雅典娜的橄欖枝", desc: "供奉在雅典娜神殿裡的橄欖枝。拿在手上，好像有人在背後看著你", color: "#7a9a4a", icon: "block", stack: 1, quest: true },
     joss: { name: "燒剩的紙錢", desc: "紙紮人身上掉下來的紙錢，邊緣燒焦了。可以賣給商店", color: "#d8c890", icon: "block", stack: 20, sell: 22, mat: true },
     baguaMirror: { name: "八卦鏡", desc: "第七位道士留下的八卦鏡。照一下，能看見宅子裡本來看不見的東西（陰氣會上升）", color: "#c8a040", icon: "block", stack: 1, quest: true },

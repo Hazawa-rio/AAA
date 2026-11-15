@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261114045024" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261115234444" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -536,7 +536,7 @@
 
   // ===== 面板 =====
   const panel = $("#tvPanel");
-  let panelId = null, mixState = null, myCode = null, dialed = "", bxTab = null;
+  let panelId = null, mixState = null, myCode = null, dialed = "", bxTab = null, netMsg = "", callMsg = "";
   function open(id) {
     panelId = id; panelOpen = true; keys.clear(); me.target = null;
     panel.classList.remove("hidden");
@@ -692,11 +692,33 @@
     }
     if (panelId === "phone") {
       title.textContent = "懸掛電話";
+      const N = R.Net;
+      if (N?.online) {
+        // 連線的房間（大廳）
+        const dup = N.dupChars(), ms = N.members;
+        const can = N.isHost && ms.length >= 2 && !dup.size;
+        body.innerHTML = `<div class="phone" style="grid-template-columns:1fr">
+          <section><h3>房間 ${esc(N.code)}${N.isHost ? "（你是房主）" : ""}</h3>
+            <p class="status" style="margin-top:0">${esc(N.status || "")}</p>
+            <div style="display:flex;flex-direction:column;gap:6px;margin:6px 0 10px">
+              ${ms.map((m) => `<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:28px;height:28px;border:3px solid ${esc(m.color || "#888")};border-radius:6px;font-weight:900;color:${esc(m.color || "#888")}">${esc(m.letter || "?")}</span>
+                <b>${esc(m.name)}</b><span class="muted">${m.host ? "・房主" : ""}${m.id === N.myId ? "・你" : ""}</span>
+                ${dup.has(m.char) ? `<span style="color:#c0392b;font-weight:700">・角色重複（${esc(R.CHARACTERS[m.char]?.name || m.char)}）</span>` : ""}</div>`).join("")}
+            </div>
+            <p class="tv-note" style="margin:0 0 8px">同一個房間裡角色不能重複——重複的人請到適格者名牌架換一個。最多 4 人。</p>
+            <div class="tv-row" style="flex-wrap:wrap">
+              ${N.isHost ? `<button type="button" class="primary" data-act="netWG" ${can ? "" : "disabled"}>大家一起玩水槍大戰</button>` : `<span class="muted">等房主開始遊戲……</span>`}
+              <button type="button" class="ghost" data-act="netLeave">${N.isHost ? "解散房間" : "離開房間"}</button>
+            </div>
+            ${N.isHost && ms.length < 2 ? `<p class="status">還沒有人加入。把房號 <b>${esc(N.code)}</b> 告訴朋友，對方在懸掛電話撥打這組號碼就能加入</p>` : ""}
+          </section></div>`;
+        return;
+      }
       body.innerHTML = `<div class="phone">
           <section><h3>產生訊號</h3>
             <div class="code">${myCode || "------"}</div>
-            <button type="button" class="primary" data-act="signal">${myCode ? "重新產生" : "產生訊號"}</button>
-            <p class="status">${myCode ? "把這組房號告訴朋友，對方撥打就能加入（多人遊戲尚未開放）" : "產生一組房號，建立多人房間"}</p>
+            <button type="button" class="primary" data-act="signal">${myCode ? "重新產生" : "產生訊號（開房）"}</button>
+            <p class="status" id="hostStatus">${esc(netMsg || "產生一組房號、開一個多人房間；朋友撥打這組號碼就能加入")}</p>
           </section>
           <section><h3>撥打號碼</h3>
             <div class="dial" aria-live="polite">${dialed || "&nbsp;"}</div>
@@ -704,7 +726,7 @@
               <button type="button" class="ghost" data-act="back" aria-label="刪除">⌫</button>
               <button type="button" class="ghost" data-act="digit" data-n="0">0</button>
               <button type="button" class="primary" data-act="call">撥打</button></div>
-            <p class="status" id="callStatus">輸入 6 位數房號</p>
+            <p class="status" id="callStatus">${esc(callMsg || "輸入 6 位數房號")}</p>
           </section>
         </div>`;
       return;
@@ -986,7 +1008,7 @@
       location.href = "world.html";
       return;
     }
-    if (a === "pick") { if (!P.owns(data.id)) return; store.set("rpg.char", data.id); peek = data.id; renderTop(); return renderPanel(); }
+    if (a === "pick") { if (!P.owns(data.id)) return; store.set("rpg.char", data.id); peek = data.id; R.Net?.update(netMe()); renderTop(); return renderPanel(); }
     if (a === "peek") { peek = data.id; return renderPanel(); }
     if (a === "calmYY") { store.set("rpg.calmYouyan", calmYY() ? "0" : "1"); return renderPanel(); }
     if (a === "feature") {
@@ -1018,16 +1040,54 @@
     if (a === "exchange") { const r = P.exchange(data.id); gachaMsg = r.ok ? `用 ${P.GACHA.exchange} 個時空碎片兌換了 ${R.CHARACTERS[data.id].name}！已經掛上名牌架` : r.why; if (r.ok && lensTarget === data.id) lensTarget = null; renderTop(); return renderPanel(); }
     if (a === "disown") { P.disown(data.id); gachaMsg = `（測試）${R.CHARACTERS[data.id].name} 已經還回去了，可以再觀測一次`; lastPull = null; renderTop(); return renderPanel(); }
     if (a === "coins5k") { P.addCoins(5000); renderTop(); return renderPanel(); }
-    if (a === "signal") { myCode = String(Math.floor(100000 + Math.random() * 900000)); return renderPanel(); }
-    if (a === "digit") { if (dialed.length < 6) dialed += data.n; return renderPanel(); }
-    if (a === "back") { dialed = dialed.slice(0, -1); return renderPanel(); }
-    if (a === "call") {
-      renderPanel();
-      const st = $("#callStatus");
-      if (dialed.length !== 6) st.textContent = "房號是 6 位數";
-      else if (dialed === myCode) st.textContent = "這是你自己的訊號";
-      else st.textContent = `撥打 ${dialed}……沒有人接聽（多人遊戲尚未開放）`;
+    if (a === "signal") {
+      myCode = String(Math.floor(100000 + Math.random() * 900000));
+      netMsg = "開房中……"; renderPanel();
+      R.Net.host(myCode, netMe()).then(() => { netMsg = ""; renderPanel(); }).catch((e) => { netMsg = e.message; renderPanel(); });
+      return;
     }
+    if (a === "digit") { if (dialed.length < 6) dialed += data.n; callMsg = ""; return renderPanel(); }
+    if (a === "back") { dialed = dialed.slice(0, -1); callMsg = ""; return renderPanel(); }
+    if (a === "call") {
+      if (dialed.length !== 6) { callMsg = "房號是 6 位數"; return renderPanel(); }
+      if (dialed === myCode && R.Net.online) { callMsg = "這是你自己的訊號"; return renderPanel(); }
+      callMsg = `撥打 ${dialed}……`; renderPanel();
+      R.Net.join(dialed, netMe()).then(() => { callMsg = ""; renderPanel(); }).catch((e) => { callMsg = e.message; renderPanel(); });
+      return;
+    }
+    if (a === "netLeave") { R.Net.leave(); myCode = null; netMsg = R.Net.isHost ? "" : ""; return renderPanel(); }
+    if (a === "netWG") {
+      if (!R.Net.isHost) return;
+      const players = R.Net.members.map((m) => ({ id: m.id, name: m.name, letter: m.letter, color: m.color }));
+      R.Net.setGame("wg");
+      R.Net.send({ t: "wgStart", players });
+      return startNetWG(players);
+    }
+  }
+
+  // ===== 多人連線（懸掛電話） =====
+  function netMe() { const c = curChar(); return { name: P.get()?.name || "玩家", char: c.id, letter: c.letter || c.name[0], color: c.color || "#555" }; }
+  function startNetWG(players) {
+    closePanel();
+    panelOpen = true;
+    R.WaterGun.play({
+      ch: curChar(), net: { role: R.Net.role, myId: R.Net.myId, players },
+      busy: (v) => { panelOpen = v; keys.clear(); me.target = null; },
+      onDone: (r) => {
+        if (R.Net.isHost) {
+          if (r.again) { R.Net.send({ t: "wgStart", players }); return startNetWG(players); }
+          R.Net.setGame(null);
+        }
+        if (r.hostEnded) callMsg = "房主結束了水槍大戰";
+        if (R.Net.online) open("phone");
+      },
+    });
+  }
+  if (R.Net) {
+    R.Net.on("lobby", () => { if (panelId === "phone") renderPanel(); });
+    R.Net.on("hostLost", () => { if (panelId === "phone") { R.Net.leave(); callMsg = "房主斷線了，房間關閉"; renderPanel(); } });
+    // 房主開始（或再開一場）：還在上一場結果畫面的人，先關掉上一場
+    R.Net.on("wgStart", (m) => { if (R.Net.isHost) return; if (R._wg && !R._wg.ended) R._wg.close?.(); startNetWG(m.players); });
   }
 
   // ===== 上方資訊 =====
