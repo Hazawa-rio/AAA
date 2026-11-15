@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261114045024" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412.js": "20261115234444" });
 // #LG00412 傳說的道路（A 級）
 //   宙斯的噴嚏：在城裡走動時，偶爾地上會亮起一個金色的圈，一下子就會打雷（站在裡面會受傷）
 //   LG00412-01 眾神的考驗：向三位哲學家請教 → 到獅子洞跟獅子辯論（三輪，選錯了從頭來）→ 獅子被說動搖了，打一場 → 牠承認自己輸了
@@ -110,7 +110,7 @@
         ? "好啦好啦，被你抓到三次，算你厲害。……可是！抓人跟跑得快是兩回事。跟我比一場——跑贏我，橄欖枝就還你。跑輸了嘛，嘿嘿，我就再拿去玩一陣子。"
         : Q2.raceLost ? `還要再跑一次？我可是一點都不累喔。（輸了 ${Q2.raceLost} 次）` : "跑道已經畫好了。準備好了嗎？";
       api.dlg("市集", HM, txt, `<button type="button" class="primary" data-act="lgRace">開始賽跑</button><button type="button" class="ghost" data-close>等一下</button>`,
-        "七條跑道，你從中間那條起跑。←／→ 換跑道閃開祂丟過來的東西，↑ 或滑鼠左鍵 把金蘋果打回去讓祂減速；彎道照畫面按 Q／W／E，按得越快過彎越快；加速量表滿了按空白鍵衝刺");
+        "七條跑道，你從中間那條起跑。←／→ 換跑道閃開祂丟過來的東西，↑、W 或滑鼠左鍵 把金蘋果打回去讓祂減速；彎道時上方會出現判定條，游標在框裡時點擊畫面，打得越準過彎越快；加速量表滿了按空白鍵衝刺");
     }
     function startRace() {
       api.closePanel?.();
