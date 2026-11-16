@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261116002724" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261116184710" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -2405,7 +2405,7 @@
   function drawDebuffs(u, p) {
     if (!u.alive || !u.state) return;
     const marks = [];
-    if (u.state.flawUntil >= B.round) marks.push(["破綻", "#e8262c"]);
+    if (u.state.flawUntil >= B.round) marks.push([u.state.flawLabel || "破綻", u.state.flawColor || "#e8262c"]);
     if (B.slowed(u.parent || u)) marks.push(["麻痺", "#8a9a2a"]);
     if (u.state.defDownUntil >= B.round) marks.push(["破防", "#b05a1e"]);
     if (u.team !== "enemy" && u.state.weakUntil >= B.round) marks.push(["虛弱", "#7a5aa0"]);

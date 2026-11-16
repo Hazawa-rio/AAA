@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/kn-stg.js": "20261116002724" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/kn-stg.js": "20261116184710" });
 // #KN59810 克亞貝魯巴斯諾的射擊小遊戲（直式捲軸）：時空裡的關卡門、酒館裡買下來的街機都用這一份
 //   R.KnStg.play(env)：env = {
 //     stage, ch（角色）, her（她的戰機）, host（蓋在哪個元素上，預設 body）, music（預設 sounds/bgm-kn.mp3）
@@ -23,6 +23,7 @@
     firsler: { name: "強化大箭矢", charge: 12 }, ilshu: { name: "揮砍前方", charge: 9 }, vivilla: { name: "周圍噴孢子", charge: 10 },
     guan: { name: "陰陽陣", charge: 13 }, hoffman: { name: "殘影閃現", charge: 13 }, marika: { name: "火焰鞭打", charge: 10 },
     cangyou: { name: "蝠鱝夫人", charge: 12 }, bastian: { name: "舉盾", charge: 11 }, youyan: { name: "夢想變身", charge: 8, once: true },
+    phantom: { name: "財寶潑灑", charge: 11 },
   };
   function play(env) {
     const stage = env.stage, CH = env.ch, done = env.onDone;
@@ -171,9 +172,10 @@
       if (SK.once && env.errorUsed?.()) return;
       G.sp = 0;
       const P = G.pl, k = pid;
-      G.skill = { kind: { firsler: "arrow", ilshu: "slash", vivilla: "spore", guan: "taiji", hoffman: "blink", marika: "whip", cangyou: "manta", bastian: "shield", youyan: "error" }[k], t: 0, x: P.x, y: P.y };
+      G.skill = { kind: { firsler: "arrow", ilshu: "slash", vivilla: "spore", guan: "taiji", hoffman: "blink", marika: "whip", cangyou: "manta", bastian: "shield", youyan: "error", phantom: "loot" }[k], t: 0, x: P.x, y: P.y };
       const sk = G.skill;
-      sk.dur = { arrow: 1.0, slash: 0.35, spore: 2.0, taiji: 5, blink: 5, whip: 0.6, manta: 1.2, shield: 5, error: 2.4 }[sk.kind];
+      sk.dur = { arrow: 1.0, slash: 0.35, spore: 2.0, taiji: 5, blink: 5, whip: 0.6, manta: 1.2, shield: 5, error: 2.4, loot: 1.3 }[sk.kind];
+      if (sk.kind === "loot") sk.coins = Array.from({ length: 18 }, (_, i) => ({ x: P.x, y: P.y - 10, a: -Math.PI / 2 + (i / 17 - 0.5) * 1.4, v: 520 + (i % 3) * 60, gem: i % 4 === 3 }));      // 魅影：一把財寶往上扇形潑出去
       if (sk.kind === "slash") { for (const f of G.foes) if (f.y < P.y && Math.hypot(f.x - P.x, f.y - P.y) < 170) hurtFoe(f, 8); if (G.boss && Math.hypot(G.boss.x - P.x, G.boss.y - P.y) < 200) hurtBoss(25); clearBullets((b) => b.y < P.y + 10 && Math.hypot(b.x - P.x, b.y - P.y) < 170); }
       if (sk.kind === "spore") { for (const f of G.foes) if (Math.hypot(f.x - P.x, f.y - P.y) < 150) hurtFoe(f, 6); clearBullets((b) => Math.hypot(b.x - P.x, b.y - P.y) < 150); }
       if (sk.kind === "error") {
@@ -205,6 +207,12 @@
         for (const f of G.foes) if (Math.abs(f.x - sk.x) < 90 && Math.abs(f.y - sk.my) < 50) hurtFoe(f, 6);
         if (G.boss && !sk.hitBoss && Math.abs(G.boss.x - sk.x) < 110 && Math.abs(G.boss.y - sk.my) < 60) { sk.hitBoss = true; hurtBoss(35); }
         clearBullets((b) => Math.abs(b.x - sk.x) < 80 && Math.abs(b.y - sk.my) < 50);
+      }
+      if (sk.kind === "loot") {                      // 財寶一枚一枚往前飛，打到敵機就消失（每枚 4）
+        for (const c of sk.coins) { if (c.gone) continue; c.x += Math.cos(c.a) * c.v * dt; c.y += Math.sin(c.a) * c.v * dt;
+          const f = G.foes.find((f) => Math.hypot(f.x - c.x, f.y - c.y) < 22); if (f) { hurtFoe(f, 4); c.gone = true; continue; }
+          if (G.boss && Number.isFinite(G.boss.hp) && Math.hypot(G.boss.x - c.x, G.boss.y - c.y) < 50) { hurtBoss(4); c.gone = true; continue; }
+          clearBullets((b) => Math.hypot(b.x - c.x, b.y - c.y) < 14); if (c.y < -20 || c.x < -20 || c.x > GW + 20) c.gone = true; }
       }
       if (sk.kind === "shield") clearBullets((b) => { const d = Math.hypot(b.x - P.x, b.y - (P.y - 6)); return d < 56 && d > 26 && b.y < P.y + 4; });
       if (sk.t >= sk.dur) { G.skill = null; P.trail = []; }
@@ -340,6 +348,7 @@
         g.fillStyle = "#f2c83c"; g.beginPath(); g.arc(0, h, h / 4, 0, Math.PI * 2); g.fill(); g.fillStyle = "#7a141e"; g.beginPath(); g.arc(0, -h, h / 4, 0, Math.PI * 2); g.fill();
         g.globalAlpha = 0.9; g.strokeStyle = "#2f6fd6"; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, R0, 0, Math.PI * 2); g.stroke(); g.restore(); }
       if (sk?.kind === "spore") { for (let i = 0; i < 24; i++) { const a = i * 0.26 + sk.t * 2, r = 30 + ((sk.t * 120 + i * 13) % 130); g.fillStyle = `rgba(200,140,255,${0.7 - r / 220})`; g.beginPath(); g.arc(P.x + Math.cos(a) * r, P.y + Math.sin(a) * r, 5, 0, Math.PI * 2); g.fill(); } }
+      if (sk?.kind === "loot") for (const c of sk.coins) { if (c.gone) continue; g.fillStyle = c.gem ? "#e84a6a" : "#f2c14e"; g.strokeStyle = "#7a5a10"; g.lineWidth = 1; g.beginPath(); if (c.gem) g.rect(c.x - 4, c.y - 4, 8, 8); else g.arc(c.x, c.y, 5, 0, Math.PI * 2); g.fill(); g.stroke(); }
       if (sk?.kind === "blink") for (const q of P.trail) drawPlane(q.x, q.y, now, 0.25);
       // 我方
       if (!(P.inv > 0 && Math.floor(now / 80) % 2)) drawPlane(P.x, P.y, now);

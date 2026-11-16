@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261116002724" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261116184710" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -725,7 +725,7 @@
       }
       if (k !== 1) note += dst.def.incomingNote ? dst.def.incomingNote(k) : `（立場 ×${k}）`;
       // 破綻（例如被翁爾貢打到）：受到的傷害變多
-      if (dst.state.flawUntil >= this.round) { mult *= dst.state.flawMult || 1.3; note += "（破綻）"; }
+      if (dst.state.flawUntil >= this.round) { mult *= dst.state.flawMult || 1.3; note += dst.state.flawNote || "（破綻）"; }   // flawNote：例如魅影的犯罪預告＝（預告）
       // 角色的格擋（例如巴斯提安「不退之門」：正面受到的傷害變少，擋下來的累積成壓力）
       let guardK = 0;
       if (dst === this.player && this.char.guard) { const g = this.char.guard(this, src, dst); if (g && g.mult !== 1) { mult *= g.mult; note += g.note || ""; guardK = g.mult; } }
@@ -816,6 +816,7 @@
       }
       // 其他敵人對「有單位倒下」的反應（例如受難之日：教徒倒下扣生命、馬上復活）
       for (const e of this.mainEnemies()) R.AI[e.def.ai]?.onUnitDeath?.(this, e, u);
+      this.char.onUnitDeath?.(this, u);          // 玩家角色對「敵人倒下」的反應（例如魅影的預告達成）
     }
 
     // 把單位從 (ox,oy) 往外推 distance，撞牆或撞到其他單位就停在能停的地方

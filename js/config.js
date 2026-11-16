@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261116002724" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261116184710" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
