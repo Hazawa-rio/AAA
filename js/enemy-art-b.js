@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-b.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-art-b.js": "20261120001638" });
 // B 級時空（雲端上的海洋、有點偏執的急診室、或許是魔法森林、比爾哈頓廣場、童年時的黑市、彼岸花盛開的事務所）的戰鬥造型和戰鬥背景
 // R.EnemyArt[kind](ctx, u, p, now)；R.Terrains[terrain]：bg(g, W, H) 畫一次、draw(ctx, now, W, H) 每一格都畫
 (function () {
@@ -70,6 +70,16 @@
       ctx.fillStyle = "#e8dcc8"; ctx.fillRect(x + r * dx - 3, y - r * 0.6 - r * h * 0.6, 6, r * h * 0.6);
       ctx.globalAlpha = (u.alive === false ? 0.3 : 1) * gl; dot(ctx, x + r * dx, y - r * 0.6 - r * h * 0.6, r * 0.32, c); ctx.globalAlpha = u.alive === false ? 0.3 : 1;
     }
+    ctx.globalAlpha = 1;
+  };
+  A.hyphaBeast = (ctx, u, p, now) => {
+    const r = u.r, x = p.x, y = p.y + bob(u, now);
+    alive(ctx, u);
+    for (let i = 0; i < 7; i++) { const a = i * 0.9 + now / 700; ctx.strokeStyle = "#8a7aa8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + Math.cos(a) * r * 1.1, y + Math.sin(a) * r * 0.6, x + Math.cos(a) * r * 1.5, y + r * 0.7 + Math.sin(a * 2) * 4); ctx.stroke(); }   // 菌絲
+    box(ctx, x - r, y - r * 0.7, r * 2, r * 1.5, "#3a2a4a", "#140a1a", 3, r * 0.6);
+    for (const dx of [-0.35, 0.35]) { ctx.globalAlpha = (u.alive === false ? 0.3 : 1) * (0.5 + 0.5 * Math.sin(now / 200 + dx * 9)); dot(ctx, x + r * dx, y - r * 0.15, r * 0.14, "#c8a0ff"); }   // 沒用的眼睛（還在發光）
+    ctx.globalAlpha = u.alive === false ? 0.3 : 1;
+    ctx.fillStyle = "#e8dcc8"; for (let i = 0; i < 4; i++) ctx.fillRect(x - r * 0.4 + i * r * 0.26, y + r * 0.3, r * 0.12, r * 0.22);   // 牙
     ctx.globalAlpha = 1;
   };
   A.sporeKing = (ctx, u, p, now) => {

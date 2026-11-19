@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261120001638" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -703,20 +703,41 @@
     const A = b.cfg.arena;
     return { x: Math.min(Math.max(t.x + Math.cos(base + off) * want, 30), A.w - 30), y: Math.min(Math.max(t.y + Math.sin(base + off) * want, 30), A.h - 30) };
   }
+  // 近戰的攻擊方式（def.style，見 js/enemy-kit.js）：把原本的撕咬／飛撲換成變化版
+  //   charge 衝撞：飛撲更長、撞到會把人撞飛；frenzy 連咬：撕咬比較輕、比較快，不飛撲；sweep 揮掃：近身改成打自己周圍一圈
+  function wolfMoves(u) {
+    const D = u.def, st = D.style;
+    let bite = D.bite, pounce = D.pounce;
+    if (st === "charge") pounce = { ...pounce, name: "衝撞", length: Math.round(pounce.length * 1.35), base: Math.round(pounce.base * 1.1),
+      onHit: (b, me, p) => { b.knockback(p, me.x, me.y, 90); b.emit({ type: "buff", unit: p, text: "被撞飛", color: "#c62828" }); } };
+    if (st === "frenzy") { bite = { ...bite, name: "連咬", base: Math.max(1, Math.round(bite.base * 0.75)), reaction: +(bite.reaction * 0.8).toFixed(2) }; pounce = null; }
+    return { bite, pounce, sweep: st === "sweep" ? { name: "揮掃", ap: bite.ap + 1, radius: bite.length + u.r * 0.5, base: bite.base, reaction: bite.reaction + 0.1, sound: bite.sound } : null };
+  }
   R.AI.wolf = {
     // 一個動作；回傳 false 表示什麼都做不了
     async actOnce(b, u) {
       const D = u.def, t = wolfTarget(b, u);
       if (!t) { u.ap = 0; return false; }
+      const M = wolfMoves(u);
       const d = R.dist(u.x, u.y, t.x, t.y);
       const reach = D.bite.length + (t.r || b.cfg.body) * 0.6;
       if (u.state.pounceCd > 0 && b.realtime) u.state.pounceCd--;
-      if (!(u.state.pounceCd > 0) && u.ap >= D.pounce.ap && d > reach && d <= D.pounce.length + (t.r || 0) * 0.5) {
-        u.state.pounceCd = D.pounce.cooldown;
-        await b.enemyLunge(u, t, D.pounce, D.pounce.name || "飛撲", true);
+      if (M.pounce && !(u.state.pounceCd > 0) && u.ap >= M.pounce.ap && d > reach && d <= M.pounce.length + (t.r || 0) * 0.5) {
+        u.state.pounceCd = M.pounce.cooldown;
+        await b.enemyLunge(u, t, M.pounce, M.pounce.name || "飛撲", true);
         return true;
       }
-      if (d <= reach && u.ap >= D.bite.ap) { await b.enemyLunge(u, t, D.bite, D.bite.name || "撕咬", false); return true; }
+      if (M.sweep && d <= M.sweep.radius && u.ap >= M.sweep.ap) { await b.enemySpin(u, M.sweep, M.sweep.name); return true; }
+      if (d <= reach && u.ap >= M.bite.ap) {
+        await b.enemyLunge(u, t, M.bite, M.bite.name || "撕咬", false);
+        // 打帶跑：咬完往後退開
+        if (D.style === "hitRun" && u.alive && u.ap >= D.moveCost) {
+          const a = Math.atan2(u.y - t.y, u.x - t.x);
+          if (b.enemyMoveToward(u, { x: u.x + Math.cos(a) * 220, y: u.y + Math.sin(a) * 220 }, 0)) b.say(`${u.name} 咬完就退開了`);
+          u.ap = 0;
+        }
+        return true;
+      }
       const goal = flankPoint(b, u, t, reach * 0.75);
       if (b.enemyMoveToward(u, goal, 6)) return true;
       if (b.enemyMoveToward(u, t, reach * 0.7)) return true;
@@ -1151,6 +1172,46 @@
     },
   };
 
+  // ===== 遠程的攻擊方式（def.style，見 js/enemy-kit.js）=====
+  //   burst 連射：三發會飛的光彈（沒有預告、看得到，可以走位躲開），每發 60%
+  //   spread 散射：三道射擊扇形散開，每道 60%；lob 拋射：落點一圈；snipe 狙擊：更遠、更重、瞄得更久
+  const shotRange = (D) => Math.round(D.shot.length * (D.style === "snipe" ? 1.35 : D.style === "lob" ? 0.8 : 1));
+  async function gunnerShot(b, u, t) {
+    const D = u.def, S = D.shot, st = D.style;
+    if (st === "snipe") return b.enemyLunge(u, t, { ...S, name: "狙擊", length: shotRange(D), width: Math.round(S.width * 0.6), base: Math.round(S.base * 1.35), reaction: +(S.reaction + 0.45).toFixed(2) }, "狙擊", false);
+    if (st === "burst") {
+      b.enemySpend(u, S.ap);
+      b.say(`${u.name} 連射！`);
+      const a0 = Math.atan2(t.y - u.y, t.x - u.x);
+      u.facing = a0;
+      for (let i = 0; i < 3 && u.alive && !b.dead; i++) {
+        const a = a0 + (i - 1) * 0.09;
+        b.spawnBullet(u, u.x + Math.cos(a) * u.r, u.y + Math.sin(a) * u.r, a, { speed: 480, r: 10, base: Math.max(1, Math.round(S.base * 0.6)), color: D.color });
+        if (S.sound) b.emit({ type: "sfx", sound: S.sound });
+        await b.wait(0.2);
+      }
+      return b.waitProjectiles();
+    }
+    if (st === "spread") {
+      b.enemySpend(u, S.ap);
+      b.say(`${u.name} 準備散射！`);
+      const a0 = Math.atan2(t.y - u.y, t.x - u.x);
+      u.facing = a0;
+      const shots = [-0.32, 0, 0.32].map((off) => {
+        const a = a0 + off;
+        return b.telegraph(u, { shape: "rect", x: u.x + Math.cos(a) * u.r * 0.6, y: u.y + Math.sin(a) * u.r * 0.6, ang: a, length: S.length, width: Math.round(S.width * 0.8), reaction: S.reaction, shot: true }, { base: Math.max(1, Math.round(S.base * 0.6)), sound: S.sound, label: `${u.name} 的散射`, quiet: true });
+      });
+      return Promise.all(shots);
+    }
+    if (st === "lob") {
+      b.enemySpend(u, S.ap);
+      b.say(`${u.name} 往你腳下丟了東西！`);
+      u.facing = Math.atan2(t.y - u.y, t.x - u.x);
+      return b.telegraph(u, { shape: "circle", x: t.x, y: t.y, radius: 80, reaction: +(S.reaction * 1.3).toFixed(2) }, { base: Math.round(S.base * 0.9), sound: S.sound, label: `${u.name} 的拋射` });
+    }
+    return b.enemyLunge(u, t, S, S.name, false);
+  }
+
   // ===== 海盜火槍手：保持距離開火 =====
   R.AI.gunner = {
     async takeTurn(b, u) {
@@ -1162,7 +1223,7 @@
           // 往遠離目標的方向退
           const a = Math.atan2(u.y - t.y, u.x - t.x);
           if (!b.enemyMoveToward(u, { x: u.x + Math.cos(a) * 200, y: u.y + Math.sin(a) * 200 }, 0)) break;
-        } else if (u.ap >= D.shot.ap && d <= D.shot.length) await b.enemyLunge(u, t, D.shot, D.shot.name, false);
+        } else if (u.ap >= D.shot.ap && d <= shotRange(D)) await gunnerShot(b, u, t);
         else if (!b.enemyMoveToward(u, t, D.keep + 40)) break;
         b.emit();
         if (u.ap > 0) await b.wait(b.cfg.aiDelay);

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261120001638" });
 // 魔物圖鑑（酒館桌上的那本書）：以時空分類列出會戰鬥的生物
 // 遇到過＝顯示名字；完成一次戰鬥（打贏）＝顯示技能和數值
 // 同一個物種可以出現在好幾個時空（例如奇儂鎮和科考隊森林邊的魔狼）；遇到、打贏的紀錄是全部時空共用的
@@ -24,7 +24,7 @@
     KT33233: ["jumpSpider", "aphid"],
     CO00756: ["skyCatcher", "catcherBoss"],
     ER00119: ["stitched", "surgeonBoss"],
-    MM22330: ["sporeMole", "sporeKing"],
+    MM22330: ["sporeMole", "hyphaBeast", "sporeKing"],
     BH03278: ["looter", "instigator"],
     CD02016: ["eraAgent", "eraCaptain"],
     MJ44444: ["grudge", "grudgeSpirit"],
@@ -52,6 +52,7 @@
     stitched: "只是來看個小病，卻被「完美縫合」到停不下來的病人。多出來的手臂針腳整齊得嚇人。他們還記得自己是誰。",
     surgeonBoss: "有點偏執的急診室的首席外科醫師。技術無可挑剔，只是從不停手。每一針都精準到小數點第五位。",
     sporeMole: "被毒蘑菇寄生的鼴鼠。蘑菇借牠的身體在礦道裡四處散播孢子。",
+    hyphaBeast: "礦井第三層以下才看得到。在完全沒有光的地方長大，眼睛早就沒用了，靠菌絲感覺你的腳步。",
     sporeKing: "寄生在發光菇群上的巨大毒菇。把整片菇群的光吸走，用來長大自己。",
     looter: "趁比爾哈頓廣場的混亂，打算洗劫精品店的暴民。抗議喊的口號，他們一句也沒在聽。",
     instigator: "在廣場上煽動洗劫的人。手上拿著兩年前的購物收據，嘴裡說的卻跟那張收據一點關係也沒有。",
@@ -150,6 +151,8 @@
             return `<li><b>${esc(v.name || SK[k] || k)}</b>${bits.length ? `<span>${bits.join("・")}</span>` : ""}</li>`;
           });
           body += `<div class="bx-stats">${st.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("")}</div>${sks.length ? `<ul class="bx-skills">${sks.join("")}</ul>` : ""}`;
+          const kit = R.EnemyKit?.describe(D);          // 攻擊方式、特有被動（js/enemy-kit.js）
+          if (kit?.style || kit?.trait) body += `<ul class="bx-skills">${kit.style ? `<li><b>攻擊方式</b><span>${esc(kit.style)}</span></li>` : ""}${kit.trait ? `<li><b>被動</b><span>${esc(kit.trait)}</span></li>` : ""}</ul>`;
           const also = Object.entries(BY_WORLD).filter(([w, l]) => w !== tab && l.includes(sp)).map(([w]) => W[w]?.name || "試煉");
           if (also.length) body += `<p class="bx-also">也出現在：${esc(also.join("、"))}</p>`;
         }

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/watergun.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/watergun.js": "20261120001638" });
 // 水槍大戰（俯視的搶旗遊戲；多利島主題公園的水池區、懸掛電話的連線房間）
 //   R.WaterGun.play(env)：env = { ch（角色）, host, busy(v), sfx(src), onDone(result), net }  result = { win, draw, score: [我方, 對方], quit, again }
 // 規則：

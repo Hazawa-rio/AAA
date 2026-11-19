@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261120001638" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -59,7 +59,7 @@
   const FIELD = CH.field || { basicRange: 80, q: null };
   const drinkHp = run.drink ? P.bonusOf(run.drink).hp : 0;
   const stats = () => (R.Progress ? R.Progress.forBattle(CH) : { stats: CH.stats }).stats;
-  const maxHp = () => stats().hp + drinkHp;              // 寶物（例如醃漬罐）會改變上限
+  const maxHp = () => stats().hp + drinkHp + (run.soup?.bonus?.hp || 0);         // 蘑菇湯（魔法森林的湯鍋）在這一趟中途才喝，所以每次都重新讀              // 寶物（例如醃漬罐）會改變上限
   if (run.hp == null) run.hp = maxHp();
   run.hp = Math.min(run.hp, maxHp());
   if (run.respawn || !run.pos) { run.pos = { ...MAP.arrive }; run.respawn = false; }
@@ -76,7 +76,7 @@
     if (bgm.paused) bgm.play().catch(() => {});
   }
   window.addEventListener("rpg:volume", () => { if (bgm) bgm.volume = R.CONFIG.bgmVolume; });
-  function sfx(src) { if (muted || !src) return; const a = new Audio(src); a.volume = R.CONFIG.volume; a.play().catch(() => {}); }
+  function sfx(src) { if (muted || !src) return; const a = new Audio(src); a.volume = R.CONFIG.volume; if (R.sfxVary && !R.sfxVary(a, src)) return; a.play().catch(() => {}); }
   window.addEventListener("pointerdown", startBgm);
   window.addEventListener("keydown", startBgm);
   startBgm();
@@ -94,6 +94,8 @@
   }
   function useItem(id) {
     const it = BAG.get(id);
+    const hooked = it && HOOK.useItem?.(id, it);          // 時空自己的用法（例如生態盒丟誘餌）；回傳 "close" 會關掉行囊
+    if (hooked) return hooked;
     if (!it?.field) { toast(it?.battle ? `${it.name}要在戰鬥中使用` : `${it?.name || "這個"}不能在這裡使用`); return false; }
     if (it.use?.hp && heal(Math.round(maxHp() * it.use.hp), `使用${it.name}`)) { BAG.remove(run.items, id, 1); save(); return true; }
     // 鋁罐可樂：一段時間內移動速度變快
@@ -143,7 +145,28 @@
   // ===== 魔物 =====
   const WOLF = MAP.wolf || {};
   const isWolf = (k) => !!WOLF.packs?.[k];
-  const enemies = MAP.enemies.filter((e) => !run.defeated.includes(e.id)).map((e) => ({ ...e, hx: e.x, hy: e.y, r: isWolf(e.kind) ? 30 : 26, tx: e.x, ty: e.y, wait: Math.random() * 2, chasing: false, face: 0 }));
+  const mkEnemy = (e) => ({ ...e, hx: e.x, hy: e.y, r: isWolf(e.kind) ? 30 : 26, tx: e.x, ty: e.y, wait: Math.random() * 2, chasing: false, face: 0 });
+  const enemies = MAP.enemies.filter((e) => !run.defeated.includes(e.id)).map(mkEnemy);
+  // ===== 魔物重新生成 =====
+  // 打倒的魔物 RESPAWN.delay 秒後、而且玩家離牠原本的位置夠遠（RESPAWN.far）才會回來，不會在眼前憑空冒出來
+  // run.defeated 只記「現在不在地圖上」；打倒的時間記在 run.downAt（battle-ui 寫入）
+  // 整張地圖不重生：MAP.respawn = false；某一組不重生：在 MAP.enemies 那一筆加 respawn: false
+  const RESPAWN = { delay: 90, far: 520, every: 1 };
+  run.downAt = run.downAt || {};
+  for (const id of run.defeated) if (!run.downAt[id]) run.downAt[id] = Date.now();        // 舊存檔：從現在開始算
+  let respawnT = 0;
+  function respawnTick(dt) {
+    if (MAP.respawn === false || (respawnT -= dt) > 0) return;
+    respawnT = RESPAWN.every;
+    for (const e of MAP.enemies) {
+      if (e.respawn === false || !run.defeated.includes(e.id)) continue;
+      if (Date.now() - (run.downAt[e.id] || 0) < RESPAWN.delay * 1000 || dist(me.x, me.y, e.x, e.y) < RESPAWN.far) continue;
+      run.defeated = run.defeated.filter((x) => x !== e.id);
+      delete run.downAt[e.id];
+      enemies.push(mkEnemy(e));
+      save();
+    }
+  }
   // 瑪莉卡的遠距離點火：地上燒著的火（魔物會被嚇跑、不敢靠近）
   const fires = [];
   let barkAggro = 0;              // 被魔物盯上時的台詞（地圖 barks.aggro）：20 秒內只說一次
@@ -167,6 +190,8 @@
       }
     }
     for (const e of enemies) {
+      // 被彌華姬的毒針迷暈：原地不動
+      if (e.dazed > performance.now()) { e.chasing = false; continue; }
       // 被探路小魚吸引：跟著小魚走（最多走 follow 那麼遠），之後一陣子不會追人
       if (e.lure && (!lures.includes(e.lure) || e.lureLeft <= 0)) { e.lure = null; e.calm = Date.now() + 3000; e.chasing = false; e.tx = e.x; e.ty = e.y; e.wait = 1; }
       if (!e.lure && lures.length && !(e.lured > Date.now())) {
@@ -463,6 +488,7 @@
     if (busy) return;
     unstick();
     updateEnemies(dt);
+    respawnTick(dt);
     updateFolk(dt);
     if (charging) {
       if (now - charging.start >= charging.dur) finishSense();
@@ -481,7 +507,7 @@
       }
     }
     // 撞到魔物：遇襲（剛撤退回來的幾秒內不會）
-    if (Date.now() > (run.grace || 0)) for (const e of enemies) if (dist(me.x, me.y, e.x, e.y) < e.r + me.half) return battle(e, -2);
+    if (Date.now() > (run.grace || 0)) for (const e of enemies) if (!(e.dazed > performance.now()) && dist(me.x, me.y, e.x, e.y) < e.r + me.half) return battle(e, -2);     // 暈著的魔物：碰到不會開戰
     // 陷阱
     for (const t of MAP.traps) {
       if (run.traps.includes(t.id) || dist(me.x, me.y, t.x, t.y) > 26) continue;
@@ -642,7 +668,7 @@
       return;
     }
     aiming = !aiming;
-    if (aiming) toast(Q.type === "arrow" ? "點選射箭的方向" : Q.type === "jet" ? "點選噴射的方向" : Q.type === "ignite" ? "點選要點火的位置" : Q.type === "lure" ? "點選小魚要游去的方向" : "點選拋出蘑菇的位置（點自己＝治療自己）");
+    if (aiming) toast(Q.type === "arrow" ? "點選射箭的方向" : Q.type === "dart" ? "點選射出毒針的方向" : Q.type === "jet" ? "點選噴射的方向" : Q.type === "ignite" ? "點選要點火的位置" : Q.type === "lure" ? "點選小魚要游去的方向" : "點選拋出蘑菇的位置（點自己＝治療自己）");
   }
   function startCd() { run.cd.q = Date.now() + Q.cd * 1000; save(); }
   function useQ(p) {
@@ -685,6 +711,27 @@
       f.dur = (bt / Q.speed) * 1000;
       if (best) setTimeout(() => battle(best, +3), f.dur);
       if (hk && hk.t <= bt) setTimeout(hk.fn, f.dur);
+      return;
+    }
+    if (Q.type === "dart") {
+      // 彌華姬：射出毒針，射中的魔物暈眩一段時間（暈著的魔物不會動、碰到也不會開戰）；毒針觸發不了機關
+      const a = Math.atan2(p.y - me.y, p.x - me.x);
+      sfx(Q.sound);
+      startCd();
+      let best = null, bt = Q.range;
+      for (const e of enemies) {
+        const t = R.geo.rayCircle(me.x, me.y, Math.cos(a), Math.sin(a), e.x, e.y, e.r);
+        if (t !== null && t < bt) { best = e; bt = t; }
+      }
+      for (let s = 20; s < bt; s += 12) if (blocked(me.x + Math.cos(a) * s, me.y + Math.sin(a) * s, 2)) { best = null; bt = s; break; }
+      const dur = (bt / Q.speed) * 1000;
+      fx.push({ k: "dart", x: me.x, y: me.y, a, len: bt, t: performance.now(), dur });
+      if (best) setTimeout(() => {
+        if (!enemies.includes(best)) return;
+        best.dazed = performance.now() + Q.stun * 1000; best.chasing = false; best.tx = best.x; best.ty = best.y;
+        fx.push({ k: "daze", e: best, t: performance.now(), dur: Q.stun * 1000 });
+        if (Q.hitSay) say(Q.hitSay, 2400);
+      }, dur);
       return;
     }
     if (Q.type === "lure") {
@@ -1092,7 +1139,7 @@
       return toast(`摘下了${BAG.get(st.item).name}。${CM.stage(trip, id)?.text || ""}`);
     }
     if (a === "return") return returnHome();
-    if (a === "use") { useItem(run.items[Number(b.dataset.i)]?.id); return openBag(); }
+    if (a === "use") { if (useItem(run.items[Number(b.dataset.i)]?.id) === "close") return closePanel(); return openBag(); }
     if (a === "shopTab") { shopTab = b.dataset.t; return openShop(shopById(b.dataset.shop)); }
     if (a === "buy") {
       const it = BAG.get(id);
@@ -1323,6 +1370,8 @@
       if (k < 0) continue;
       if (f.k === "num") { ctx.globalAlpha = 1 - k; text(f.text, f.x, f.y - k * 30, f.color, 18, 900); ctx.globalAlpha = 1; }
       if (f.k === "alert") { ctx.globalAlpha = 1 - k; text("!", f.e.x, f.e.y - 40 - k * 10, "#e53935", 26, 900); ctx.globalAlpha = 1; }
+      if (f.k === "dart") { const L = f.len * k; const x = f.x + Math.cos(f.a) * L, y = f.y + Math.sin(f.a) * L; ctx.strokeStyle = "rgba(122,90,184,.45)"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - Math.cos(f.a) * 24, y - Math.sin(f.a) * 24); ctx.lineTo(x, y); ctx.stroke(); ctx.strokeStyle = "#2a2430"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - Math.cos(f.a) * 10, y - Math.sin(f.a) * 10); ctx.lineTo(x, y); ctx.stroke(); }
+      if (f.k === "daze" && enemies.includes(f.e) && f.e.dazed > performance.now()) { for (let i = 0; i < 3; i++) { const a = now / 300 + i * 2.09; ctx.fillStyle = "#7a5ab8"; ctx.beginPath(); ctx.arc(f.e.x + Math.cos(a) * 14, f.e.y - f.e.r - 14 + Math.sin(a) * 4, 3, 0, Math.PI * 2); ctx.fill(); } text("暈", f.e.x, f.e.y - f.e.r - 28, "#7a5ab8", 12, 900); }
       if (f.k === "arrow") { const L = f.len * k; const x = f.x + Math.cos(f.a) * L, y = f.y + Math.sin(f.a) * L; ctx.strokeStyle = "#c2477a"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x - Math.cos(f.a) * 26, y - Math.sin(f.a) * 26); ctx.lineTo(x, y); ctx.stroke(); }
       if (f.k === "fireLash") {   // 燃燒的蛇腹劍伸出去再收回來
         const q = k < 0.45 ? k / 0.45 : 1 - (k - 0.45) / 0.55, L = f.len * q, n = Math.max(2, Math.round(L / 20));
@@ -1381,7 +1430,7 @@
     // Q 瞄準
     if (aiming && mouse) {
       ctx.setLineDash([6, 6]); ctx.strokeStyle = "rgba(29,29,31,.5)"; ctx.lineWidth = 2;
-      if (Q.type === "arrow" || Q.type === "jet") { const a = Math.atan2(mouse.y - me.y, mouse.x - me.x), L = Q.range || Q.dist; ctx.beginPath(); ctx.moveTo(me.x, me.y); ctx.lineTo(me.x + Math.cos(a) * L, me.y + Math.sin(a) * L); ctx.stroke(); }
+      if (Q.type === "arrow" || Q.type === "jet" || Q.type === "dart") { const a = Math.atan2(mouse.y - me.y, mouse.x - me.x), L = Q.range || Q.dist; ctx.beginPath(); ctx.moveTo(me.x, me.y); ctx.lineTo(me.x + Math.cos(a) * L, me.y + Math.sin(a) * L); ctx.stroke(); }
       else { ctx.beginPath(); ctx.arc(me.x, me.y, Q.range, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 14, 0, Math.PI * 2); ctx.strokeStyle = "#d64545"; ctx.stroke(); }
       ctx.setLineDash([]);
     }

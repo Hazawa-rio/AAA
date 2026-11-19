@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261120001638" });
 // 寶物：玩家有 6 格寶物欄，放在欄裡的寶物都會生效
 // 寶物存在角色的成長資料裡（R.Progress），戰鬥開始時帶進場
 (function () {
@@ -232,18 +232,21 @@
     },
   };
   // 鍛造武器可以鑲的金屬（熔爐飛龍掉的；綁定的那一招本身的傷害提高）和寶石（晶簇烏龜掉的；強化附加攻擊）。w＝掉落的權重
+  // 鍛造武器的數值（下修過一次：附加傷害 8～22 → 5～13、金屬 8/15/25/40% → 5/10/15/25%、寶石也減弱）
+  // 舊的鍛造武器讀檔時也照這些數值重新算（存檔裡存的是神火、淬火、金屬、寶石，不是最後的數字）
+  const forgeBase = (fire, quench) => Math.round(5 + (fire || 0) * 0.04 + (quench || 0) * 0.04);
   const METALS = {
-    bronze: { name: "青銅", col: "#c8843a", w: 55, pct: 0.08, desc: "那一招傷害 +8%" },
-    silver: { name: "白銀", col: "#d8dce4", w: 28, pct: 0.15, desc: "那一招傷害 +15%" },
-    gold: { name: "黃金", col: "#f2c21a", w: 13, pct: 0.25, desc: "那一招傷害 +25%" },
-    adamant: { name: "精金", col: "#6ae8d8", w: 4, pct: 0.4, desc: "那一招傷害 +40%" },
+    bronze: { name: "青銅", col: "#c8843a", w: 55, pct: 0.05, desc: "那一招傷害 +5%" },
+    silver: { name: "白銀", col: "#d8dce4", w: 28, pct: 0.1, desc: "那一招傷害 +10%" },
+    gold: { name: "黃金", col: "#f2c21a", w: 13, pct: 0.15, desc: "那一招傷害 +15%" },
+    adamant: { name: "精金", col: "#6ae8d8", w: 4, pct: 0.25, desc: "那一招傷害 +25%" },
   };
   const GEMS = {
-    ruby: { name: "紅寶石", col: "#e8262c", w: 30, dmg: 3, desc: "附加傷害 +3" },
+    ruby: { name: "紅寶石", col: "#e8262c", w: 30, dmg: 2, desc: "附加傷害 +2" },
     topaz: { name: "黃晶", col: "#f2e01a", w: 22, count: 1, desc: "附加攻擊 +1 次" },
-    sapphire: { name: "藍寶石", col: "#1aa0e8", w: 28, range: 0.3, desc: "附加攻擊的射程／範圍 +30%" },
-    emerald: { name: "綠柱石", col: "#a8e01a", w: 12, dmg: 2, range: 0.15, desc: "附加傷害 +2、範圍 +15%" },
-    rose: { name: "粉晶", col: "#f4a8c8", w: 8, dmg: 5, desc: "附加傷害 +5" },
+    sapphire: { name: "藍寶石", col: "#1aa0e8", w: 28, range: 0.2, desc: "附加攻擊的射程／範圍 +20%" },
+    emerald: { name: "綠柱石", col: "#a8e01a", w: 12, dmg: 1, range: 0.1, desc: "附加傷害 +1、範圍 +10%" },
+    rose: { name: "粉晶", col: "#f4a8c8", w: 8, dmg: 3, desc: "附加傷害 +3" },
   };
   const FORMS = {
     projectile: { name: "投射", desc: "朝最近的敵人射出一道光矢" },
@@ -283,7 +286,7 @@
     if (d.kind === "forge") {
       const F = FORMS[d.form] || FORMS.projectile;
       const gems = (d.gems || []).map((g) => GEMS[g]).filter(Boolean), metal = METALS[d.metal];
-      const base = d.base + gems.reduce((a, g) => a + (g.dmg || 0), 0), count = 1 + gems.reduce((a, g) => a + (g.count || 0), 0), rs = 1 + gems.reduce((a, g) => a + (g.range || 0), 0);
+      const base = (d.fire != null ? forgeBase(d.fire, d.quench) : Math.min(d.base, 13)) + gems.reduce((a, g) => a + (g.dmg || 0), 0), count = 1 + gems.reduce((a, g) => a + (g.count || 0), 0), rs = 1 + gems.reduce((a, g) => a + (g.range || 0), 0);
       const extra = [metal && `鑲著${metal.name}：「${d.skillName}」本身的傷害 +${Math.round(metal.pct * 100)}%`, gems.length && `寶石：${gems.map((g) => g.name).join("、")}`].filter(Boolean).join("。");
       const score = base + (count - 1) * 6 + (rs - 1) * 20 + (metal ? metal.pct * 30 : 0);
       return { id: d.id, name: d.name, custom: d, rarity: score >= 24 ? "legendary" : score >= 15 ? "epic" : "rare",
@@ -343,7 +346,7 @@
   R.Items = {
     SLOTS: 6,
     RARITY,
-    LIST, PAINT, FORMS, METALS, GEMS,
+    LIST, PAINT, FORMS, METALS, GEMS, forgeBase,
     // 做出一個自訂寶物：存起來、註冊進寶物表，回傳寶物
     createCustom(d) {
       const all = loadCustom();

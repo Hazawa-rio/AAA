@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261120001638" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -235,7 +235,7 @@
     }
     weakOf(u) { const w = u.parent || u; return w.state?.weakUntil >= this.round ? w.state.weakMult : 1; }
     // 有沒有負面狀態可以解除（例如乳酸飲料要先確認）
-    hasDebuff(u) { const s = u.state || {}, r = this.round; return s.flawUntil >= r || s.slowUntil >= r || s.defDownUntil >= r || s.weakUntil >= r || !!s.apPenalty; }
+    hasDebuff(u) { const s = u.state || {}, r = this.round; return s.flawUntil >= r || s.slowUntil >= r || s.defDownUntil >= r || s.weakUntil >= r || !!s.apPenalty || s.poison > 0; }   // poison：彌華姬的中毒
     // 去除一個負面狀態（破綻、麻痺、破防、虛弱、扣行動點），回傳去掉的名稱
     cleanse(u) {
       const s = u.state;
@@ -437,6 +437,7 @@
         this.emit({ type: "mpRegen", unit: u, amount: n });
       }
       this.char.onTurnStart?.(this, u);       // 玩家角色對「任何單位回合開始」的效果（例如循環試煉的殘影爆炸）
+      R.EnemyKit?.turnStart(this, u);         // 一般敵人的特有被動（再生、暴怒）
       // 場上單位對「任何單位回合開始」的效果（例如聖牢籠在敵人回合傷害被困住的玩家）
       for (const e of [...this.units]) if (e.alive && e !== u && e.def.ai) R.AI[e.def.ai]?.onAnyTurnStart?.(this, e, u);
       if (this.checkEnd()) return;
@@ -716,6 +717,14 @@
         this.emit({ type: "miss", x: dst.x, y: dst.y, text: dst.def.passive.evadeLabel || "MISS" });
         return 0;
       }
+      // 一般敵人的特有被動「輕盈」：遠處打來的攻擊有機率閃過（js/enemy-kit.js）
+      const tev = R.EnemyKit?.evade(this, dst, src) || 0;
+      if (tev > 0 && Math.random() < tev) {
+        this.lastEvade = true;
+        this.say(`${dst.name} 輕巧地閃過了攻擊`);
+        this.emit({ type: "miss", x: dst.x, y: dst.y, text: "閃過" });
+        return 0;
+      }
       // 受傷倍率（例如殲滅矩陣的核心立場：依破壞的矩陣數量 0 / 0.5 / 1 / 1.5 倍）
       const k = dst.def.incomingMult ? dst.def.incomingMult(this, dst) : 1;
       if (k === 0) {
@@ -724,6 +733,8 @@
         return 0;
       }
       if (k !== 1) note += dst.def.incomingNote ? dst.def.incomingNote(k) : `（立場 ×${k}）`;
+      // 一般敵人的特有被動（厚皮、裝甲＝受到的傷害；群狼、暴怒、先手＝造成的傷害）
+      for (const ex of [R.EnemyKit?.incoming(this, dst, src), src && R.EnemyKit?.outgoing(this, src, dst)]) if (ex) { mult *= ex.mult; note += ex.note; }
       // 破綻（例如被翁爾貢打到）：受到的傷害變多
       if (dst.state.flawUntil >= this.round) { mult *= dst.state.flawMult || 1.3; note += dst.state.flawNote || "（破綻）"; }   // flawNote：例如魅影的犯罪預告＝（預告）
       // 角色的格擋（例如巴斯提安「不退之門」：正面受到的傷害變少，擋下來的累積成壓力）
@@ -763,6 +774,7 @@
       this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1, delay: this.hitDelay || 0 });   // hitDelay：連擊時每一下的傷害數字錯開出現
       if (dst === this.player && dst.alive) this.bark(dst, "hurt");          // 受傷台詞（角色有設定才會跳）
       if (dst.def.ai && dst.alive) R.AI[dst.def.ai]?.onHurt?.(this, dst);
+      if (src && R.EnemyKit) R.EnemyKit.afterHit(this, src, dst, amount);          // 吸血、反刺
       if (dst.summon && dst.alive && R.Items) R.Items.onSummonHurt(this, dst, src);
       if (dst === this.player && dst.alive && dst.items?.length && R.Items) R.Items.onHurt(this, dst, src);
       if (src === this.player && dst !== src && src.items?.length && R.Items) R.Items.onHit(this, src, dst);       // 例如凡塔黑
@@ -804,6 +816,7 @@
         this.say(`${u.name} 被破壞了！${left ? `核心立場減弱（還剩 ${left} 個矩陣）` : "核心立場完全瓦解！"}`);
       } else this.say(`${u.name} 倒下了`);
       this.emit({ type: "death", unit: u });
+      R.EnemyKit?.death(this, u);             // 一般敵人的特有被動（臨死爆裂）
       // Boss 本體倒下：部位一起停止
       for (const p of u.parts) if (p.alive) { p.hp = 0; this.emit({ type: "death", unit: p }); }
       // 死掉的敵人：它蓄力中的範圍一起移除
@@ -1097,7 +1110,7 @@
       this.say(`${u.name} 準備${label}！`);
       if (u.def.rex || u.def.paw) u.pose = { k: "lunge", t0: performance.now(), ang, hit: 0 };          // 霸王龍：整隻往後仰、再往前撲（畫圖用）
       const t = { shape: "rect", x: u.x + Math.cos(ang) * B * 0.6, y: u.y + Math.sin(ang) * B * 0.6, ang, length: spec.length, width: spec.width, reaction: spec.reaction, lunge: !spec.ranged, shot: !!spec.ranged, words: this.pickWords(u, spec), blood: !!spec.blood };
-      const res = await this.telegraph(u, t, { base: spec.base, sound: spec.sound || u.def.sounds?.ram, label: `${u.name} 的${label}`, quiet: target !== this.player });
+      const res = await this.telegraph(u, t, { base: spec.base, sound: spec.sound || u.def.sounds?.ram, label: `${u.name} 的${label}`, quiet: target !== this.player, onHit: spec.onHit ? (p) => spec.onHit(this, u, p) : undefined });   // onHit：例如衝撞把人撞飛
       if (u.pose) u.pose.hit = performance.now();
       if (dash && res !== false && u.alive && !this.dead && this.phase !== "over") {
         const A = this.cfg.arena, from = { x: u.x, y: u.y };
@@ -1126,7 +1139,7 @@
       this.enemySpend(u, spec.ap);
       this.say(`${u.name} 準備${label}！`);
       if (u.def.rex || u.def.paw) u.pose = { k: "spin", t0: performance.now(), hit: 0 };                   // 霸王龍：蹲低蓄力、再整隻轉一圈
-      const res = await this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u, words: this.pickWords(u, spec), blood: !!spec.blood }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}` });
+      const res = await this.telegraph(u, { shape: "circle", x: u.x, y: u.y, radius: spec.radius, reaction: spec.reaction, follow: u, words: this.pickWords(u, spec), blood: !!spec.blood }, { base: spec.base, sound: spec.sound || u.def.sounds?.slam, label: `${u.name} 的${label}`, onHit: spec.onHit ? (p) => spec.onHit(this, u, p) : undefined });
       if (u.pose) u.pose.hit = performance.now();
       return res;
     }

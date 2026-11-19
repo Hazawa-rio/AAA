@@ -1,7 +1,9 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261120001638" });
 // 冒險的行囊（道具欄 20 格）：任務道具、消耗品、素材
 // 地圖探索、地圖上的戰鬥、酒館（酒保烤肉）都會用到
 // use：{ hp: 回復最大生命的比例, mp: 回復最大魔力的比例 }；field = 地圖上可以用、battle = 戰鬥中可以用（花 1 行動點）
+// 素材（掉落物）的戰鬥用途（battle-ui 的「道具」按鈕）：hurt 擲向最近的敵人、blast＋radius 身邊範圍傷害、shield 護盾、
+//   slow 麻痺／flaw 破綻／weak 虛弱／defDown 破防／stun 跳過下一次行動（都是對最近的敵人，1 回合）、ap 回復行動點、cleanse 解除負面狀態
 (function () {
   const R = (window.RPG = window.RPG || {});
   const ITEMS = {
@@ -9,8 +11,8 @@
     potionHp: { name: "小瓶生命藥水", desc: "回復 30% 生命", color: "#e0524a", icon: "bottle", stack: 9, use: { hp: 0.3 }, field: true, battle: true, price: 30, sell: 12 },
     potionMp: { name: "小瓶魔力藥水", desc: "回復 40% 魔力（戰鬥中使用）", color: "#4a8fe0", icon: "bottle", stack: 9, use: { mp: 0.4 }, battle: true, price: 30, sell: 12 },
     roastMeat: { name: "烤魔狼肉", desc: "桑恩烤的魔狼肉，回復 45% 生命", color: "#b5651d", icon: "meat", stack: 9, use: { hp: 0.45 }, field: true, battle: true, sell: 20 },
-    slimeGel: { name: "黏液", desc: "史萊姆的黏液。可以賣給商店，也可以當魚餌（容易釣到稀有的非魚類）", color: "#8fd18a", icon: "drop", stack: 20, sell: 5, mat: true, bait: true },
-    wolfFang: { name: "魔狼的牙", desc: "魔狼的尖牙。可以賣給商店", color: "#e8e2d0", icon: "fang", stack: 20, sell: 14, mat: true },
+    slimeGel: { name: "黏液", desc: "史萊姆的黏液。可以賣給商店，也可以當魚餌（容易釣到稀有的非魚類）。戰鬥中：丟向最近的敵人，黏住牠（麻痺 1 回合）", color: "#8fd18a", icon: "drop", stack: 20, sell: 5, mat: true, use: { slow: 1 }, battle: true, bait: true },
+    wolfFang: { name: "魔狼的牙", desc: "魔狼的尖牙。可以賣給商店。戰鬥中：擲向最近的敵人（傷害 14）", color: "#e8e2d0", icon: "fang", stack: 20, sell: 14, mat: true, use: { hurt: 14 }, battle: true },
     wolfMeat: { name: "魔狼的肉", desc: "可以賣給商店、帶回酒館請桑恩烤成食物，也可以當魚餌（容易釣到稀有魚類）", color: "#c0504d", icon: "meat", stack: 20, sell: 9, mat: true, bait: true },
     baitBerry: { name: "借來的怪異樹莓", desc: "向歐文借來當魚餌的怪異樹莓。會釣出不得了的東西", color: "#a05ae0", icon: "berry", stack: 1, quest: true, bait: true },
     vivMushroom: { name: "薇薇拉的蘑菇", desc: "薇薇拉隨身帶著的蘑菇。當魚餌容易釣出珍品，但釣不出稀有的魚", color: "#d0645a", icon: "berry", stack: 1, bait: true, virtual: true },
@@ -30,22 +32,25 @@
     hotCocoa: { name: "熱可可", desc: "月台自動販賣機的熱可可，罐子燙手。回復 20% 生命", color: "#7a4a2a", icon: "bottle", stack: 9, use: { hp: 0.2 }, field: true, battle: true, price: 15, sell: 5 },
     lactoDrink: { name: "乳酸飲料", desc: "月台自動販賣機的乳酸飲料，酸酸甜甜。解除一個負面狀態（破綻、麻痺、破防、虛弱……；戰鬥中使用）", color: "#e8a0c0", icon: "bottle", stack: 9, use: { cleanse: 1 }, battle: true, price: 20, sell: 6 },
     colaCan: { name: "鋁罐可樂", desc: "月台自動販賣機的鋁罐可樂，冰得發麻。喝了之後 30 秒內，地圖探索的移動速度 ×1.5", color: "#c0392b", icon: "bottle", stack: 9, use: { rush: 30 }, field: true, price: 20, sell: 6 },
-    snowPelt: { name: "熊的毛皮", desc: "熊身上掉下來的一塊毛皮，很暖。可以賣給商店", color: "#8a5a32", icon: "block", stack: 20, sell: 12, mat: true },
-    oldTicket: { name: "舊車票", desc: "剪票機肚子裡掉出來的舊車票，日期是好幾圈以前。可以賣給商店", color: "#d8c8a0", icon: "leaf", stack: 20, sell: 6, mat: true },
-    droneChip: { name: "無人機晶片", desc: "失控無人機掉下來的晶片。可以賣給商店", color: "#3a8a6a", icon: "block", stack: 20, sell: 12, mat: true },
+    snowPelt: { name: "熊的毛皮", desc: "熊身上掉下來的一塊毛皮，很暖。可以賣給商店。戰鬥中：披在身上（得到最大生命 15% 的護盾）", color: "#8a5a32", icon: "block", stack: 20, sell: 12, mat: true, use: { shield: 0.15 }, battle: true },
+    oldTicket: { name: "舊車票", desc: "剪票機肚子裡掉出來的舊車票，日期是好幾圈以前。可以賣給商店。戰鬥中：在最近的敵人面前剪一下（牠露出破綻 1 回合）", color: "#d8c8a0", icon: "leaf", stack: 20, sell: 6, mat: true, use: { flaw: 1 }, battle: true },
+    droneChip: { name: "無人機晶片", desc: "失控無人機掉下來的晶片。可以賣給商店。戰鬥中：丟到最近的敵人身上短路（牠的下一次行動被跳過）", color: "#3a8a6a", icon: "block", stack: 20, sell: 12, mat: true, use: { stun: 1 }, battle: true },
     iceBell: { name: "冰鈴草", desc: "只在暴風雪最大的時候開花的藥草，花像一串冰做的小鈴鐺", color: "#a8d8f0", icon: "leaf", stack: 1, quest: true },
     miraGoods: { name: "米拉的貨", desc: "一箱用列車上的報紙包著的貨，要在南月台交給買家", color: "#8a6a3a", icon: "block", stack: 1, quest: true },
     jellyPot: { name: "西瓜蟲們的果凍罐", desc: "比你還大的果凍罐，扛著走得很慢", color: "#e86a8a", icon: "drop", stack: 1, quest: true },
     grain: { name: "一粒糧食", desc: "比你的頭還大的穀粒", color: "#e8c87a", icon: "berry", stack: 9, quest: true },
     // ===== B 級時空 =====
-    cloudFluff: { name: "深海雲朵", desc: "雲端上的海洋最底層的雲朵。捏得動、Q 彈、有點涼。可以拿來補洞，也可以賣給商店", color: "#e8f4ff", icon: "berry", stack: 20, sell: 14, mat: true },
+    cloudFluff: { name: "深海雲朵", desc: "雲端上的海洋最底層的雲朵。捏得動、Q 彈、有點涼。可以拿來補洞，也可以賣給商店。戰鬥中：捏一捏，冷靜下來（解除一個負面狀態）", color: "#e8f4ff", icon: "berry", stack: 20, sell: 14, mat: true, use: { cleanse: 1 }, battle: true },
     divingCamera: { name: "潛水相機", desc: "雲朵做的防水殼裡裝著一台相機。這片海的魚抓不到，只拍得到", color: "#3a6a9a", icon: "block", stack: 1, quest: true },
-    suture: { name: "完美的縫線", desc: "被完美縫合的病人身上掉下來的縫線，針腳整齊得嚇人。可以賣給商店", color: "#9a7a8a", icon: "block", stack: 20, sell: 14, mat: true },
+    suture: { name: "完美的縫線", desc: "被完美縫合的病人身上掉下來的縫線，針腳整齊得嚇人。可以賣給商店。戰鬥中：縫一下傷口（回復 15% 生命）", color: "#9a7a8a", icon: "block", stack: 20, sell: 14, mat: true, use: { hp: 0.15 }, battle: true },
     sedative: { name: "訂製的鎮靜針", desc: "精準到小數點第五位的鎮靜針。只適合那一位病人", color: "#2a8a7a", icon: "bottle", stack: 9, quest: true },
-    glowCap: { name: "發光的蘑菇傘", desc: "礦洞裡發光蘑菇的傘蓋。拿在手上能照亮一小塊地方，也可以賣給商店", color: "#9ad8ff", icon: "berry", stack: 20, sell: 14, mat: true },
-    memoryToken: { name: "2016 年的回憶", desc: "黑市裡流通的童年回憶，摸起來是溫的。可以賣給商店", color: "#e8b84a", icon: "berry", stack: 20, sell: 16, mat: true },
-    bronzeFeather: { name: "青銅羽毛", desc: "斯廷法羅斯怪鳥的羽毛，邊緣利得可以削水果。可以賣給商店", color: "#b8863a", icon: "block", stack: 20, sell: 22, mat: true },
-    pixelChip: { name: "像素碎片", desc: "像素敵機掉下來的一格方塊，摸起來是平的。可以賣給商店", color: "#e83a8a", icon: "block", stack: 20, sell: 22, mat: true },
+    escapeRope: { name: "逃生繩", desc: "礦井看守老鐵賣的繩子。在魔法森林的礦井裡使用，直接拉回地面（用完就沒了）", color: "#c8b89a", icon: "bottle", stack: 5, sell: 8 },
+    spiderLeg: { name: "跳蛛的腳", desc: "跳蛛掉下來的一隻腳，還會抽動。生態盒裡的幽靈螳螂最愛吃——在螳螂的盒子裡丟出去，牠會先去吃這個。也可以賣給商店。戰鬥中：丟向最近的敵人（14 傷害）", color: "#4a4a52", icon: "berry", stack: 20, sell: 6, mat: true, bait: true, use: { hurt: 14 }, battle: true },
+    honeydew: { name: "蚜蟲的蜜露", desc: "蚜蟲分泌的甜甜的蜜露。螞蟻搶著要，幽靈螳螂也會被甜味吸引——在螳螂的盒子裡丟出去，牠會先去舔這個。也可以賣給商店。戰鬥中：喝一口（回復 8% 生命）", color: "#c8e07a", icon: "berry", stack: 20, sell: 5, mat: true, bait: true, use: { hp: 0.08 }, battle: true },
+    glowCap: { name: "發光的蘑菇傘", desc: "礦洞裡發光蘑菇的傘蓋。拿在手上能照亮一小塊地方，也可以賣給商店。戰鬥中：照向最近的敵人（牠睜不開眼，虛弱 1 回合）", color: "#9ad8ff", icon: "berry", stack: 20, sell: 14, mat: true, use: { weak: 1 }, battle: true },
+    memoryToken: { name: "2016 年的回憶", desc: "黑市裡流通的童年回憶，摸起來是溫的。可以賣給商店。戰鬥中：握在手裡想起從前（回復 2 點行動點）", color: "#e8b84a", icon: "berry", stack: 20, sell: 16, mat: true, use: { ap: 2 }, battle: true },
+    bronzeFeather: { name: "青銅羽毛", desc: "斯廷法羅斯怪鳥的羽毛，邊緣利得可以削水果。可以賣給商店。戰鬥中：擲向最近的敵人（傷害 22）", color: "#b8863a", icon: "block", stack: 20, sell: 22, mat: true, use: { hurt: 22 }, battle: true },
+    pixelChip: { name: "像素碎片", desc: "像素敵機掉下來的一格方塊，摸起來是平的。可以賣給商店。戰鬥中：塞進最近的敵人身上（牠的防禦破了 1 回合）", color: "#e83a8a", icon: "block", stack: 20, sell: 22, mat: true, use: { defDown: 1 }, battle: true },
     bugCode: { name: "除錯碼", desc: "機台裡撿到的三段亂碼，拼起來好像是某個指令", color: "#5aff9a", icon: "block", stack: 3, quest: true },
     grapes: { name: "一串葡萄", desc: "東邊平原的葡萄藤上摘的，紫得發亮", color: "#6a2a7a", icon: "berry", stack: 1, quest: true },
     figs: { name: "一籃無花果", desc: "市集攤位買的無花果，甜得黏手", color: "#8a4a8a", icon: "berry", stack: 1, quest: true },
@@ -59,10 +64,10 @@
     wpNessie: { name: "尼斯水怪造型泳圈", desc: "勇闖大浪的獎品：一隻縮小版的塑膠尼斯水怪泳圈。可以賣給商店，也可以抱回酒館當紀念", color: "#3ab86a", icon: "block", stack: 9, sell: 60, mat: true },
     wpIceCream: { name: "消暑冰淇淋", desc: "水上樂園販賣部的冰淇淋，回復 30% 生命", color: "#ffb0d0", icon: "bottle", stack: 9, use: { hp: 0.3 }, field: true, battle: true, price: 30, sell: 10 },
     oliveBranch: { name: "雅典娜的橄欖枝", desc: "供奉在雅典娜神殿裡的橄欖枝。拿在手上，好像有人在背後看著你", color: "#7a9a4a", icon: "block", stack: 1, quest: true },
-    joss: { name: "燒剩的紙錢", desc: "紙紮人身上掉下來的紙錢，邊緣燒焦了。可以賣給商店", color: "#d8c890", icon: "block", stack: 20, sell: 22, mat: true },
+    joss: { name: "燒剩的紙錢", desc: "紙紮人身上掉下來的紙錢，邊緣燒焦了。可以賣給商店。戰鬥中：燒掉一張（回復 30% 魔力）", color: "#d8c890", icon: "block", stack: 20, sell: 22, mat: true, use: { mp: 0.3 }, battle: true },
     baguaMirror: { name: "八卦鏡", desc: "第七位道士留下的八卦鏡。照一下，能看見宅子裡本來看不見的東西（陰氣會上升）", color: "#c8a040", icon: "block", stack: 1, quest: true },
-    lilyPetal: { name: "彼岸花的花瓣", desc: "事務所外面彼岸花田的花瓣。據說能讓人想起已經忘記的事。可以賣給商店", color: "#c40a1e", icon: "berry", stack: 20, sell: 16, mat: true },
-    ruinCore: { name: "古代機關的核心", desc: "古代守衛機關、巡弋機關裡拆下來的發光核心。朵拉想要，也可以賣給商店", color: "#5ad0e0", icon: "berry", stack: 20, sell: 18, mat: true },
+    lilyPetal: { name: "彼岸花的花瓣", desc: "事務所外面彼岸花田的花瓣。據說能讓人想起已經忘記的事。可以賣給商店。戰鬥中：聞一下想起忘記的事（解除一個負面狀態、回復 10% 生命）", color: "#c40a1e", icon: "berry", stack: 20, sell: 16, mat: true, use: { cleanse: 1, hp: 0.1 }, battle: true },
+    ruinCore: { name: "古代機關的核心", desc: "古代守衛機關、巡弋機關裡拆下來的發光核心。朵拉想要，也可以賣給商店。戰鬥中：放出核心的能量（身邊 180 內的敵人各 16 傷害）", color: "#5ad0e0", icon: "berry", stack: 20, sell: 18, mat: true, use: { blast: 16, radius: 180 }, battle: true },
     weirdBerry: { name: "怪異樹莓", desc: "從草原果樹摘下、泛著紫光的樹莓。委託要交的東西", color: "#7a3fb0", icon: "berry", stack: 1, quest: true },
   };
   const SIZE = 20;

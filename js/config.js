@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261120001638" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -763,8 +763,8 @@ RPG.CONFIG = {
   E.jumpSpider = { name: "跳蛛", ai: "wolf", color: "#2a2a30", hp: 40, atk: 15, df: 2, spd: 12, ap: 3, moveCost: 1, r: 22, flank: 1.0,       // 暫定
     bite: { name: "咬", ap: 1, length: 80, width: 60, base: 11, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
     pounce: { name: "大跳躍", ap: 2, length: 340, width: 60, base: 14, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
-    sounds: { move: "sounds/wolf-move.mp3" } };
-  E.aphid = Object.assign({}, E.slime, { name: "蚜蟲", color: "#6aa83a", fill: "rgba(120,190,70,.2)", hp: 30, atk: 12, df: 1, spd: 7, r: 22, species: "aphid" });
+    sounds: { move: "sounds/wolf-move.mp3" }, drops: [{ item: "spiderLeg", chance: 0.6 }] };
+  E.aphid = Object.assign({}, E.slime, { name: "蚜蟲", color: "#6aa83a", fill: "rgba(120,190,70,.2)", hp: 30, atk: 12, df: 1, spd: 7, r: 22, species: "aphid", drops: [{ item: "honeydew", chance: 0.7 }] });
   Rm.soil = cRoom("生態盒的土壤上", "落葉和土壤之間的戰鬥", "soil", null, {
     spiders: { name: "跳蛛", desc: "兩隻跳蛛", xp: 60, gold: [14, 22], playerStart: { x: 640, y: 600 }, wave: [{ kind: "jumpSpider", x: 480, y: 170 }, { kind: "jumpSpider", x: 800, y: 170 }] },
     aphids: { name: "蚜蟲群", desc: "三隻蚜蟲", xp: 50, gold: [10, 18], playerStart: { x: 640, y: 600 }, wave: [{ kind: "aphid", x: 340, y: 170 }, { kind: "aphid", x: 640, y: 120 }, { kind: "aphid", x: 940, y: 170 }] },
@@ -964,8 +964,13 @@ RPG.CONFIG = {
     sweep: { name: "孢子爆發", ap: 2, radius: 180, base: 18, reaction: 1.1, cooldown: 1, sound: "sounds/vivilla-boom.mp3" },
     shot: { name: "菌絲鞭", ranged: true, ap: 2, length: 600, width: 50, base: 20, reaction: 1.0, cooldown: 1, sound: "sounds/vivilla-spore.mp3", words: ["……長……出……來……", "孢子……要……散……出……去……"] },
     call: { kind: "sporeMole", ap: 2, every: 3, max: 2, line: "（地面隆起，一隻長滿蘑菇的鼴鼠鑽了出來）" }, sounds: { move: "sounds/slime-move.mp3" } });
+  // 礦井深處（第 3 層以下）：在黑暗裡長大的菌絲獸
+  E.hyphaBeast = W_("深處的菌絲獸", "#3a2a4a", { hp: 112, atk: 24, df: 6, r: 30, bite: { name: "菌絲撕扯", ap: 1, length: 100, width: 80, base: 18, reaction: 0.85, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "從黑暗裡撲出", ap: 2, length: 320, width: 80, base: 21, reaction: 0.95, cooldown: 2, sound: "sounds/vivilla-spore.mp3" }, drops: [{ item: "glowCap", chance: 0.8 }] });
   Rm.mine = cRoom("發光的礦洞", "蘑菇森林裡的戰鬥", "mine", null, {
     moles: v2("sporeMole", "被寄生的鼴鼠", "兩隻被寄生的鼴鼠"), moles3: v3("sporeMole", "被寄生的鼴鼠群", "三隻被寄生的鼴鼠"),
+    beasts: v2("hyphaBeast", "深處的菌絲獸", "兩隻深處的菌絲獸", 260),
+    deepMix: { name: "礦井最深處的魔物", desc: "兩隻菌絲獸和一隻被寄生的鼴鼠", xp: 340, gold: [60, 90], playerStart: { x: 640, y: 600 }, wave: [{ kind: "hyphaBeast", x: 340, y: 170 }, { kind: "sporeMole", x: 640, y: 120 }, { kind: "hyphaBeast", x: 940, y: 170 }] },
     sporeKing: vb("sporeKing", "寄生菇王", "吸走菇群光芒的寄生菇", "<b>寄生菇王</b>：孢子爆發（身邊的圓）、菌絲鞭（長長的紅框）、叫來被寄生的鼴鼠"),
   });
   // #BH03278 比爾哈頓廣場：趁亂洗劫的暴民、煽動者

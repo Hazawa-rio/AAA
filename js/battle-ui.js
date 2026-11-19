@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261120001638" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -74,7 +74,8 @@
     if (muted || !src) return;
     const a = audio(src).cloneNode();    // 複製一份，連續觸發時才能重疊播放
     a.volume = C.volume;
-    if (rate !== 1) { a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false; a.playbackRate = rate; }
+    if (R.sfxVary) { if (!R.sfxVary(a, src, rate)) return; }                // 重複音效的隨機變化（js/volume.js）
+    else if (rate !== 1) { a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false; a.playbackRate = rate; }
     a.play().catch(() => {});            // 瀏覽器在使用者還沒點過頁面前會擋聲音
   }
   for (const e of Object.values(C.enemies)) for (const s of Object.values(e.sounds || {})) audio(s);
@@ -160,6 +161,15 @@
     u.atk += b.atk; u.df += b.df; u.spd += b.spd;
     B.say(`喝下${drink.base}特調：${R.Profile.bonusText(drink)}`);
   }
+  // 魔法森林的蘑菇湯：這一趟喝的，效果持續整趟（存在 run.soup.bonus）
+  function applySoup() {
+    const s = FROM_WORLD ? R.Profile.trip().run?.soup : null; if (!s?.bonus) return;
+    const u = B.player, b = s.bonus;
+    u.maxHp += b.hp || 0; u.hp += b.hp || 0;
+    if (b.mp && u.maxMp) { u.maxMp += b.mp; u.mp += b.mp; }
+    u.atk += b.atk || 0; u.df = Math.max(0, u.df + (b.df || 0)); u.spd += b.spd || 0;
+    B.say(`蘑菇湯的效果：${s.text}`);
+  }
 
   // ---------- 地圖探索：戰鬥結果寫回這一輪冒險 ----------
   function worldResult() {
@@ -177,6 +187,7 @@
     } else if (B.result === "win") {
       run.hp = u.hp;
       if (ENC && !run.defeated.includes(ENC)) run.defeated.push(ENC);
+      if (ENC) (run.downAt = run.downAt || {})[ENC] = Date.now();           // 地圖魔物重新生成用（explore.js 的 RESPAWN）
       const [g0, g1] = ROOMDEF.gold || [0, 0];
       const gold = g0 + Math.floor(Math.random() * (g1 - g0 + 1));
       run.gold += gold;
@@ -272,6 +283,11 @@
         if (it.use.cleanse && !B.hasDebuff(u)) throw new R.ActionError("沒有負面狀態可以解除");
         if (it.use.hp && u.hp >= u.maxHp) throw new R.ActionError("生命已經是滿的");
         if (it.use.mp && !it.use.hp && (!u.maxMp || u.mp >= u.maxMp)) throw new R.ActionError(u.maxMp ? "魔力已經是滿的" : "沒有魔力可以回復");
+        // 素材的戰鬥用途：對最近的敵人（擲出、黏住、剪票……）
+        const U = it.use, foe = B.enemies().filter((e) => e.alive && !e.npc && !e.cage).sort((a, b) => Math.hypot(a.x - u.x, a.y - u.y) - Math.hypot(b.x - u.x, b.y - u.y))[0];
+        const needFoe = U.hurt || U.slow || U.flaw || U.weak || U.defDown || U.stun;
+        if (needFoe && !foe) throw new R.ActionError("附近沒有敵人");
+        if (U.blast && !B.enemies().some((e) => e.alive && Math.hypot(e.x - u.x, e.y - u.y) <= U.radius + e.r)) throw new R.ActionError(`身邊 ${U.radius} 內沒有敵人`);
         const t = R.Profile.trip();
         if (!R.Bag.remove(t.run.items, b.dataset.id, 1)) throw new R.ActionError("道具用完了");
         R.Profile.setTrip(t);
@@ -280,6 +296,16 @@
         if (it.use.hp) B.heal(u, Math.round(u.maxHp * it.use.hp), `（${it.name}）`);
         if (it.use.mp && u.maxMp) { const n = Math.min(u.maxMp - u.mp, Math.round(u.maxMp * it.use.mp)); u.mp += n; B.emit({ type: "mpRegen", unit: u, amount: n }); }
         if (it.use.cleanse) { const g = B.cleanse(u); if (g) { B.say(`${u.name} 的「${g}」解除了（${it.name}）`); B.emit({ type: "buff", unit: u, text: `解除${g}`, color: "#3d9a5b" }); } }
+        if (U.shield) B.addShield(u, Math.round(u.maxHp * U.shield), `（${it.name}）`);
+        if (U.ap) { const n = Math.min(U.ap, u.maxAp - u.ap); if (n > 0) { u.ap += n; B.say(`${u.name} 回復 ${n} 點行動點（${it.name}）`); B.emit({ type: "apGain", unit: u }); } }
+        if (U.hurt) { B.emit({ type: "buff", unit: foe, text: it.name, color: "#7a6a5a" }); B.damage(u, foe, U.hurt, 1, `（${it.name}）`); }
+        if (U.blast) { B.emit({ type: "explode", x: u.x, y: u.y, radius: U.radius }); for (const e of B.enemies().filter((e) => e.alive && Math.hypot(e.x - u.x, e.y - u.y) <= U.radius + e.r)) B.damage(u, e, U.blast, 1, `（${it.name}）`); }
+        const tag = (text, color) => B.emit({ type: "buff", unit: foe, text, color });
+        if (U.slow && foe.alive) { foe.state.slowUntil = B.round + U.slow; foe.state.slowMult = 0.5; foe.state.slowLabel = "黏住"; tag("黏住", "#8a9a2a"); B.say(`${foe.name} 被${it.name}黏住了`); }
+        if (U.flaw && foe.alive) { foe.state.flawUntil = B.round + U.flaw; foe.state.flawMult = 1.3; foe.state.flawNote = foe.state.flawLabel = null; tag("破綻", "#e8262c"); B.say(`${foe.name} 露出了破綻`); }
+        if (U.weak && foe.alive) B.weaken(foe, 0.7, U.weak);
+        if (U.defDown && foe.alive) { foe.state.defDownUntil = B.round + U.defDown; foe.state.defDownMult = 0.5; tag("破防", "#c86a1a"); B.say(`${foe.name} 的防禦破了`); }
+        if (U.stun && foe.alive) { foe.state.imprisoned = true; tag("短路", "#3a8a6a"); B.say(`${foe.name} 短路了，下一次行動會被跳過`); }
         B.countAction(u, "item", cost);
         B.afterPlayerAction();
       });
@@ -336,7 +362,7 @@
     // 午夜嚇人比賽之類的開場白；暗黑霸王龍變形完會咆哮
     if (ROOMDEF.intro) { B.say(ROOMDEF.intro); fx.push({ k: "bigText", text: ROOMDEF.intro.replace(/^[^：]+：/, ""), color: "#ffb04a", t: performance.now(), dur: 2600 }); }
     if (B.units.some((u) => u.def?.rex)) setTimeout(() => playSound("sounds/dino-roar.mp3"), 1300);    // 紅色方塊冒完、黑色方塊開始變白時咆哮
-    applyDrink();
+    applyDrink(); applySoup();
     if (FROM_WORLD) {
       const run = R.Profile.trip().run;
       B.player.initMod = INIT;                       // 迎戰 +3／遇襲 −2
@@ -464,7 +490,7 @@
         break;
       }
       case "heal": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 34, text: SCARE ? `−${ev.amount} 驚嚇` : `+${ev.amount}`, color: SCARE ? "#b07ae0" : "#2e9e5b", t }); break;
-      case "buff": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 58, text: ev.text, color: ev.color || "#1aa3e8", t, dur: 1100 }); break;
+      case "buff": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 58, text: ev.text, color: ev.color || "#1aa3e8", t: t + (ev.delay || 0) * 1000, dur: 1100 }); break;     // delay：例如毒針飛到了才跳「中毒 +1」
       // 通用的範圍閃光（角色技能用）：shape 是 rect / sector / circle / line
       case "fxShape": fx.push({ k: "shape", shape: ev.shape, color: ev.color || "#1d1d1f", t, dur: ev.dur || 400 }); break;
       case "shieldGain": fx.push({ k: "num", x: ev.unit.x, y: ev.unit.y - 46, text: `+${ev.amount} 護盾`, color: "#2f8fd6", t, dur: 1000 }); fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 40, color: "#7fc4ff", t, dur: 500 }); break;
@@ -2406,7 +2432,9 @@
     if (!u.alive || !u.state) return;
     const marks = [];
     if (u.state.flawUntil >= B.round) marks.push([u.state.flawLabel || "破綻", u.state.flawColor || "#e8262c"]);
-    if (B.slowed(u.parent || u)) marks.push(["麻痺", "#8a9a2a"]);
+    if (B.slowed(u.parent || u)) marks.push([(u.parent || u).state.slowLabel || "麻痺", "#8a9a2a"]);     // slowLabel：例如彌華姬的毒霧＝緩速
+    if (u.state.poison > 0) marks.push([`中毒${u.state.poison}`, "#7a5ab8"]);
+    if (u.team === "enemy" && u.def.trait && R.EnemyKit?.TRAITS[u.def.trait]) marks.push([R.EnemyKit.TRAITS[u.def.trait].name, "#6a6a72"]);   // 一般敵人的特有被動            // 彌華姬的中毒（層數）
     if (u.state.defDownUntil >= B.round) marks.push(["破防", "#b05a1e"]);
     if (u.team !== "enemy" && u.state.weakUntil >= B.round) marks.push(["虛弱", "#7a5aa0"]);
     marks.forEach(([t, c], i) => label(t, p.x - (marks.length - 1) * 16 + i * 32, p.y + u.r + 44, c, 10));

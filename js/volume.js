@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/volume.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/volume.js": "20261120001638" });
 // 音量：音效、音樂分開調（存在這台電腦的瀏覽器裡）。所有頁面共用
 // R.CONFIG.volume／bgmVolume 讀出來的值會自動乘上玩家調的比例；調整時發出 "rpg:volume" 事件，正在播的音樂跟著變
 // R.VolumeUI.mount(元素)：在元素後面放一個「音量」按鈕（點開兩條拉桿）
@@ -55,4 +55,28 @@
     window.addEventListener("resize", () => { if (!pop.classList.contains("hidden")) place(); });
   }
   R.VolumeUI = { mount };
+
+  // ===== 重複音效的隨機變化（audio-design：避免連續觸發時每一下都一模一樣）=====
+  //   每次播放：速度 ±5%（音高跟著變一點）、音量 ±2 dB；同一個音效同時最多疊 4 個
+  //   UI 類的提示音（回合開始、遇敵…）不變，聽起來要固定；明確指定 rate 的（例如偽神的光柱）只在那個速度附近小幅變化
+  const SFX_FIXED = new Set(["sounds/turn-start.mp3", "sounds/enemy-turn.mp3", "sounds/encounter.mp3", "sounds/coin-toss.mp3", "sounds/microwave-done.mp3"]);
+  const SFX_VARY = { pitch: 0.05, db: 2, poly: 4 };
+  const playing = new Map();
+  const base = (src) => String(src).split("?")[0];
+  // a：準備好的 Audio（音量已經設成玩家的音效音量）；回傳 false＝這個音效已經疊太多了，不要播
+  R.sfxVary = function (a, src, rate = 1) {
+    const key = base(src);
+    const n = playing.get(key) || 0;
+    if (n >= SFX_VARY.poly) return false;
+    playing.set(key, n + 1);
+    const done = () => { playing.set(key, Math.max(0, (playing.get(key) || 1) - 1)); };
+    a.addEventListener("ended", done, { once: true }); a.addEventListener("error", done, { once: true });
+    if (SFX_FIXED.has(key)) { if (rate !== 1) a.playbackRate = rate; return true; }
+    const r = rate * (1 + (Math.random() * 2 - 1) * SFX_VARY.pitch);
+    a.preservesPitch = false; a.mozPreservesPitch = false; a.webkitPreservesPitch = false;
+    a.playbackRate = r;
+    a.volume = Math.max(0, Math.min(1, a.volume * Math.pow(10, ((Math.random() * 2 - 1) * SFX_VARY.db) / 20)));
+    return true;
+  };
+  R.sfxVary.SETTINGS = SFX_VARY; R.sfxVary.FIXED = SFX_FIXED;
 })();

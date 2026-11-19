@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261120001638" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -717,7 +717,7 @@
         ${peekC?.profile ? `<div class="plate-profile" style="--c:${peekC.color}"><b>${esc(peekC.name)}</b>${P.owns(peekC.id) ? "" : '<span class="muted">・尚未觀測到</span>'}${peekC.profileHidden && P.owns(peekC.id)
             ? `<div class="prof-wrap" tabindex="0"><p class="pub">${esc(peekC.profile)}</p><p class="hid">${esc(peekC.profileHidden)}</p></div>`     // 隱藏簡介：滑鼠移上去（或點一下）才看得到
             : `<p>${esc(peekC.profile)}</p>`}
-          ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag" title="${peekC.awaken ? "覺醒角色：天生就有 Q、W、E，沒有技能強化分支；大招等級解鎖覺醒技 R" : "昇華角色：Q、E、W 可以選強化分支"}">${peekC.awaken ? "覺醒" : "昇華"}</span><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
+          ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
             <p>${esc(peekC.style.text)}</p>
             <div class="ps-stats">${[["生命", "hp"], ["魔力", "mp"], ["攻擊", "atk"], ["防禦", "df"], ["速度", "spd"], ["行動點", "ap"]].filter(([, k]) => k !== "mp" || peekC.stats.mp).map(([l, k]) => `<span>${l} <b>${peekC.stats[k]}</b></span>`).join("")}</div></div>` : ""}</div>` : ""}
         <div class="rack-show"><b>奧秘之瞳</b><span class="muted">（悠魘的部分技能特效比較獵奇；打開後改用簡化的和諧特效。沒觀測到悠魘也可以先設定）</span>
@@ -909,16 +909,17 @@
         <button type="button" class="ghost small" data-act="boardRefresh" ${t.status === "plan" ? "" : "disabled"}>刷新委託牆</button>
         ${rank !== "C" ? `<label class="tv-note" style="margin:0;display:flex;align-items:center;gap:4px"><input type="checkbox" data-act="hideLow" ${hideLow() ? "checked" : ""}>隱藏低於 ${rank} 級的時空</label>` : ""}</div>
         <p class="tv-note" style="margin:0 0 8px">委託牆只會貼出有 ${rank} 級執照接得到的委託的時空。</p>`;
-      html += `<div class="banners">${boardWorlds().map((wid) => [wid, CM.WORLDS[wid]]).map(([wid, W], i) => {
-        const n = CM.ofWorld(wid).length, mine = t.accepted.filter((x) => CM.get(x).world === wid).length;
-        return `<button type="button" class="banner${W.ready === false ? " soon" : ""}" style="--wc:${W.color};--tilt:${tilt[i % tilt.length]}deg" data-act="wtab" data-w="${wid}" aria-label="${W.code} ${esc(W.name)}">
+      html += `<div class="banners">${[...boardWorlds(), ...boardCampaigns()].map((wid) => [wid, CM.WORLDS[wid]]).map(([wid, W], i) => {
+        const n = CM.ofWorld(wid).length, mine = t.accepted.filter((x) => CM.get(x).world === wid).length, camp = !!W.campaign;
+        return `<button type="button" class="banner${W.ready === false ? " soon" : ""}${camp ? " campaign" : ""}" style="--wc:${W.color};--tilt:${tilt[i % tilt.length]}deg" data-act="wtab" data-w="${wid}" aria-label="${camp ? "戰役 " : ""}${W.code} ${esc(W.name)}">
           <span class="pin" aria-hidden="true"></span>
+          ${camp ? '<span class="camp-tag">戰役</span>' : ""}
           <b class="code">${W.code}</b>
           <strong>${esc(W.name)}</strong>
           <span class="meta"><i class="rk">${W.rank || "C"}</i>${esc(W.level)}</span>
           <span class="intro">${esc(W.summary)}</span>
           ${W.issues ? `<span class="issues">${W.issues.map((x) => `<i>${esc(x)}</i>`).join("")}</span>` : ""}
-          <span class="foot">${n} 張委託${mine ? `・已接 ${mine} 張` : ""}${W.ready === false ? "・準備中" : ""}</span>
+          <span class="foot">${camp ? `戰役${mine ? "・已接下" : ""}` : `${n} 張委託${mine ? `・已接 ${mine} 張` : ""}`}${W.ready === false ? "・準備中" : ""}</span>
         </button>`;
       }).join("")}</div>`;
       return html;
@@ -935,7 +936,7 @@
         const conf = (c.conflicts || []).map((x) => CM.get(x)?.title).filter(Boolean);
         html += `<article class="slip${on ? " taken" : ""}${c.shady ? " shady" : ""}${cleared ? " cleared" : ""}" style="--wc:${W.color}">
           <header><span class="stamp">${W.code}</span><span class="wn">${esc(W.name)}</span>${on ? '<span class="got">已接下</span>' : cleared ? `<span class="got done">本輪已完成${c.id === "CI00001-06" && adv?.flags?.blackfin ? (adv.flags.blackfin === "helped" ? "・替黑鰭辦過事" : "・漁網還給了老伯恩") : ""}</span>` : failed ? '<span class="got fail">本輪已失敗</span>' : ""}${c.extra ? '<span class="got extra">額外</span>' : ""}${c.wip ? '<span class="got wip">玩法設計中</span>' : ""}${c.rank && c.rank !== W.rank ? `<span class="got rk-c">${c.rank} 級委託</span>` : ""}</header>
-          <h3>${esc(c.title)}</h3>
+          <h3>${c.campaign ? '<span class="camp-tag">戰役</span>' : ""}${esc(c.title)}</h3>
           <dl>
             <dt>委託人</dt><dd>${esc(c.client)}<small>${esc(c.clientNote || "")}</small></dd>
             <dt>委託內容</dt><dd>${esc(R.Commissions.contentOf(c, adv?.flags))}</dd>
@@ -943,8 +944,9 @@
           </dl>
           <footer>
             <span class="tags">${(c.tags || []).map((x) => `<i>${esc(x)}</i>`).join("")}</span>
+            ${c.cutscene ? `<button type="button" class="ghost" onclick="location.href='${c.cutscene}'">觀看開場動畫</button>` : ""}
             ${on ? `<button type="button" class="ghost" data-act="drop" data-id="${c.id}">取消</button>`
-              : `<button type="button" class="primary" data-act="accept" data-id="${c.id}" ${chk.ok ? "" : `disabled title="${esc(chk.why)}"`}>接下委託</button>`}
+              : `<button type="button" class="primary" data-act="accept" data-id="${c.id}" ${chk.ok ? "" : `disabled title="${esc(chk.why)}"`}>${c.campaign ? "接下戰役" : "接下委託"}</button>`}
           </footer>
           ${conf.length ? `<p class="conf">不能和「${conf.map(esc).join("」「")}」同時接取</p>` : ""}
         </article>`;
@@ -985,14 +987,30 @@
   }
   function boardWorlds(refresh) {
     const CM = R.Commissions, t = P.trip(), rank = R.Adventure.license(R.Adventure.get()).rank;
-    const all = Object.keys(CM.WORLDS).filter((w) => boardEligible(w, rank));
-    const keep = [...new Set((t.accepted || []).map((id) => CM.get(id)?.world).filter(Boolean))];
+    // 戰役不在一般的抽選池裡：刷新時另外擲骰（boardCampaigns）
+    const all = Object.keys(CM.WORLDS).filter((w) => !CM.isCampaign(w) && boardEligible(w, rank));
+    const keep = [...new Set((t.accepted || []).map((id) => CM.get(id)?.world).filter((w) => w && !CM.isCampaign(w)))];
     let cur = [];
     try { cur = (JSON.parse(store.get("rpg.board")) || []).filter((w) => CM.WORLDS[w] && all.includes(w)); } catch (e) { cur = []; }
     if (refresh || cur.length < Math.min(BOARD_N, all.length)) {
       const rest = all.filter((w) => !keep.includes(w)).sort(() => Math.random() - 0.5);
       cur = [...keep, ...rest].slice(0, Math.max(BOARD_N, keep.length));
       store.set("rpg.board", JSON.stringify(cur));
+    }
+    for (const w of keep) if (!cur.includes(w)) cur.push(w);
+    return cur;
+  }
+  // 戰役：每次刷新委託牆，每場接得到的戰役各有 CAMPAIGN_CHANCE 的機率被額外貼出來；已接的戰役一定留著
+  function boardCampaigns(refresh) {
+    const CM = R.Commissions, t = P.trip(), rank = R.Adventure.license(R.Adventure.get()).rank;
+    const all = Object.keys(CM.WORLDS).filter((w) => CM.isCampaign(w) && boardEligible(w, rank));
+    const keep = [...new Set((t.accepted || []).map((id) => CM.get(id)?.world).filter((w) => w && CM.isCampaign(w)))];
+    let cur = [];
+    try { cur = (JSON.parse(store.get("rpg.boardCampaign")) || []).filter((w) => all.includes(w)); } catch (e) { cur = []; }
+    if (refresh) {
+      const chance = +(store.get("rpg.campaignChance") || CM.CAMPAIGN_CHANCE);      // 測試用：localStorage rpg.campaignChance 可以改機率
+      cur = all.filter((w) => keep.includes(w) || Math.random() < chance);
+      store.set("rpg.boardCampaign", JSON.stringify(cur));
     }
     for (const w of keep) if (!cur.includes(w)) cur.push(w);
     return cur;
@@ -1054,7 +1072,7 @@
     if (a === "tab") { boardTab = data.t; return renderPanel(); }
     if (a === "setRank") { R.Adventure.setRank(data.r); boardWorlds(true); boardWorld = null; slipMsg = ""; renderTop(); return renderPanel(); }
     if (a === "hideLow") { store.set("rpg.hideLow", hideLow() ? "0" : "1"); boardWorlds(true); boardWorld = null; return renderPanel(); }
-    if (a === "boardRefresh") { boardWorlds(true); boardWorld = null; slipMsg = ""; return renderPanel(); }
+    if (a === "boardRefresh") { boardWorlds(true); boardCampaigns(true); boardWorld = null; slipMsg = ""; return renderPanel(); }
     if (a === "wtab") { boardWorld = data.w || null; slipMsg = ""; return renderPanel(); }
     if (a === "endAdv") { R.Adventure.end(); slipMsg = ""; renderTop(); return renderPanel(); }
     if (a === "accept" || a === "drop") {
