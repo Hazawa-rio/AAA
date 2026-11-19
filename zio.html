@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="build" content="20261120001638">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>祝福之刻</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261120001638">
+<style>
+  body.zio-page { margin: 0; background: #0a0806; overflow: hidden; height: 100vh; }
+  #zio { display: block; margin: 0 auto; background: #000; }
+  .zio-ui { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: #f4e8c8; background: rgba(8,6,4,.72); font-family: "Noto Sans TC", sans-serif; text-align: center; padding: 16px; }
+  .zio-ui h1 { margin: 0; font-size: clamp(28px, 6vw, 56px); letter-spacing: .2em; color: #e8c050; text-shadow: 0 0 18px rgba(232,160,40,.6); }
+  .zio-ui p { margin: 0; max-width: 640px; line-height: 1.7; font-size: 14px; color: #d8ccb0; }
+  .zio-ui .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .zio-ui button, .zio-ui a.btn { font: 700 16px "Noto Sans TC", sans-serif; padding: 10px 22px; border-radius: 10px; border: 2px solid #e8c050; background: #2a1a08; color: #f4e8c8; cursor: pointer; text-decoration: none; }
+  .zio-ui button.primary { background: #c89a2a; color: #1a1006; }
+  .zio-exit { position: fixed; top: 10px; right: 12px; font: 700 13px "Noto Sans TC", sans-serif; color: #f4e8c8; background: rgba(0,0,0,.5); border: 1px solid rgba(232,192,80,.6); border-radius: 8px; padding: 6px 12px; text-decoration: none; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body class="zio-page">
+<canvas id="zio" width="1280" height="720"></canvas>
+<a class="zio-exit" href="tavern.html">退出</a>
+<div class="zio-ui" id="zioStart">
+  <h1>祝福之刻</h1>
+  <p>戰役・#ZI00021（SSS）<br>參考原作為《RIDER TIME 假面騎士ZI-O VS Decade / 7人的ZI-O！》<br>目前只有開場動畫，看完只能退出。</p>
+  <div class="row"><button type="button" class="primary" id="zioPlay">播放開場動畫</button><a class="btn" href="tavern.html">退出</a></div>
+</div>
+<div class="zio-ui hidden" id="zioEnd">
+  <h1>祝福之刻</h1>
+  <p>為了這個毀壞的世界，希望是否能寄託於某個假面騎士歷史之外的存在？<br>（戰役本體還在準備中）</p>
+  <div class="row"><button type="button" id="zioAgain">再看一次</button><a class="btn" href="tavern.html">退出</a></div>
+</div>
+<script src="js/zio.js?v=20261120001638"></script>
+</body>
+</html>
