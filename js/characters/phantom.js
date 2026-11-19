@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261120001638" });
 // 角色：魅影（卡池角色・怪盜・近戰突進）
 // 本名不詳，以「魅影」為代號的怪盜。利用穿梭時空的能力來往各個時空盜竊（簡介是使用者寫的）
 // 被動「掠奪本能」：每件寶物（寶物欄）讓造成的傷害 +6%；無法接受任何來自隊友給予的道具（連線時：隊友不能從背包給她東西）
@@ -9,8 +9,9 @@
 //   隊友：被預告而防備魅影，移動範圍變大
 // W「夜幕降臨」：甩動披風隱藏自己，突進到一個敵人身邊揮出 X 形斬擊；有幾件寶物就追擊幾次，每一斬都向周圍噴出財寶
 // 大招強化（二選一）：
-//   豐厚戰果：隱形後不突進，向一個方向甩動披風潑灑財寶（寶物越多灑越多）；所有財寶只打中同一個敵人＝對單補正
-//   清晨終幕：突進只斬一次（傷害照寶物數量算），直接穿過目標，沿路炸開煙火和財寶
+//   豐厚戰果：隱形後不突進，向一個方向甩動披風，財寶像海浪一樣持續潑灑（寶物越多灑越久）；所有財寶只打中同一個敵人＝對單補正
+//   清晨終幕：隱身連斬（1＋寶物數，最多 7），每一斬穿過目標、沿路炸開名字煙火 P・H・A・N・T・O・M；最後一斬一定是大大的 M
+// 財寶的樣子（使用者的設計圖）：水晶項鍊、鈔票、金幣、紅色鑽石；煙火＝字母在中間、一圈尾端帶圓點的放射線
 // 數值都是暫定；個性台詞之後由使用者提供；音效暫用現有的
 (function () {
   const R = window.RPG;
@@ -27,7 +28,11 @@
     return { dx: (t.x - u.x) / L, dy: (t.y - u.y) / L, ang: Math.atan2(t.y - u.y, t.x - u.x) };
   };
   const heavy = (e) => e.def.boss || e.def.bigBar || e.def.trial || e.part || e.def.block;
-  const SND = { stab: "sounds/ilshu-thrust.mp3", hook: "sounds/marika-whip.mp3", card: "sounds/vivilla-throw.mp3", cloak: "sounds/firsler-smoke.mp3", slash: "sounds/pirate-slash.mp3", coin: "sounds/coin-toss.mp3", boom: "sounds/vivilla-boom.mp3" };
+  const SND = { stab: "sounds/ilshu-thrust.mp3", hook: "sounds/marika-whip.mp3", card: "sounds/vivilla-throw.mp3", cloak: "sounds/firsler-smoke.mp3", slash: "sounds/pirate-slash.mp3", coin: "sounds/phantom-coin-short.mp3", coinLong: "sounds/phantom-coin.mp3", firework: "sounds/phantom-firework.mp3" };
+  // 財寶的種類（使用者的設計圖）：水晶項鍊、鈔票、金幣、紅色鑽石
+  const LOOT = ["coin", "necklace", "ruby", "bill", "coin", "ruby"];
+  // 名字煙火：P 紅、H 藍、A 綠、N 橘、T 紫、O 粉、M 黃
+  const FW = { P: "#e8262c", H: "#1a9ee0", A: "#2aaa4a", N: "#f58220", T: "#9a4aa8", O: "#f5a8c8", M: "#f2d81e" };
   const COL = "#8a1a4a", GOLD = "#f2c14e";
   const loot = (u) => Math.min(6, (u.items || []).length);          // 寶物數量（寶物欄最多 6 格）
   // 隊友：連線時的其他玩家角色、我方的召喚物、要保護的東西
@@ -104,8 +109,8 @@
         skill: "nightfall",
         tiers: [
           [
-            { id: "spoils", name: "豐厚戰果", desc: "甩動披風隱形後不突進，而是向一個方向再次甩動披風，依照寶物數量潑灑財寶；所有財寶只打中一個目標時，有對單補正傷害（×1.6）" },
-            { id: "dawn", name: "清晨終幕", desc: "突進命中後不連續追擊，改成依照寶物數量計算傷害、只斬一次 X 斬擊，並直接穿越目標，沿路炸開煙火和財寶造成二次傷害" },
+            { id: "spoils", name: "豐厚戰果", desc: "甩動披風隱形後不突進，而是向一個方向再次甩動披風，財寶像海浪一樣持續潑灑出去——寶物越多灑得越久；所有財寶只打中一個目標時，有對單補正傷害（×1.6）" },
+            { id: "dawn", name: "清晨終幕", desc: "隱身連斬（1＋寶物數，最多 7 次），每一斬都穿越目標、沿路炸開名字煙火 P・H・A・N・T・O・M（第幾斬就放幾朵）；最後一斬一定是 M：更大的煙火、更高的傷害" },
           ],
         ],
       },
@@ -146,7 +151,11 @@
       ["夜幕降臨 追擊 基礎", "nightfall", "chase", 0, 40, 1],
       ["夜幕降臨 噴出財寶 基礎", "nightfall", "spray", 0, 30, 1],
       ["豐厚戰果 每枚財寶", "nightfall", "coin", 0, 20, 1],
-      ["清晨終幕 每件寶物加傷", "nightfall", "dawnPer", 0, 20, 1],
+      ["豐厚戰果 每件寶物多灑幾秒", "nightfall", "wavePer", 0, 1, 0.05],
+      ["清晨終幕 每一斬", "nightfall", "dawnSlash", 0, 30, 1],
+      ["清晨終幕 沿路煙火", "nightfall", "dawnBlast", 0, 20, 1],
+      ["清晨終幕 最後的 M 斬擊", "nightfall", "finalBase", 0, 60, 1],
+      ["清晨終幕 M 煙火", "nightfall", "finalBlast", 0, 40, 1],
     ],
 
     skills: {
@@ -342,8 +351,8 @@
         name: "夜幕降臨", slot: "W", key: "w", ultimate: true, sound: SND.slash,
         tags: ["melee", "area"],
         ap: 2, charge: 5, range: 380, base: 18, chase: 9, spray: 5, sprayR: 120, step: 0.2,
-        coin: 5, coinBase: 4, coinPer: 2, coinHalf: 26, coinRange: 360, solo: 1.6,
-        dawnPer: 7, dawnBlast: 6, dawnBlastPer: 2, dawnR: 70,
+        coin: 5, coinHalf: 22, coinRange: 360, coinSpeed: 520, solo: 1.6, waveBase: 0.8, wavePer: 0.35, waveRate: 7,
+        dawnStep: 0.32, dawnReach: 120, dawnSlash: 6, dawnBlast: 2, dawnBlastPer: 0.5, dawnR: 60, finalBase: 12, finalPer: 3, finalBlast: 8, finalBlastPer: 1, finalR: 120,
         desc: "甩動披風隱藏自己，突進到一個敵人身邊揮出 X 形斬擊；有幾件寶物就追擊幾次，每一斬都向周圍噴出財寶，打到旁邊的敵人",
         mode(u) { return upg(u).w1 || "base"; },
         status(b, u) {
@@ -362,29 +371,30 @@
           if (R.dist(u.x, u.y, e.x, e.y) > this.range + e.r) err("太遠了");
           return e;
         },
-        // 豐厚戰果：財寶的方向（平均分布在扇形裡）、每一枚打中誰
+        // 豐厚戰果：像寶物海浪一樣持續潑灑——寶物越多灑越久；每一枚的方向在扇形裡來回擺動
+        waveDur(u) { return this.waveBase + this.wavePer * loot(u); },
         coins(b, u, arg) {
-          const d = dirOf(u, arg), n = this.coinBase + this.coinPer * loot(u), H = this.coinHalf * DEG, out = [];
+          const d = dirOf(u, arg), dur = this.waveDur(u), n = Math.max(1, Math.round(dur * this.waveRate)), H = this.coinHalf * DEG, out = [];
           for (let i = 0; i < n; i++) {
-            const a = d.ang + (n === 1 ? 0 : -H + (2 * H * i) / (n - 1)), dx = Math.cos(a), dy = Math.sin(a);
+            const a = d.ang + H * Math.sin(i * 1.13), dx = Math.cos(a), dy = Math.sin(a);
             let hit = null, t = this.coinRange;
-            for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(u.x, u.y, dx, dy, e.x, e.y, e.r); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
-            out.push({ a, hit, t });
+            for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(u.x, u.y, dx, dy, e.x, e.y, e.r + 10); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
+            out.push({ a, hit, t, at: (i / n) * dur, kind: LOOT[i % LOOT.length] });
           }
-          return { d, list: out };
+          return { d, dur, list: out };
         },
-        // 清晨終幕：穿過目標後停的位置
-        through(b, u, e) {
-          const L = R.dist(u.x, u.y, e.x, e.y) || 1, dx = (e.x - u.x) / L, dy = (e.y - u.y) / L, A = b.cfg.arena, k = e.r + u.r + 30;
-          let to = { x: Math.min(Math.max(e.x + dx * k, u.r), A.w - u.r), y: Math.min(Math.max(e.y + dy * k, u.r), A.h - u.r) };
-          if (b.onObstacle(u, to.x, to.y) || b.blocked(u, to.x, to.y)) to = this.beside(b, u, e);
-          return to;
+        // 清晨終幕：連斬的次數（1＋寶物數，最多 7＝P・H・A・N・T・O・M），最後一斬一定是 M
+        dawnLetters(u) { const k = Math.min(7, 1 + loot(u)); return [..."PHANTO".slice(0, k - 1), "M"]; },
+        // 第 j 個落點：繞著目標的圓上，每次跨過目標
+        dawnPt(b, u, e, j, th0) {
+          const rr = e.r + u.r + this.dawnReach, a = th0 + Math.PI + j * (Math.PI + 0.62), A = b.cfg.arena;
+          return { x: Math.min(Math.max(e.x + Math.cos(a) * rr, u.r), A.w - u.r), y: Math.min(Math.max(e.y + Math.sin(a) * rr, u.r), A.h - u.r) };
         },
         predict(b, u, arg) {
           const m = this.mode(u);
           if (m === "spoils") return [...new Set(this.coins(b, u, arg).list.map((c) => c.hit).filter(Boolean))];
           const e = this.pick(b, u, arg);
-          if (m === "dawn") { const to = this.through(b, u, e); return b.targetsFor(u).filter((x) => x === e || R.geo.pointSeg(x.x, x.y, u.x, u.y, to.x, to.y) <= this.dawnR + x.r); }
+          if (m === "dawn") return [e, ...b.targetsFor(u).filter((x) => x !== e && R.dist(x.x, x.y, e.x, e.y) <= this.finalR + x.r)];
           return [e, ...b.targetsFor(u).filter((x) => x !== e && R.dist(x.x, x.y, e.x, e.y) <= this.sprayR + x.r)];
         },
         preview(b, u, arg) {
@@ -394,8 +404,7 @@
             return { shapes: [{ shape: "sector", x: u.x, y: u.y, ang: c.d.ang, half: this.coinHalf * DEG, radius: this.coinRange, color: GOLD }], hits: this.predict(b, u, arg) };
           }
           const e = this.pick(b, u, arg);
-          if (m === "dawn") { const to = this.through(b, u, e); return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: to.x, y2: to.y, width: this.dawnR * 2, color: GOLD }], hits: this.predict(b, u, arg) }; }
-          return { shapes: [{ shape: "circle", x: e.x, y: e.y, radius: this.sprayR, color: GOLD }], hits: this.predict(b, u, arg) };
+          return { shapes: [{ shape: "circle", x: e.x, y: e.y, radius: m === "dawn" ? this.finalR : this.sprayR, color: GOLD }], hits: this.predict(b, u, arg) };
         },
         cloak(b, u, dur) {
           const t = now();
@@ -438,45 +447,60 @@
           }
           b.lockUntil = now() + (t0 + (n + 1) * this.step + 0.4) * 1000;
         },
-        // 豐厚戰果：向一個方向甩動披風潑灑財寶
+        // 豐厚戰果：甩動披風，財寶像海浪一樣持續潑出去
         spoils(b, u, arg, n) {
-          const c = this.coins(b, u, arg), hits = [...new Set(c.list.map((x) => x.hit).filter(Boolean))], solo = hits.length === 1;
+          const c = this.coins(b, u, arg), hits = [...new Set(c.list.map((x) => x.hit).filter(Boolean))], solo = hits.length === 1, T0 = 0.45;
           u.facing = c.d.ang;
-          b.say(`${u.name}：「豐厚戰果」——再一次甩動披風，灑出 ${c.list.length} 枚財寶${solo ? "（全部打中同一個目標：對單補正）" : ""}`);
+          b.say(`${u.name}：「豐厚戰果」——再一次甩動披風，財寶像海浪一樣湧出（${c.dur.toFixed(1)} 秒、${c.list.length} 件）${solo ? "（全部打中同一個目標：對單補正）" : ""}`);
           this.cloak(b, u, 0.5);
-          b.emit({ type: "myFling", x: u.x, y: u.y, coins: c.list.map((x) => ({ a: x.a, t: x.t })), delay: 0.45 });
-          b.emit({ type: "sfx", sound: SND.coin, delay: 0.45 });
-          c.list.forEach((x, i) => {
+          b.emit({ type: "myWave", x: u.x, y: u.y, ang: c.d.ang, half: this.coinHalf * DEG, dur: c.dur, coins: c.list.map((x) => ({ a: x.a, t: x.t, at: x.at, kind: x.kind })), delay: T0 });
+          b.emit({ type: "sfx", sound: SND.coinLong, delay: T0 });
+          for (let s2 = 0.9; s2 < c.dur; s2 += 0.9) b.emit({ type: "sfx", sound: SND.coin, delay: T0 + s2 });
+          c.list.forEach((x) => {
             if (!x.hit?.alive) return;
-            b.hitDelay = 0.45 + x.t / 900 + i * 0.02;
+            b.hitDelay = T0 + x.at + x.t / this.coinSpeed;
             b.damage(u, x.hit, this.coin, solo ? this.solo : 1, solo ? "（財寶・對單補正）" : "（財寶）");
           });
           b.hitDelay = 0;
-          b.lockUntil = now() + 1200;
+          b.lockUntil = now() + (T0 + c.dur + this.coinRange / this.coinSpeed + 0.3) * 1000;
         },
-        // 清晨終幕：一次 X 斬擊穿過目標，沿路炸開煙火和財寶
+        // 清晨終幕：隱身連斬，每一斬都跨過目標、沿路放出名字煙火；最後一斬是大大的 M
         dawn(b, u, e, n) {
-          const from = { x: u.x, y: u.y }, to = this.through(b, u, e);
-          b.say(`${u.name}：「清晨終幕」——穿過 ${e.name}，身後炸開了煙火`);
-          this.cloak(b, u, 0.5);
-          u.facing = Math.atan2(to.y - from.y, to.x - from.x);
-          u.x = to.x; u.y = to.y;
-          b.emit({ type: "leap", unit: u, from, to: { ...to }, duration: 0.3 });
+          const L = this.dawnLetters(u), k = L.length, th0 = Math.atan2(u.y - e.y, u.x - e.x) - Math.PI, from = { x: u.x, y: u.y }, t0 = 0.5;
+          b.say(`${u.name}：「清晨終幕」——在夜色裡連斬 ${k} 次，天空炸開了「${L.join("")}」`);
+          const total = t0 + (k - 1) * this.dawnStep + 0.35;
+          C._hide = { from: now() + 150, until: now() + (total + 0.15) * 1000 };
+          b.emit({ type: "sfx", sound: SND.cloak });
+          b.emit({ type: "myCloak", x: u.x, y: u.y });
+          let p = this.dawnPt(b, u, e, -1, th0);
+          for (let i = 0; i < k; i++) {
+            if (!e.alive) break;
+            const last = i === k - 1, q = this.dawnPt(b, u, e, i, th0), at = t0 + i * this.dawnStep + (last ? 0.15 : 0), col = FW[L[i]];
+            b.emit({ type: "myDash", x1: p.x, y1: p.y, x2: q.x, y2: q.y, color: col, delay: at - 0.08 });
+            b.emit({ type: "myX", x: e.x, y: e.y, r: e.r + (last ? 46 : 24), delay: at, big: last, color: col });
+            b.emit({ type: "sfx", sound: SND.slash, delay: at });
+            b.hitDelay = at;
+            b.damage(u, e, last ? this.finalBase + this.finalPer * n : this.dawnSlash, 1, last ? "（終幕・M）" : `（連斬 ${i + 1}・${L[i]}）`);
+            // 沿路的煙火：第 i 斬放 i＋1 朵（最後的 M 是一朵大的）
+            const pts = [];
+            if (last) pts.push({ x: e.x, y: e.y });
+            else for (let j = 0; j <= i; j++) { const f = (j + 1) / (i + 2); pts.push({ x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f, d: j * 0.06 }); }
+            const r = last ? this.finalR : this.dawnR, bt = at + 0.18;
+            b.emit({ type: "myFirework", pts, letter: L[i], color: col, r, big: last, delay: bt });
+            b.emit({ type: "sfx", sound: SND.firework, delay: bt, rate: last ? 0.85 : 1 + i * 0.04 });
+            b.emit({ type: "myLoot", x: e.x, y: e.y, r: last ? 150 : 90, delay: bt + 0.05, big: last });
+            if (last) { b.emit({ type: "sfx", sound: SND.coinLong, delay: bt + 0.1 }); }
+            b.hitDelay = bt;
+            for (const x of b.targetsFor(u)) if (x.alive && pts.some((pt) => R.dist(x.x, x.y, pt.x, pt.y) <= r + x.r)) b.damage(u, x, last ? this.finalBlast + this.finalBlastPer * n : this.dawnBlast + this.dawnBlastPer * n, 1, last ? "（M 煙火）" : `（${L[i]} 煙火）`);
+            b.hitDelay = 0;
+            p = q;
+          }
+          // 現身在最後的落點
+          u.facing = Math.atan2(e.y - p.y, e.x - p.x);
+          if (!b.onObstacle(u, p.x, p.y) && !b.blocked(u, p.x, p.y)) { u.x = p.x; u.y = p.y; } else { const s3 = this.beside(b, u, e); u.x = s3.x; u.y = s3.y; }
+          b.emit({ type: "leap", unit: u, from, to: { x: u.x, y: u.y }, duration: 0.2 });
           b.emit({ type: "move", unit: u });
-          b.emit({ type: "myX", x: e.x, y: e.y, r: e.r + 30, delay: 0.55, big: true });
-          b.emit({ type: "sfx", sound: SND.slash, delay: 0.55 });
-          b.hitDelay = 0.55;
-          b.damage(u, e, this.base + this.dawnPer * n, 1, `（X 斬擊・寶物 ${n}）`);
-          // 沿路的煙火：每 60 一朵
-          const L = R.dist(from.x, from.y, to.x, to.y), pts = [];
-          for (let s = 30; s <= L; s += 60) pts.push({ x: from.x + ((to.x - from.x) * s) / L, y: from.y + ((to.y - from.y) * s) / L });
-          b.emit({ type: "myFirework", pts, r: this.dawnR, delay: 0.85 });
-          b.emit({ type: "sfx", sound: SND.boom, delay: 0.85 });
-          b.emit({ type: "sfx", sound: SND.coin, delay: 0.95 });
-          b.hitDelay = 0.95;
-          for (const x of b.targetsFor(u)) if (x.alive && R.geo.pointSeg(x.x, x.y, from.x, from.y, to.x, to.y) <= this.dawnR + x.r) b.damage(u, x, this.dawnBlast + this.dawnBlastPer * n, 1, "（煙火與財寶）");
-          b.hitDelay = 0;
-          b.lockUntil = now() + 1500;
+          b.lockUntil = now() + (total + 0.9) * 1000;
         },
       },
     },
@@ -540,7 +564,7 @@
           // X 形斬擊：兩道交叉的刀光
           const r = ev.r * (ev.big ? 1.3 : 1), p = Math.min(1, k * 4);
           ctx.save(); ctx.translate(ev.x, ev.y); ctx.globalAlpha = 1 - k; ctx.lineCap = "round";
-          for (const [s, c] of [[1, "#fff"], [0.6, COL]]) {
+          for (const [s, c] of [[1, "#fff"], [0.6, ev.color || COL]]) {
             ctx.strokeStyle = c; ctx.lineWidth = (ev.big ? 9 : 6) * s;
             ctx.beginPath(); ctx.moveTo(-r, -r); ctx.lineTo(-r + 2 * r * p, -r + 2 * r * p); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(r, -r); ctx.lineTo(r - 2 * r * p, -r + 2 * r * p); ctx.stroke();
@@ -549,39 +573,54 @@
           break;
         }
         case "myLoot": {
-          // 噴出的財寶：金幣、寶石往四周飛
-          ctx.save(); ctx.translate(ev.x, ev.y); ctx.globalAlpha = 1 - k * k;
-          for (let i = 0; i < 12; i++) {
-            const a = i * 0.52 + 0.2, d = ev.r * Math.min(1, k * 1.6), y = Math.sin(a) * d - Math.sin(Math.min(1, k * 1.6) * Math.PI) * 20;
-            ctx.fillStyle = i % 4 === 3 ? "#5ad0e8" : i % 4 === 1 ? "#e84a6a" : GOLD; ctx.strokeStyle = "#7a5a10"; ctx.lineWidth = 1;
-            ctx.beginPath(); if (i % 2) ctx.rect(Math.cos(a) * d - 4, y - 4, 8, 8); else ctx.arc(Math.cos(a) * d, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          // 噴出的財寶：水晶項鍊、鈔票、金幣、紅色鑽石，往四周拋出去再落下
+          const N = ev.big ? 18 : 10, p2 = Math.min(1, k * 1.4);
+          ctx.save(); ctx.translate(ev.x, ev.y); ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
+          for (let i = 0; i < N; i++) {
+            const a = (i / N) * Math.PI * 2 + 0.3, d = ev.r * p2 * (0.75 + (i % 3) * 0.12);
+            drawLoot(ctx, LOOT[i % LOOT.length], Math.cos(a) * d, Math.sin(a) * d * 0.8 - Math.sin(p2 * Math.PI) * 34, ev.big ? 1.25 : 1, a + k * 8);
           }
           ctx.restore();
           break;
         }
-        case "myFling": {
-          // 豐厚戰果：一枚一枚的財寶沿著扇形飛出去
-          ctx.save(); ctx.translate(ev.x, ev.y); ctx.globalAlpha = k > 0.75 ? (1 - k) * 4 : 1;
-          ev.coins.forEach((c, i) => {
-            const d = Math.min(c.t, 900 * k * 1.2 - i * 8); if (d <= 0) return;
-            ctx.fillStyle = i % 3 === 2 ? "#e84a6a" : GOLD; ctx.strokeStyle = "#7a5a10"; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.arc(Math.cos(c.a) * d, Math.sin(c.a) * d, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        case "myWave": {
+          // 豐厚戰果：披風來回甩動，財寶像海浪一樣一件一件湧出去
+          const T = k * (ev.dur * 1000 + 1100) / 1000;           // 這段特效開始後過了幾秒
+          ctx.save(); ctx.translate(ev.x, ev.y);
+          if (T < ev.dur) {
+            // 甩動的披風（扇形邊緣的深紅色布浪）
+            const sw = ev.ang + ev.half * Math.sin(T * 7);
+            ctx.globalAlpha = 0.75; ctx.strokeStyle = COL; ctx.lineWidth = 14; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.arc(0, 0, 40, sw - 0.6, sw + 0.6); ctx.stroke();
+            ctx.strokeStyle = "#2a0c1c"; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(0, 0, 52, sw - 0.45, sw + 0.45); ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+          ev.coins.forEach((c, n) => {
+            // 一件財寶旁邊還跟著兩件（只是畫面，傷害算一次）
+            for (let m = 0; m < 3; m++) {
+              const age = T - c.at - m * 0.05; if (age < 0) continue;
+              const sp = 520 * (1 - m * 0.08), d = age * sp, end = c.t + 30; if (d > end + 30) continue;
+              const off = (m - 1) * 0.07, f = Math.min(1, d / Math.max(1, c.t)), dd = Math.min(d, end);
+              const x = Math.cos(c.a + off) * dd, y = Math.sin(c.a + off) * dd - Math.sin(f * Math.PI) * (18 + m * 10);
+              ctx.globalAlpha = d > end ? Math.max(0, 1 - (d - end) / 30) : 1;
+              drawLoot(ctx, LOOT[(n + m * 2) % LOOT.length], x, y, m ? 0.9 : 1.15, age * 10 + m);
+            }
           });
           ctx.restore();
           break;
         }
+        case "myDash": {
+          // 隱身連斬的軌跡：一道帶顏色的殘影
+          ctx.save(); ctx.globalAlpha = (1 - k) * 0.9; ctx.lineCap = "round";
+          ctx.strokeStyle = ev.color; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(ev.x1, ev.y1); ctx.lineTo(ev.x2, ev.y2); ctx.stroke();
+          ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ev.x1, ev.y1); ctx.lineTo(ev.x2, ev.y2); ctx.stroke();
+          ctx.restore();
+          break;
+        }
         case "myFirework": {
-          // 清晨終幕：沿路一朵一朵炸開的煙火
-          ev.pts.forEach((p, i) => {
-            const kk = Math.max(0, Math.min(1, (k - i * 0.04) * 1.6)); if (kk <= 0 || kk >= 1) return;
-            ctx.save(); ctx.translate(p.x, p.y); ctx.globalAlpha = 1 - kk;
-            for (let j = 0; j < 10; j++) {
-              const a = j * 0.628 + i, d = ev.r * kk;
-              ctx.strokeStyle = ["#ff6a8a", GOLD, "#8ad8ff", "#fff"][j % 4]; ctx.lineWidth = 3;
-              ctx.beginPath(); ctx.moveTo(Math.cos(a) * d * 0.5, Math.sin(a) * d * 0.5); ctx.lineTo(Math.cos(a) * d, Math.sin(a) * d); ctx.stroke();
-            }
-            ctx.restore();
-          });
+          // 名字煙火：字母在中間，四周一圈尾端帶圓點的放射線（使用者的設計圖）
+          const D = ev.big ? 1500 : 1000 + ev.pts.length * 60, base = ev.big ? 1500 : 1000;
+          for (const p of ev.pts) { const kk = (k * D - (p.d || 0) * 1000) / base; if (kk > 0) drawBurst(ctx, p.x, p.y, ev.letter, ev.color, Math.min(1, kk), ev.big ? ev.r : ev.r * 0.8, ev.big); }
           break;
         }
       }
@@ -597,7 +636,55 @@
       ctx.restore();
     },
   };
-  const OWN_FX = { myStab: () => 300, myHook: () => 500, myCard: (ev) => ev.dur * 1000 + 500, myCloak: () => 550, myX: () => 450, myLoot: () => 650, myFling: () => 1000, myFirework: (ev) => 700 + ev.pts.length * 40 };
+  const OWN_FX = { myStab: () => 300, myHook: () => 500, myCard: (ev) => ev.dur * 1000 + 500, myCloak: () => 550, myX: () => 450, myLoot: (ev) => (ev.big ? 1100 : 800), myWave: (ev) => ev.dur * 1000 + 1100, myDash: () => 320, myFirework: (ev) => (ev.big ? 1500 : 1000 + ev.pts.length * 60) };
+
+  // ===== 財寶和煙火的畫法 =====
+  function drawLoot(ctx, kind, x, y, s, rot) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(Math.sin(rot) * 0.5);
+    if (kind === "coin") {            // 金幣：黃色外圈、橘色的內圈和記號
+      ctx.fillStyle = "#f7d21e"; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#f5b21e"; ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#f07a1e"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(2, -2.5); ctx.lineTo(-2.5, 0); ctx.lineTo(2, 2.5); ctx.closePath(); ctx.stroke();
+    } else if (kind === "necklace") { // 水晶項鍊：黑色鍊子＋藍色水晶，閃著光
+      ctx.strokeStyle = "#1a1418"; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.ellipse(1, -8, 8, 9, 0.3, Math.PI * 0.55, Math.PI * 2.35); ctx.stroke();
+      ctx.fillStyle = "#3ab0f0"; ctx.beginPath(); ctx.arc(-3, 1, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#bfe8ff"; ctx.beginPath(); ctx.arc(-4, 0, 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#3ab0f0"; ctx.lineWidth = 1.2;
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.78; ctx.beginPath(); ctx.moveTo(-3 + Math.cos(a) * 5, 1 + Math.sin(a) * 5); ctx.lineTo(-3 + Math.cos(a) * 8, 1 + Math.sin(a) * 8); ctx.stroke(); }
+    } else if (kind === "ruby") {     // 紅色鑽石：深紅的切面＋兩點反光
+      ctx.fillStyle = "#c8141e"; ctx.beginPath(); ctx.moveTo(-6, 8); ctx.lineTo(-2, -9); ctx.lineTo(9, 3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#e8262c"; ctx.beginPath(); ctx.moveTo(-2, -9); ctx.lineTo(9, 3); ctx.lineTo(2, 1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(3, -1, 1.6, 0, Math.PI * 2); ctx.arc(-1, 4, 1.2, 0, Math.PI * 2); ctx.fill();
+    } else {                          // 鈔票：飄動的綠色紙鈔＋黑色的 $
+      ctx.fillStyle = "#2aaa4a"; ctx.beginPath(); ctx.moveTo(-11, -4); ctx.quadraticCurveTo(-4, -9, 2, -5); ctx.quadraticCurveTo(8, -1, 11, -7); ctx.lineTo(11, 4); ctx.quadraticCurveTo(5, 9, -1, 5); ctx.quadraticCurveTo(-6, 2, -11, 7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#111"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("$", 0, 0);
+    }
+    ctx.restore();
+  }
+  // 名字煙火：先往上竄一點，炸開成一圈「線＋圓點」，字母在中間，最後慢慢落下淡出
+  function drawBurst(ctx, x, y, letter, color, k, R, big) {
+    const rise = Math.min(1, k * 6), open = Math.max(0, Math.min(1, (k - 0.12) * 2.6)), fade = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
+    ctx.save(); ctx.translate(x, y + (1 - rise) * 30 + Math.max(0, k - 0.5) * 16);
+    if (open <= 0) {                   // 還在升空：一顆亮點
+      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 0, big ? 5 : 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); return;
+    }
+    ctx.globalAlpha = fade;
+    if (big) { ctx.fillStyle = color; ctx.globalAlpha = fade * 0.18 * (1 - open * 0.5); ctx.beginPath(); ctx.arc(0, 0, R * open * 1.1, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = fade; }
+    const rays = big ? 16 : 9, ease = 1 - Math.pow(1 - open, 3);
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineCap = "round"; ctx.lineWidth = big ? 5 : 3.5;
+    for (let i = 0; i < rays; i++) {
+      const a = (i / rays) * Math.PI * 2 + (letter.charCodeAt(0) % 7) * 0.3, r1 = R * 0.38 * ease, r2 = R * (0.7 + (i % 2) * 0.22) * ease;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1); ctx.quadraticCurveTo(Math.cos(a + 0.12) * (r1 + r2) / 2, Math.sin(a + 0.12) * (r1 + r2) / 2, Math.cos(a) * r2, Math.sin(a) * r2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(Math.cos(a) * r2, Math.sin(a) * r2, big ? 6 : 4, 0, Math.PI * 2); ctx.fill();
+    }
+    if (big) for (let i = 0; i < 24; i++) { const a = i * 0.9 + k * 3, d = R * (0.9 + (i % 4) * 0.15) * ease; ctx.globalAlpha = fade * (i % 3 ? 0.9 : 0.5); ctx.fillStyle = ["#fff", color, "#ffe9a8"][i % 3]; ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d + k * 20, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = fade;
+    const fs = (big ? R * 0.62 : R * 0.6) * (0.6 + 0.4 * ease);
+    ctx.font = `bold ${fs}px "Comic Sans MS", "Chalkboard SE", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.strokeText(letter, 0, 2); ctx.fillStyle = color; ctx.fillText(letter, 0, 2);
+    ctx.restore();
+  }
   // fxEvents：自己的特效＋偷來的技能（交給原本的角色）
   C.fxEvents = new Proxy(OWN_FX, {
     get(o, k) {

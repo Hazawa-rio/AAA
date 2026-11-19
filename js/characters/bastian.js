@@ -1,5 +1,5 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261116184710" });
-// 角色：巴斯提安（昇華角色・近戰・塔盾）
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261120001638" });
+// 角色：巴斯提安（近戰・塔盾）
 // 一座已經陷落的城的守門人，背著比門板還寬的塔盾和一把短矛
 // 被動「不退之門」：面向的正前方（±60°）受到的傷害 ×0.65；擋下來的傷害累積成「壓力」（上限 60）
 //   面向＝最後一次移動或出招的方向；往後退，背就露出來了

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261120001638" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
