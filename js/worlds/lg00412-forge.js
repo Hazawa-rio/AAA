@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412-forge.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lg00412-forge.js": "20261120001638" });
 // #LG00412-2 赫菲斯托斯的鍛造場（傳說的道路的裏時空）
 //   入口：傳說的道路東北角的火山裂縫。完成傳說的道路全部五張委託（這一輪冒險裡做過就算）才會打開
 //   三個任務拿素材（這一趟有效）：
@@ -6,7 +6,7 @@
 //     採礦（礦坑）：三塊礦石出現在隨機的地方、種類隨機：隕鐵＝投射、青銅＝扇形、黑曜石＝投擲物；旁邊的熔岩口會噴發
 //     淬火（水槽）：刀身的顏色一直在變，變成「櫻桃紅」的瞬間按下去——越準品質越好（每次三刀，取最好的）
 //   鐵砧：選一個自己的技能、一種形式（要有那種礦石）、命名 → 打出一把武器（自訂寶物）：用那個技能時附加額外傷害
-//     額外傷害 = 8 + 神火 × 0.07 + 淬火 × 0.07（8～22）；一趟只能打一把
+//     額外傷害 = 5 + 神火 × 0.04 + 淬火 × 0.04（5～13，R.Items.forgeBase）；一趟只能打一把
 //   挑戰（地圖上直接打，不會進入戰鬥）：
 //     熔爐飛龍：用身上六個煙囪噴氣飛行、用嘴吐火（扇形，打到扣血）。每吐一次火會變熱，熱到滿就「過熱」墜地 6 秒
 //       打牠會隨機掉金屬：青銅＞白銀＞黃金＞精金（越好越難掉）；沒過熱的時候，掉出來的金屬會被牠馬上燒掉
@@ -88,6 +88,10 @@
     // ===== 挑戰：熔爐飛龍、晶簇烏龜 =====
     const MET = R.Items.METALS, GEM = R.Items.GEMS;
     F.metals = F.metals || {}; F.gems = F.gems || {};
+    // 掉落上限：每位玩家每一趟，飛龍最多掉 CAP.metal 塊金屬、烏龜最多掉 CAP.gem 顆寶石（到上限就不再掉，地上不會出現撿不起來的東西）
+    // 之後地圖也連線的時候，這個計數要改成每個玩家各自一份
+    const CAP = { metal: 2, gem: 3 };
+    F.dropped = F.dropped || { metal: 0, gem: 0 };
     const roll = (T) => { let r = Math.random() * Object.values(T).reduce((a, x) => a + x.w, 0); for (const [k, x] of Object.entries(T)) { r -= x.w; if (r <= 0) return k; } return Object.keys(T)[0]; };
     const M = MAP.mine;
     const wyrms = [{ x: 700, y: 1100 }, { x: 1700, y: 1200 }].map((p, i) => ({ id: i, x: p.x, y: p.y, hx: p.x, hy: p.y, a: Math.PI / 2, heat: 0, phase: "fly", t: 2 + i * 1.5, hitCd: 0, flash: 0, tgt: null }));
@@ -149,15 +153,17 @@
       for (const w of wyrms) {
         if (w.hitCd > 0 || !test(w.x, w.y, 46)) continue;
         w.hitCd = 0.5; w.flash = 0.2;
+        if (F.dropped.metal >= CAP.metal) { if (!w.capSaid) { w.capSaid = true; toast(`熔爐飛龍身上已經沒有能打下來的金屬了（每趟最多 ${CAP.metal} 塊）`); } continue; }
         if (Math.random() > (w.phase === "overheat" ? 0.6 : 0.45)) continue;
         const type = roll(MET), it = { kind: "metal", type, x: w.x + (Math.random() - 0.5) * 80, y: w.y + 60 + Math.random() * 40, t: performance.now() };
-        if (w.phase === "overheat") { loot.push(it); toast(`熔爐飛龍掉下了${MET[type].name}！`); }
+        if (w.phase === "overheat") { loot.push(it); F.dropped.metal++; save(); toast(`熔爐飛龍掉下了${MET[type].name}！（這趟還能再掉 ${CAP.metal - F.dropped.metal} 塊）`); }
         else { burnFx.push({ x: it.x, y: it.y, t: performance.now() }); toast(`熔爐飛龍掉下了${MET[type].name}——馬上被牠肚子裡的火燒掉了！（要先讓牠吐火吐到過熱）`); }
       }
       for (const t of turtles) {
         if (t.hitCd > 0 || t.hide > 0 || !test(t.x, t.y, 36)) continue;
         t.hitCd = 0.4; t.flash = 0.2; t.hide = 2.2;
-        if (Math.random() < 0.4) { const type = roll(GEM); loot.push({ kind: "gem", type, x: t.x + (Math.random() - 0.5) * 70, y: t.y + 40, t: performance.now() }); toast(`晶簇烏龜的背上掉下了一顆${GEM[type].name}！快撿——別讓熔爐飛龍燒掉`); }
+        if (F.dropped.gem >= CAP.gem) { if (!t.capSaid) { t.capSaid = true; toast(`晶簇烏龜的背上已經沒有寶石了（每趟最多 ${CAP.gem} 顆）`); } continue; }
+        if (Math.random() < 0.4) { F.dropped.gem++; save(); const type = roll(GEM); loot.push({ kind: "gem", type, x: t.x + (Math.random() - 0.5) * 70, y: t.y + 40, t: performance.now() }); toast(`晶簇烏龜的背上掉下了一顆${GEM[type].name}！快撿——別讓熔爐飛龍燒掉`); }
         else toast("晶簇烏龜縮進殼裡了");
       }
     }
@@ -250,7 +256,7 @@
       const skills = Object.values(CH.skills || {}).filter((s) => s.key);
       const forms = [...new Set(F.ores.filter((o) => o.got).map((o) => o.type))];
       if (!pick.form || !forms.includes(pick.form)) pick.form = forms[0];
-      const dmg = Math.round(8 + F.fire * 0.07 + F.quench * 0.07);
+      const dmg = R.Items.forgeBase(F.fire, F.quench);
       const build = R.Progress?.load(trip.char), full = (build?.items || []).length >= (R.Items?.SLOTS || 6);
       api.openPanel("鐵砧", `${msg ? `<p class="wx-p"><b>${esc(msg)}</b></p>` : ""}<p class="wx-p">赫菲斯托斯把槌子遞給你：「說吧，這把武器要跟著你的哪一招？」</p>
         <p class="tv-note">素材：神火 ${F.fire}・淬火 ${F.quench} → 額外傷害 <b>${dmg}</b></p>
@@ -268,7 +274,7 @@
       const sk = skills.find((s) => s.key === pick.skill);
       if (!sk || !pick.form) return anvil("先選好招式和形式");
       const name = (pick.name || "").slice(0, 12) || `${ORES[pick.form].name}之${sk.name}`;
-      const dmg = Math.round(8 + F.fire * 0.07 + F.quench * 0.07);
+      const dmg = R.Items.forgeBase(F.fire, F.quench);
       const it = R.Items.createCustom({ kind: "forge", name, charId: CH.id, charName: CH.name, skill: sk.key, skillName: sk.name, form: pick.form, base: dmg, fire: F.fire, quench: F.quench, metal: pick.metal || null, gems: pick.gems.slice() });
       if (pick.metal) F.metals[pick.metal]--;
       for (const g0 of pick.gems) F.gems[g0]--;
