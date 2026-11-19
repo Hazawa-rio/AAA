@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/wp00716.js": "20261116184710" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/wp00716.js": "20261120001638" });
 // 地圖：#WP00716 多利島主題公園（A 級；第一個「先抵達委託區域」的時空）
 // 傳送門固定在停車場。停車場往北＝入園廣場、往東＝員工通道、往西＝海灘步道；三條路都能進到水上樂園（委託人都在裡面）
 //   入園廣場：買票（或幫失物招領找東西換一條手環）→ 閘門
