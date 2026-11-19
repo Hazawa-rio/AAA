@@ -211,6 +211,9 @@ button.small { padding: 4px 10px; font-size: 12px; }
 .banner .issues { display: flex; flex-direction: column; gap: 3px; }
 .banner .issues i { font-style: normal; font-size: 11.5px; line-height: 1.5; color: #6b5a3a; padding-left: 10px; position: relative; }
 .banner .issues i::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--wc); }
+/* 戰役：重視演出的試煉 Boss 戰，委託牆很少刷出來 */
+.banner.campaign { background: linear-gradient(170deg, #fffaf0, #f3e2b8); outline: 3px double color-mix(in srgb, var(--wc) 70%, #3a2a1a); outline-offset: -8px; }
+.camp-tag { display: inline-block; align-self: flex-start; padding: 1px 8px; margin-right: 6px; border-radius: 6px; background: #3a2a1a; color: #f6d98a; font-size: 12px; font-weight: 900; letter-spacing: .2em; vertical-align: middle; }
 .banner .foot { margin-top: 6px; padding-top: 8px; border-top: 1.5px dashed color-mix(in srgb, var(--wc) 45%, transparent); font-size: 12px; font-weight: 800; color: var(--wc); }
 .banner.soon .foot { color: #8a8478; }
 /* build */ :root { --build-css-tavern-css: "20261109015404"; }
@@ -298,4 +301,4 @@ button.small { padding: 4px 10px; font-size: 12px; }
 .prof-wrap .hid { display: none; margin: 6px 0 0; padding: 8px 10px; background: #0b0b0c; color: #e8262c; border-radius: 6px; font-weight: 700; line-height: 1.7; }
 .prof-wrap:hover .pub, .prof-wrap:focus .pub { display: none; }
 .prof-wrap:hover .hid, .prof-wrap:focus .hid { display: block; }
-/* build */ :root { --build-css-tavern-css: "20261116184710"; }
+/* build */ :root { --build-css-tavern-css: "20261120001638"; }
