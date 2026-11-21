@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/lb00042.js": "20261122024623" });
 // #LB00042 美食研究所：地圖探索裡的專屬玩法
 // - 理性倉庫：貨架上的素材只有「採購清單」上的拿得起來
 // - 電腦：玩家通不過驗證，只能在委託中協助研究員操作；完成夠多委託後才開放玩家自己做實驗（之後再做）
@@ -64,8 +64,9 @@
     function talkPro(n) {
       const st = stage();
       if (!st) return false;
-      const zone = { x: n.x, y: n.y + MAP.zone.dy };
-      if (dist(me.x, me.y, zone.x, zone.y) > MAP.zone.r) { goTo(zone, { type: "npc", npc: n, reach: 10 }); return true; }
+      // 判定框：以委託人為圓心（和 explore.js 的 zoneOf 一樣）
+      const zr = n.zr ?? Math.max(80, (MAP.zone.r || 46) + 34);
+      if (dist(me.x, me.y, n.x, n.y) > zr) { goTo({ x: n.x, y: n.y + zr * 0.62 }, { type: "npc", npc: n, reach: 10 }); return true; }
       const d = qd();
       if (st.type === "talk") {
         api.dlg("普羅", n, "你們可算來了！我本想將雞蛋和荷馬史詩做出奧菲斯蛋之類的東西！你知道的，那個能孵化宇宙的蛋！可是我的天啊，這台機器居然印出了一個難蛋，這個冒著怪味的蛋阻止我探險宇宙的真理阿！",
