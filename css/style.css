@@ -164,6 +164,8 @@ button { font-family: inherit; cursor: pointer; }
 
 /* 教學：目標提示、對話框 */
 #banner.tutorial { background: #c2477a; }
+#banner { transition: opacity .25s; }
+#banner.fade { opacity: 0; transition: opacity 1.5s; pointer-events: none; }
 #dialog { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(760px, calc(100% - 32px));
   background: rgba(255,253,248,.97); border: 2.5px solid #f4a6c7; border-radius: 14px; padding: 14px 20px 16px;
   box-shadow: 0 6px 24px rgba(0,0,0,.12); cursor: pointer; user-select: none; }
@@ -240,6 +242,36 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .bp-tier.locked .bp-opt.sel { opacity: 1; }
 .bp-empty { border: 1px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; color: var(--muted); font-size: 13px; }
 .bp-notes { margin: 14px 0 0; background: #fdf1f6; border: 1px solid #f4a6c7; color: #8a2f58; border-radius: 10px; padding: 8px 12px; font-size: 12.5px; }
+/* 命路（js/fate.js）：兩條直線，串著 ○（技能特化）和 ◆（二選一＋考驗） */
+.fate-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fate-route { border: 2px solid color-mix(in srgb, var(--fc) 35%, var(--line)); border-radius: 12px; padding: 10px; background: #fff; transition: opacity .15s; }
+.fate-route.on { border-color: var(--fc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fc) 16%, transparent); }
+.fate-route.off { opacity: .45; }
+.fate-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.fate-head b { font-size: 15px; color: var(--fc); }
+.fate-head span { font-size: 11.5px; color: var(--muted); }
+.fate-head button { align-self: flex-start; padding: 4px 12px; font-size: 12px; }
+.fate-line { position: relative; padding-left: 4px; }
+.fate-line::before { content: ""; position: absolute; left: 13px; top: 6px; bottom: 6px; width: 4px; border-radius: 2px; background: var(--fc); opacity: .55; }
+.fate-node { position: relative; display: flex; gap: 8px; margin: 8px 0; }
+.fate-node > div { flex: 1; min-width: 0; font-size: 12px; }
+.fate-node b { font-size: 12.5px; }
+.fate-node small { color: var(--muted); }
+.fate-node p { margin: 2px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.fate-mark { position: relative; z-index: 1; flex: none; width: 22px; height: 22px; display: grid; place-items: center; font-size: 15px; color: var(--fc); background: #fff; border-radius: 50%; }
+.fate-node.diamond .fate-mark { color: color-mix(in srgb, var(--fc) 70%, #000); }
+.fate-node.wstar .fate-mark { color: color-mix(in srgb, var(--fc) 80%, #000); font-size: 14px; }
+.fate-node.got .fate-mark { background: var(--fc); color: #fff; }
+.fate-trial { color: #b0304a !important; }
+.fate-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
+.fate-opt { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 8px; border: 2px solid var(--line); background: #fff; color: var(--ink); font-size: 11.5px; }
+.fate-opt b { font-size: 12px; }
+.fate-opt span { color: var(--muted); line-height: 1.45; }
+.fate-opt em { font-style: normal; color: #b0304a; line-height: 1.45; }
+.fate-opt.sel { border-color: var(--fc); background: color-mix(in srgb, var(--fc) 8%, #fff); }
+.fate-opt:disabled { opacity: .55; cursor: default; }
+.fate-opt.sel:disabled { opacity: 1; }
+@media (max-width: 900px) { .fate-cols { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .bp-body { grid-template-columns: 1fr; } .bp-opts { grid-template-columns: 1fr; } .bp-head p { display: none; } }
 #growBtn { white-space: nowrap; }
 #resultXp { margin: -4px 0 14px; font-size: 14px; }
@@ -307,4 +339,20 @@ body.battle-page * { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .reward.quest { color: #7a5a00; background: #fff6d0; border-radius: 6px; padding: 2px 8px; }
 /* build */ :root { --build-css-style-css: "20261109200602"; }
 .bar.hp.scare i { background: #8a3fd1; }
-/* build */ :root { --build-css-style-css: "20261120001638"; }
+/* build */ :root { --build-css-style-css: "20261121203436"; }
+
+/* 命路：查看命運卡 */
+.fate-pool { margin-top: 8px; font-size: 12px; }
+.fate-pool summary { cursor: pointer; font-weight: 800; color: color-mix(in srgb, var(--fc) 80%, #000); }
+.fate-pc { display: flex; flex-direction: column; gap: 2px; padding: 5px 8px; margin-top: 5px; border-left: 3px solid var(--fc); background: rgba(0,0,0,.03); border-radius: 0 6px 6px 0; }
+.fate-pc.got { background: color-mix(in srgb, var(--fc) 12%, #fff); }
+
+/* 名牌架：技能細節 */
+.plate-skills { margin-top: 10px; }
+.plate-skills summary { cursor: pointer; font-weight: 800; }
+.plate-skills .psk { margin-top: 6px; padding: 6px 8px; border-left: 3px solid var(--c); background: rgba(0,0,0,.03); border-radius: 0 6px 6px 0; }
+.plate-skills .psk b { margin: 0 6px; }
+.plate-skills .psk small { color: #6a6a6a; }
+.plate-skills .psk p { margin: 3px 0 0; font-size: 13px; line-height: 1.55; }
+.plate-skills .psk-k { display: inline-block; min-width: 30px; text-align: center; font-size: 11px; font-weight: 900; color: #fff; background: var(--c); border-radius: 4px; padding: 1px 5px; }
+/* build */ :root { --build-css-style-css: "20261122024623"; }
