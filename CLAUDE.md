@@ -24,7 +24,7 @@
 - `js/battle.js`（戰鬥規則）、`js/battle-ui.js`（畫面）、`js/ai.js`、`js/config.js`（敵人、房間）、`js/enemy-kit.js`（一般敵人的攻擊方式、特有被動；新敵人要在 `ASSIGN` 給一組）、`js/bestiary.js`、`js/items.js`、`js/commissions.js`、`js/bag.js`。
 - 連線：`js/net.js`（PeerJS，房主說了算；`?net=local` 用同一個瀏覽器的分頁測試）、`js/watergun.js`、`js/uno.js`。
 - `sounds/`：音效與 BGM；新角色沒有專屬音效時先借現有的，並在 README 註明。
-- 畫風：時空裡的人用和玩家一樣的方塊（中間放特徵或一個字），除非使用者另外設計。
+- 畫風：時空裡的人用和玩家一樣的方塊（中間放特徵或一個字），除非使用者另外設計。**人形的東西都一樣**（人偶、機械船員、魚變成的人…）：方塊＋各自的特徵（例如機械＝黃銅邊框、鉚釘、上鍊鑰匙），不要畫出手腳身體。
 
 ## 新增內容的步驟
 
@@ -49,6 +49,7 @@
 **新的戰役**（很少刷出來、重視演出的試煉 Boss 戰）
 1. `js/commissions.js` 的 `WORLDS` 加一個時空、`LIST` 加一張委託，兩個都標 `campaign: true`；酒館的 `boardCampaigns` 會自己用 `CAMPAIGN_CHANCE` 抽（測試：localStorage `rpg.campaignChance` = `1`）。
 2. 戰鬥做成試煉 Boss（有自己的 AI、演出），README「戰役」那一節補上內容。
+3. 範本：`js/casino.js`（致命賭局）——房間可以用 `preStart`（開戰前）、`onWin`（打贏的獎勵）、`jackpotGoal`（別的勝利條件）、`drawRoom`；不參戰的主持人用 `def.host`（打不到、不畫）。
 
 **完成的標準**：相關頁面打開沒有錯誤、新功能用 Playwright 實際操作過一次、README 已更新、跑過交付流程。
 
