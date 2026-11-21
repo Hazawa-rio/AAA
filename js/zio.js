@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/zio.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/zio.js": "20261122024623" });
 // 戰役 #ZI00021 祝福之刻：開場動畫（目前只有動畫，看完只能退出）
 // 參考原作為《RIDER TIME 假面騎士ZI-O VS Decade / 7人的ZI-O！》
 // 流程：荒漠裡時王和異域者戰鬥 → 上方的庄吾說話、和時王合二為一 → 變身逢魔時王（音效 sounds/zio-ohma.mp3）

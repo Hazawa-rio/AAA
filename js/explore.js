@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/explore.js": "20261122024623" });
 // 地圖探索：走出酒館後抵達的時空
 // 適格者在地圖上相當於「行動點無限」，但只能：移動、普攻（右鍵切換成攻擊模式）、地圖探索技能 Q（以秒冷卻）
 // 魔物會在附近遊盪（魔狼看到人會撲過來）；被魔物碰到＝遇襲（先手值 −2），先攻擊魔物＝迎戰（先手值 +3）
@@ -462,8 +462,20 @@
       <div class="tv-row"><button type="button" class="ghost" data-act="peek" data-id="${id}">偷看箱子</button><button type="button" class="primary" data-act="nopeek" data-id="${id}">不看，直接搬</button></div>`);
   }
   const stText = (id, st) => HOOK.stageText?.(id, st) || st?.text || "";
-  const zoneOf = (n) => ({ x: n.x, y: n.y + (n.zdy ?? MAP.zone.dy), r: MAP.zone.r });
+  // 判定框：以委託人為圓心的圓圈（站進委託人身邊的圈子就能對話；不再固定在委託人前方，免得圓圈跑到牆裡或地圖外）
+  //   半徑＝MAP.zone.r＋34（預設 80）；n.zr 可以個別指定
+  const zoneOf = (n) => ({ x: n.x, y: n.y, r: n.zr ?? Math.max(80, (MAP.zone.r || 46) + 34) });
   const inZone = (n) => { const z = zoneOf(n); return dist(me.x, me.y, z.x, z.y) <= z.r; };
+  // 走去圓圈裡的哪一點：從委託人往玩家的方向、圓圈內側；擋住的話繞著圓找一個走得到的點
+  function zoneSpot(n) {
+    const z = zoneOf(n), d = z.r * 0.62, a0 = Math.atan2(me.y - n.y, me.x - n.x) || Math.PI / 2;
+    for (let k = 0; k < 16; k++) {
+      const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 8);
+      const p = { x: n.x + Math.cos(a) * d, y: n.y + Math.sin(a) * d };
+      if (!blocked(p.x, p.y, me.half)) return p;
+    }
+    return { x: n.x, y: n.y + d };
+  }
   const spotArmed = new Set();     // 走進範圍會自動打開一次；離開再回來才會再開
 
   // ===== 更新 =====
@@ -808,14 +820,14 @@
   });
   function talk(n) {
     if (run.scared) {
-      if (dist(me.x, me.y, n.x, n.y) > 120) { goTo({ x: n.x, y: n.y + (n.zdy ?? MAP.zone.dy) }, { type: "npc", npc: n, reach: 30 }); return; }
+      if (dist(me.x, me.y, n.x, n.y) > 120) { goTo(zoneSpot(n), { type: "npc", npc: n, reach: 30 }); return; }
       openPanel(n.name, `<p class="wx-p">你抖得連話都說不清楚……這一趟的委託都失敗了，先從酒館的門回去吧。</p>`);
       return;
     }
     if (HOOK.talk?.(n)) return;
     // 判定框：所有玩家都要站進委託人面前的圓圈（目前單人）
-    if (npcActive(n) && !inZone(n)) { goTo(zoneOf(n), { type: "npc", npc: n, reach: 10 }); return; }
-    if (!npcActive(n) && dist(me.x, me.y, n.x, n.y) > 90) { goTo({ x: n.x, y: n.y + (n.zdy ?? MAP.zone.dy) }, { type: "npc", npc: n, reach: 30 }); return; }
+    if (npcActive(n) && !inZone(n)) { goTo(zoneSpot(n), { type: "npc", npc: n, reach: 10 }); return; }
+    if (!npcActive(n) && dist(me.x, me.y, n.x, n.y) > 90) { goTo(zoneSpot(n), { type: "npc", npc: n, reach: 30 }); return; }
     const line = n.lines[Math.floor(Math.random() * n.lines.length)];
     // 像新手引導一樣的對話框：下面是台詞，委託選項和個性化選項放在對話框右側上方
     let html = "";
@@ -1329,7 +1341,7 @@
       rr(f.x - 11, f.y - 11, 22, 22, 6); ctx.fillStyle = "#fffaf0"; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = f.color; ctx.stroke();
       text("民", f.x, f.y + 1, f.color, 11, 900);
     }
-    // 委託人：前面的圓形判定框
+    // 委託人：以自己為圓心的圓形判定框
     for (const n of MAP.npcs) {
       const active = npcActive(n);
       if (active) {
@@ -1337,11 +1349,14 @@
         ctx.setLineDash([6, 5]); ctx.lineWidth = 2.5;
         ctx.strokeStyle = inside ? "rgba(46,158,91,.9)" : "rgba(242,194,0,.9)"; ctx.fillStyle = inside ? "rgba(46,158,91,.15)" : "rgba(242,194,0,.12)";
         ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
-        text(inside ? "1 / 1" : "站進圓圈", z.x, z.y + z.r + 12, inside ? "#2e7a46" : "#7a5a00", 11, 900);
+        text(inside ? "1 / 1" : "站進圓圈", z.x, z.y + z.r + 14, inside ? "#2e7a46" : "#7a5a00", 11, 900);
       }
-      rr(n.x - 16, n.y - 16, 32, 32, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = n.color; ctx.stroke();
-      text(n.face || n.name[0], n.x, n.y + 1, n.color, 14, 900);
-      text(n.name, n.x, n.y - 28, "#3a2a1a", 12, 700);
+      // HOOK.drawNpc：時空自己畫 NPC 的樣子（例如水族館：在水缸裡和水缸外看起來不一樣）；名字照樣畫（MAP.npcInk＝名字的顏色，暗的地圖用）
+      if (!HOOK.drawNpc?.(n, now)) {
+        rr(n.x - 16, n.y - 16, 32, 32, 7); ctx.fillStyle = "#fff"; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = n.color; ctx.stroke();
+        text(n.face || n.name[0], n.x, n.y + 1, n.color, 14, 900);
+      }
+      text(n.name, n.x, n.y - 28, MAP.npcInk || "#3a2a1a", 12, 700);
       if (active) { ctx.fillStyle = "#f2c200"; ctx.beginPath(); ctx.arc(n.x + 16, n.y - 16, 7, 0, Math.PI * 2); ctx.fill(); text("!", n.x + 16, n.y - 15, "#5a3a00", 10, 900); }
     }
     // 魔物
@@ -1531,7 +1546,7 @@
   const buildMini = () => {
     const c = document.createElement("canvas"); c.width = mini.width; c.height = mini.height;
     const g = c.getContext("2d");
-    if (MAP.indoor) { g.fillStyle = "#2a2f3a"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#cfd4dc"; for (const r of MAP.walk) g.fillRect(r.x * MS, r.y * MS, r.w * MS, r.h * MS); g.fillStyle = "#8a8f9a"; for (const r of MAP.solids) g.fillRect(r.x * MS, r.y * MS, Math.max(1, r.w * MS), Math.max(1, r.h * MS)); return c; }
+    if (MAP.indoor) { g.fillStyle = "#2a2f3a"; g.fillRect(0, 0, c.width, c.height); g.fillStyle = "#cfd4dc"; for (const r of MAP.miniWalk || MAP.walk) g.fillRect(r.x * MS, r.y * MS, r.w * MS, r.h * MS); g.fillStyle = "#8a8f9a"; for (const r of MAP.solids) g.fillRect(r.x * MS, r.y * MS, Math.max(1, r.w * MS), Math.max(1, r.h * MS)); return c; }
     g.fillStyle = "#e7dbbd"; g.fillRect(0, 0, c.width, c.height);
     g.fillStyle = "#a9cf86"; g.fillRect(MAP.wallX * MS, 0, c.width, c.height);
     g.fillStyle = "#4f9cc7"; g.beginPath(); g.moveTo(0, 0); for (let y = 0; y <= MAP.h; y += 40) g.lineTo(MAP.shoreX(y) * MS, y * MS); g.lineTo(0, MAP.h * MS); g.fill();
@@ -1552,7 +1567,7 @@
     for (const n of MAP.npcs) if (npcActive(n)) dot(n.x, n.y, 3.5, "#f2c200");
     for (const s of questSpots()) dot(s.x, s.y, 4.5, `rgba(242,194,0,${0.6 + 0.4 * Math.sin(now / 200)})`);
     if (MAP.portal) dot(MAP.portal.x, MAP.portal.y, 3.5, `hsl(${(now / 8) % 360},80%,55%)`);
-    HOOK.mini?.(dot, now);
+    HOOK.mini?.(dot, now, { rect: (x, y, w, h, c) => { mctx.fillStyle = c; mctx.fillRect(x * MS, y * MS, Math.max(1, w * MS), Math.max(1, h * MS)); } });
     dot(me.x, me.y, 4, "#fff"); mctx.strokeStyle = CH.color; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(me.x * MS, me.y * MS, 4, 0, Math.PI * 2); mctx.stroke();
   }
 
@@ -1670,6 +1685,12 @@
   });
   $("#qBtn").addEventListener("click", pressQ);
   $("#bagBtn").addEventListener("click", () => { if (!busy) openBag(); });
+  // 角色成長（等級、強化點、技能強化）：放在局外的地圖上，戰鬥中不能調
+  const growBtn = $("#growBtn");
+  if (growBtn) {
+    if (!R.BuildPanel || CH.frozen) growBtn.remove();
+    else growBtn.addEventListener("click", () => { if (!busy) R.BuildPanel.open(CH.id, { onClose() { renderHud(); } }); });
+  }
   $("#logBtn").addEventListener("click", () => { if (!busy) openLog(); });
   $("#muteBtn").addEventListener("click", () => {
     muted = !muted;

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261122024623" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -336,6 +336,19 @@
     ctx.restore();
     ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fillStyle = "#3e2716"; ctx.fill();
   }
+  // 名牌架：技能細節（使用者 11/22）
+  function skillDetails(c) {
+    if (!c?.skills) return "";
+    const txt = (d, u) => esc(typeof d === "function" ? "" : d || "");
+    const rows = [];
+    if (c.passive) rows.push(`<div class="psk"><span class="psk-k">被動</span><b>${esc(c.passive.name)}</b><p>${txt(c.passive.desc)}</p></div>`);
+    const order = (k) => ({ 普攻: 0, Q: 1, E: 2, W: 3 }[k] ?? 4);
+    for (const [id, sk] of Object.entries(c.skills).sort((x, y) => order(x[1].slot) - order(y[1].slot)))
+      rows.push(`<div class="psk"><span class="psk-k">${esc(sk.slot || "")}</span><b>${esc(sk.name)}</b>${sk.ap != null ? `<small>行動點 ${sk.ap}${sk.cooldown ? `・冷卻 ${sk.cooldown}` : ""}${sk.charge ? `・充能 ${sk.charge}` : ""}</small>` : ""}<p>${txt(sk.desc)}</p></div>`);
+    const rs = R.Fate?.routes?.(c);
+    if (rs) rows.push(`<div class="psk"><span class="psk-k">命路</span><b>${rs.map((r) => esc(r.n)).join("／")}</b><p>${rs.map((r) => `${esc(r.n)}：${esc(r.desc)}`).join("<br>")}</p></div>`);
+    return `<details class="plate-skills"><summary>技能細節</summary>${rows.join("")}</details>`;
+  }
   // ===== 名牌架：玩家精選三位掛出來（存在 rpg.rackShow；沒選過就掛前三位） =====
   const RACK_MAX = 3;
   // 奧秘之瞳：悠魘的和諧特效開關（js/characters/youyan.js 讀 rpg.calmYouyan）
@@ -615,6 +628,7 @@
     panel.querySelector("[data-close]").focus();
   }
   function closePanel() { panel.classList.add("hidden"); panelOpen = false; panelId = null; renderTop(); }
+  R._tavern = { open };                // 測試用：直接打開某個面板
   panel.addEventListener("click", (e) => {
     if (e.target === panel || e.target.closest("[data-close]")) return closePanel();
     const b = e.target.closest("[data-act]");
@@ -719,10 +733,10 @@
             : `<p>${esc(peekC.profile)}</p>`}
           ${peekC.style ? `<div class="plate-style"><div class="ps-head"><span class="ps-tag">戰鬥風格</span><b>${esc(peekC.style.role)}</b>${peekC.passive ? `<span class="muted">・被動「${esc(peekC.passive.name)}」</span>` : ""}</div>
             <p>${esc(peekC.style.text)}</p>
-            <div class="ps-stats">${[["生命", "hp"], ["魔力", "mp"], ["攻擊", "atk"], ["防禦", "df"], ["速度", "spd"], ["行動點", "ap"]].filter(([, k]) => k !== "mp" || peekC.stats.mp).map(([l, k]) => `<span>${l} <b>${peekC.stats[k]}</b></span>`).join("")}</div></div>` : ""}</div>` : ""}
+            <div class="ps-stats">${[["生命", "hp"], ["魔力", "mp"], ["攻擊", "atk"], ["防禦", "df"], ["速度", "spd"], ["行動點", "ap"]].filter(([, k]) => k !== "mp" || peekC.stats.mp).map(([l, k]) => `<span>${l} <b>${peekC.stats[k]}</b></span>`).join("")}</div></div>` : ""}${skillDetails(peekC)}</div>` : ""}
         <div class="rack-show"><b>奧秘之瞳</b><span class="muted">（悠魘的部分技能特效比較獵奇；打開後改用簡化的和諧特效。沒觀測到悠魘也可以先設定）</span>
           <div class="tv-row" style="margin-top:6px"><button type="button" class="rack-chip${calmYY() ? " on" : ""}" style="--c:#c40a1e" data-act="calmYY" aria-pressed="${calmYY()}"><span>瞳</span>和諧特效：${calmYY() ? "開" : "關"}</button></div></div>
-        <p class="tv-note">冒險中的等級、技能強化與寶物只屬於這輪冒險，冒險結束就重新開始。在戰鬥中的「角色成長」調整。</p>`;
+        <p class="tv-note">冒險中的等級、技能強化與寶物只屬於這輪冒險，冒險結束就重新開始。在地圖上的「角色成長」調整（戰鬥中不能調）。</p>`;
       return;
     }
     if (panelId === "radio") {

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/uno.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/uno.js": "20261122024623" });
 // 酒館桌上的牌：UNO（單機＝和電腦玩；連線＝懸掛電話的房間一起玩，房主說了算）
 //   R.Uno.open(env)：env = { me: { id, name }, net（R.Net，連線時）, members（連線時的房間成員）, chat(text)（送聊天）, onClose() }
 //   房規（開局前房主決定）：

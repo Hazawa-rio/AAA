@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/build-panel.js": "20261122024623" });
 // 角色成長介面：等級（可手動調整）、強化點分配、技能強化樹
 // 選角頁和戰鬥頁共用：R.BuildPanel.open(角色 id, { onClose(changed) {} })
 (function () {
@@ -42,6 +42,9 @@
     if (!root || root.classList.contains("hidden")) return;
     root.classList.add("hidden");
     opts.onClose?.(changed);
+    // 不在戰鬥中（酒館、地圖、戰鬥已經結束）：有到了等級還沒抉擇的命運卡就抽
+    const B = R._B;
+    if (!B || B.phase === "over" || B.dead) R.FateUI?.check(ch.id);
   }
 
   function commit(msg) {
@@ -91,9 +94,9 @@
     if (a === "lv") return setLevel(P().derive(ch, build).level + Number(b.dataset.v));
     if (a === "reset") {
       if (!confirmReset()) return;
-      const items = build.items || [];
+      const items = build.items || [], sig = build.sig;
       build = P().empty();
-      build.items = items;                 // 寶物不會因為重置成長而消失
+      build.items = items; if (sig) build.sig = sig;                 // 寶物、專武不會因為重置成長而消失
       return commit("已重置成長（寶物保留）");
     }
     if (a === "pt") {
@@ -104,6 +107,14 @@
       return commit();
     }
     if (a === "upg") return choose(b.dataset.skill, Number(b.dataset.tier), b.dataset.id);
+    if (a === "fateRoute") {
+      const r = Number(b.dataset.r);
+      if (build.route === r) return;
+      const had = Object.keys(build.nodes || {}).length;
+      build.route = r; build.nodes = {}; build.draws = {};
+      return commit(`走上命路「${R.Fate.routes(ch)[r].n}」${had ? "（換了命路，節點的選擇已經清掉）" : ""}`);
+    }
+
     if (a === "itemDrop") {
       build.items = (build.items || []).filter((x) => x !== b.dataset.id);
       return commit(`拿掉了【${R.Items.get(b.dataset.id).name}】`);
@@ -205,9 +216,11 @@
           </section>
 
           <section class="bp-col">
-            <h3>技能強化 <span class="bp-pill ${d.eqTotal - d.eqUsed > 0 ? "on" : ""}">Q / E 強化 ${d.eqTotal - d.eqUsed} / ${d.eqTotal}</span></h3>
+            ${d.fateOn ? `<h3>命路 <span class="bp-pill ${build.route == null ? "on" : ""}">${build.route == null ? "還沒選" : esc(R.Fate.routes(ch)[build.route].n)}</span></h3>
+            <p class="muted bp-small">兩條命路選一條（冒險中在進入第一個時空時選）。★ 是這條命路的大招強化、○ 是技能特化（到等級自動拿到）；◆ 是命運卡——到了等級、離開戰鬥之後，從這條命路的命運卡裡抽兩張選一張，每張都附帶一個<b>考驗</b>。命路只放大優點、不補缺點，缺點交給寶物</p>
+            ${fateHtml(d)}` : `<h3>技能強化 <span class="bp-pill ${d.eqTotal - d.eqUsed > 0 ? "on" : ""}">Q / E 強化 ${d.eqTotal - d.eqUsed} / ${d.eqTotal}</span></h3>
             <p class="muted bp-small">Lv ${Pr.EQ_LEVELS.join(" / ")} 各可強化一次 Q 或 E（每個技能兩次：先強化技能本身，再強化附加效果）；Lv ${Pr.W_LEVEL} 強化大招。再點一次已選的可以取消</p>
-            ${tree(d)}
+            ${tree(d)}`}
           </section>
         </div>
         ${notes.length ? `<p class="bp-notes" role="status">${notes.map(esc).join("<br>")}</p>` : ""}
@@ -228,17 +241,59 @@
         <div><b>${esc(it.name)}</b> <span class="bp-rar">${r.name}</span><p>${esc(it.desc)}</p></div>
         <button type="button" class="bp-mini" data-act="itemDrop" data-id="${id}" aria-label="拿掉${esc(it.name)}">×</button></div>`;
     }).join("");
-    const missing = Object.values(I.LIST).filter((it) => !items.includes(it.id));
-    return `<h3>寶物欄 <span class="bp-pill ${items.length ? "on" : ""}">${items.length} / ${I.SLOTS}</span></h3>
+    const missing = Object.values(I.LIST).filter((it) => !items.includes(it.id) && !it.sig);
+    const sig = build.sig && I.get(build.sig);
+    const sigHtml = `<h3>專武（第七格）</h3>${sig ? `<div class="bp-items"><div class="bp-item" style="--rc:${I.RARITY.signature.color}">${I.slotHtml(build.sig)}<div><b>${esc(sig.name)}</b> <span class="bp-rar">專武</span><p>${esc(sig.desc)}</p></div></div></div>` : `<p class="muted bp-small">還沒有找回這個角色的專武</p>`}`;
+    return sigHtml + `<h3>寶物欄 <span class="bp-pill ${items.length ? "on" : ""}">${items.length} / ${I.SLOTS}</span></h3>
       <div class="bp-items">${slots}${empty ? `<div class="bp-empty-slots">${'<span class="item-slot empty"></span>'.repeat(empty)}<span class="muted">${empty} 個空格</span></div>` : ""}</div>
       ${missing.length ? `<div class="bp-row">${missing.map((it) => `<button type="button" class="ghost" data-act="itemAdd" data-id="${it.id}">測試：放入【${esc(it.name)}】</button>`).join("")}</div>
       <p class="muted bp-small">正式取得方式：${missing.map((it) => `【${esc(it.name)}】${esc(it.source || "")}`).join("、")}</p>` : ""}`;
   }
 
-  function tree(d) {
+  // ---------- 命路（js/fate.js）----------
+  function fateHtml(d) {
+    const F = R.Fate, rs = F.routes(ch), dk = F.deck(ch);
+    // 冒險中：命路在進入第一個時空時選（js/fate-ui.js），這裡不能換；測試存檔才能在這裡選
+    let adv = false;
+    try { adv = !!R.Progress.useAdventure && !!localStorage.getItem("rpg.adventure"); } catch (e) { adv = false; }
+    const cols = rs.map((r, ri) => {
+      const on = build.route === ri, off = build.route != null && !on;
+      function diamondRow(L, reached) {
+        // ◆ 命運卡：到了等級、離開戰鬥後抽兩張抉擇（js/fate-ui.js）；這裡只顯示結果
+        const pick = on ? build.nodes?.[L] : null, pool = F.pool(r);
+        if (pick != null) {
+          const x = F.info(ch, pool[pick]);
+          return `<div class="fate-node diamond got"><span class="fate-mark">◆</span><div><b>Lv ${L}・${esc(x.name)}</b><small>（${esc(dk.n)}）</small><p>${esc(dk.eff)}：${esc(x.desc)}</p><p class="fate-trial">${esc(dk.trial)}：${esc(x.trial || "無")}</p></div></div>`;
+        }
+        const wait = on && reached;
+        return `<div class="fate-node diamond"><span class="fate-mark">◆</span><div><b>Lv ${L}・${esc(dk.n)}</b><p>${wait ? `等待抉擇——離開戰鬥後，從${esc(dk.n)}裡抽兩張選一張` : `到了 Lv ${L}，離開戰鬥後從 ${pool.length} 張${esc(dk.n)}裡抽兩張選一張`}</p></div></div>`;
+      }
+      const wu = F.wUp(ch, r), wGot = on && d.level >= F.W_LEVEL;
+      const wRow = wu ? `<div class="fate-node wstar ${wGot ? "got" : ""}"><span class="fate-mark">★</span><div><b>Lv ${F.W_LEVEL}・大招：${esc(wu.name)}</b><small>（${esc(ch.skills[ch.upgrades.w.skill]?.name || "大招")}）</small><p>${esc(wu.desc)}</p></div></div>` : "";
+      const rows = F.ORDER.map((L) => {
+        const reached = d.level >= L;
+        if (L === F.W_LEVEL && wRow) return wRow + diamondRow(L, reached);
+        if (F.LV.circle.includes(L)) {
+          const x = F.info(ch, r[L]);
+          return `<div class="fate-node circle ${on && reached ? "got" : ""}"><span class="fate-mark">○</span><div><b>Lv ${L}・${esc(x.name)}</b>${x.skill ? `<small>（${esc(x.skill)}）</small>` : ""}<p>${esc(x.desc)}</p></div></div>`;
+        }
+        return diamondRow(L, reached);
+      }).join("");
+      return `<div class="fate-route ${on ? "on" : ""} ${off ? "off" : ""}" style="--fc:${r.c}">
+        <div class="fate-head"><b>${esc(r.n)}</b><span>${esc(r.desc)}${wu ? `・大招：${esc(wu.name)}` : ""}</span>
+          ${adv ? (on ? `<span class="bp-pill on">走在這條命路上</span>` : "") : `<button type="button" class="${on ? "ghost" : "primary"}" data-act="fateRoute" data-r="${ri}">${on ? "走在這條命路上" : "選這條命路"}</button>`}</div>
+        <div class="fate-line">${rows}</div>
+        <details class="fate-pool"><summary>查看${esc(dk.n)}（${F.pool(r).length} 張）</summary>
+          ${F.pool(r).map((o, i) => { const x = F.info(ch, o), got = on && Object.values(build.nodes || {}).map(Number).includes(i);
+            return `<div class="fate-pc ${got ? "got" : ""}"><b>${esc(x.name)}${got ? "（已拿到）" : ""}</b><span>${esc(dk.eff)}：${esc(x.desc)}</span><span class="fate-trial">${esc(dk.trial)}：${esc(x.trial || "無")}</span></div>`; }).join("")}
+        </details></div>`;
+    }).join("");
+    return `${adv && build.route == null ? `<p class="bp-small" style="color:#b0304a">命路會在這輪冒險進入第一個時空時選擇。</p>` : ""}<div class="fate-cols">${cols}</div>`;
+  }
+  function tree(d, only) {
     const U = ch.upgrades;
     if (!U) return `<p class="bp-empty">這個角色的技能強化還在設計中</p>`;
-    return ["q", "e", "w"].filter((s) => U[s]).map((slot) => {
+    return (only || ["q", "e", "w"]).filter((s) => U[s]).map((slot) => {
       const t = U[slot], sk = ch.skills[t.skill];
       const tags = (sk.tags || []).map((g) => `<span class="bp-tag">${esc(P().TAG_NAMES[g] || g)}</span>`).join("");
       const tiers = t.tiers.map((opts, i) => {

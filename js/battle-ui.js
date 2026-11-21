@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261122024623" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -138,7 +138,8 @@
   }
   const growBtn = $("#growBtn");
   if (growBtn) {
-    if (CH.frozen || !R.BuildPanel) growBtn.remove();
+    // 角色成長放在局外（地圖上的「角色成長」按鈕）：冒險中的戰鬥不顯示；單獨的測試戰鬥還留著方便調數值
+    if (CH.frozen || !R.BuildPanel || new URLSearchParams(location.search).get("from") === "world") growBtn.remove();
     else growBtn.addEventListener("click", () => {
       // 局內使用：關掉介面時立刻套用到目前的戰鬥
       R.BuildPanel.open(CH.id, { onClose(changed) { if (changed && B) { B.applyGrowth(); renderUI(); } } });
@@ -189,10 +190,10 @@
       if (ENC && !run.defeated.includes(ENC)) run.defeated.push(ENC);
       if (ENC) (run.downAt = run.downAt || {})[ENC] = Date.now();           // 地圖魔物重新生成用（explore.js 的 RESPAWN）
       const [g0, g1] = ROOMDEF.gold || [0, 0];
-      const gold = g0 + Math.floor(Math.random() * (g1 - g0 + 1));
+      const gold = Math.round((g0 + Math.floor(Math.random() * (g1 - g0 + 1))) * (1 + (R.Items?.goldBonus?.(u.items) || 0)));      // 投注代幣：金幣 +10%
       run.gold += gold;
-      msg = `${ROOMDEF.escort ? ROOMDEF.words?.title || "護送成功" : `擊敗了${ROOMDEF.name}`}，獲得 ${gold} 金幣`;
-      xpNote += `<span class="reward coin">獲得 ${gold} 金幣（這次冒險持有 ${run.gold}）</span>`;
+      msg = `${ROOMDEF.escort ? ROOMDEF.words?.title || "護送成功" : `擊敗了${ROOMDEF.name}`}${g1 ? `，獲得 ${gold} 金幣` : ""}`;
+      if (g1) xpNote += `<span class="reward coin">獲得 ${gold} 金幣（這次冒險持有 ${run.gold}）</span>`;      // 不給金幣的戰鬥（例如致命賭局給籌碼）不顯示
       // 掉落物：打倒的每一隻敵人各擲一次
       if (R.Bag) {
         const kinds = B.units.filter((x) => x.team === "enemy" && !x.part && !x.alive).map((x) => x.kind);
@@ -205,6 +206,8 @@
         }
         if (parts.length) { xpNote += `<span class="reward">掉落：${esc(parts.join("、"))}${full ? "（行囊滿了，有些沒撿到）" : ""}</span>`; msg += `，撿到 ${parts.join("、")}`; }
       }
+      // 房間自己的獎勵（例如致命賭局的籌碼）
+      if (ROOMDEF.onWin) { const note = ROOMDEF.onWin(B, t, run); if (note) xpNote += note; }
       // 打倒後得到寶物（例如變異發泡水母的異變硬殼）
       if (ROOMDEF.treasure && R.Items) {
         const g = R.Items.give(t.char, ROOMDEF.treasure);
@@ -370,6 +373,7 @@
       B.say(INIT > 0 ? "迎戰！先手值 +3" : INIT < 0 ? "遇襲！先手值 −2" : "遭遇魔物");
     }
     if (ROOMDEF.script === "tutorial") R.Tutorial.attach(B, { dialog, bubble, error: showError });
+    else if (ROOMDEF.preStart) { const b0 = B; Promise.resolve(ROOMDEF.preStart(b0)).catch((e) => console.error(e)).then(() => { if (B === b0 && !b0.dead) { b0.start(); renderUI(); } }); }   // 開戰前（例如致命賭局：賭上生命）
     else B.start();
     renderUI();
   }
@@ -889,7 +893,7 @@
       const key = (u.items || []).join(",");
       if (itemsEl.dataset.key !== key || !itemsEl.childElementCount) {
         itemsEl.dataset.key = key;
-        itemsEl.innerHTML = Array.from({ length: R.Items.SLOTS }, (_, i) => R.Items.slotHtml((u.items || [])[i])).join("");
+        itemsEl.innerHTML = Array.from({ length: R.Items.SLOTS + ((u.items || []).some((id) => R.Items.LIST[id]?.sig) ? 1 : 0) }, (_, i) => R.Items.slotHtml((u.items || [])[i])).join("");   // 有專武就多畫第七格
       }
     }
     if (CH.passive) {
@@ -913,11 +917,11 @@
       if (big) {
         const P2 = big.state.phase === 2;
         bar.classList.toggle("p2", P2);
-        bar.querySelector(".bn").textContent = big.name;
-        bar.querySelector(".bb i").style.width = `${(big.hp / big.maxHp) * 100}%`;
+        bar.querySelector(".bn").textContent = big.def.jackpotBar ? "累積獎金" : big.name;
+        bar.querySelector(".bb i").style.width = `${big.def.jackpotBar ? Math.min(100, ((B.jackpot || 0) / (B.jackpotGoalNow || B.room.jackpotGoal || 1)) * 100) : (big.hp / big.maxHp) * 100}%`;
         bar.querySelector(".bb s").style.left = `${big.def.phase2At * 100}%`;
         bar.querySelector(".bb s").classList.toggle("hidden", P2 || !big.def.phase2At);
-        bar.querySelector(".bv").textContent = `${big.hp} / ${big.maxHp}`;
+        bar.querySelector(".bv").textContent = big.def.jackpotBar ? `${(B.jackpot || 0).toLocaleString("en-US")} / ${(B.jackpotGoalNow || B.room.jackpotGoal || 0).toLocaleString("en-US")}` : `${big.hp} / ${big.maxHp}`;
         bar.querySelector(".bp").textContent = big.alive ? (big.def.phase2At ? (P2 ? "第二階段" : "第一階段") : "") : "擊敗";
       }
     }
@@ -955,6 +959,12 @@
       // 敵人回合（被攻擊時也一樣），不額外跳出攻擊提示
       banner.textContent = `${B.current?.name ?? "敵人"} 行動中…　你的行動消耗 ×${mult()}（大招除外）`;
     } else banner.classList.add("hidden");
+    // 提示出現 2.5 秒後慢慢淡出（不要一直擋住畫面上方，例如大莊家的臉）；文字換了就重新出現。教學的提示不淡出
+    const btxt = banner.classList.contains("hidden") || banner.classList.contains("tutorial") ? "" : banner.textContent;
+    if (btxt !== bannerLast) {
+      bannerLast = btxt; banner.classList.remove("fade"); clearTimeout(bannerTimer);
+      if (btxt) bannerTimer = setTimeout(() => banner.classList.add("fade"), 2500);
+    }
 
     if (hovered) inspect(hovered);
   }
@@ -965,6 +975,7 @@
   }
 
   let hovered = null;
+  var bannerLast = "", bannerTimer = 0;      // var：renderUI 可能在這行之前就被叫到
   // 角色身上選到的技能強化名稱
   function upgradeNames(u) {
     const out = [];
@@ -1462,9 +1473,10 @@
     }
     for (const z of smokes()) {
       drawSmoke(z, now);
+      if (z.lit) circle(z.x, z.y, z.r - 4, `rgba(232,120,30,${0.55 + Math.sin(now / 160) * 0.2})`, null, 2, [6, 5]);   // 引信箭：點燃的煙霧
       const left = z.turnsLeft;
       ctx.globalAlpha = 0.7;
-      label(left <= 0 ? "下次輪到你時消散" : `還有 ${left} 回合`, z.x, z.y + z.r + 10, "#c2477a", 10);
+      label((z.lit ? "點燃・" : "") + (left <= 0 ? "下次輪到你時消散" : `還有 ${left} 回合`), z.x, z.y + z.r + 10, z.lit ? "#e8781e" : "#c2477a", 10);
       ctx.globalAlpha = 1;
     }
   }
@@ -1768,7 +1780,7 @@
             const pa = sk.path(B, u), r = pa.r || pa.d.r;
             line(pa.from.x, pa.from.y, pa.to.x, pa.to.y, "rgba(91,63,168,.35)", r * 2);
             circle(pa.to.x, pa.to.y, r, "#5b3fa8", null, 2, [4, 4]);
-            if (u.upg?.q2 === "cycle") circle(pa.from.x, pa.from.y, sk.echoRadius, "rgba(91,63,168,.6)", null, 1.5, [3, 5]);
+            if (R.upHas(u.upg, "cycle")) circle(pa.from.x, pa.from.y, sk.echoRadius, "rgba(91,63,168,.6)", null, 1.5, [3, 5]);
           } else if (sk.radius && sk.hits) {    // 業障：爆炸範圍
             const d = B.demons().find((x) => x.owner === u);
             const rr = sk.radiusFor ? sk.radiusFor(u) : sk.radius;
@@ -1902,7 +1914,7 @@
         for (const d of drops) circle(d.x, d.y, sk.radius, "#d64545", "rgba(214,69,69,.12)", 2, [5, 4]);
         try { highlight(sk.predict(B, u, g), "#d64545"); } catch (e) {}
         if (drops.some((d) => dist(u.x, u.y, d.x, d.y) <= sk.radius + u.r)) label("回血", p.x, p.y - u.r - 34, "#2e9e5b", 12);
-        if (u.upg?.q1 === "farm" && B.zones.some((z) => z.type === "trap" && !z.farm && drops.some((d) => dist(d.x, d.y, z.x, z.y) <= z.r + 10)))
+        if (R.upHas(u.upg, "farm") && B.zones.some((z) => z.type === "trap" && !z.farm && drops.some((d) => dist(d.x, d.y, z.x, z.y) <= z.r + 10)))
           label("變成菇菇農場", g.x, g.y - sk.radius - 12, "#2e7a46", 12);
         shroom(g.x, g.y + 4, 1, "#d64545", 0.6);
       } else if (aim.preview === "run") {
@@ -1919,6 +1931,7 @@
       } else if (aim.preview === "bloom") {
         circle(g.x, g.y, sk.sporeRadius, "#8a9a2a", "rgba(170,195,70,.12)", 2, [6, 5]);
         shroom(g.x, g.y + 8, 2.6, "#c0392b", 0.55);
+        if (sk.tauntRadius) circle(g.x, g.y, sk.tauntRadius, "rgba(200,60,60,.5)", null, 1.5, [3, 7]);
         try { highlight(sk.predict(B, u, g), "#8a9a2a"); } catch (e) {}
       } else {
         circle(g.x, g.y, aim.radius || 20, color, fill, 3);
@@ -2414,6 +2427,7 @@
     const p = pos(u), sway = Math.sin(now / 500) * 1.5;
     const B2 = CH.skills.bloom;
     if (B2?.sporeRadius) circle(p.x, p.y, B2.sporeRadius, "rgba(160,190,60,.45)", "rgba(190,210,90,.07)", 1.5, [6, 6]);
+    if (u.taunt) { circle(p.x, p.y, u.taunt, "rgba(200,60,60,.45)", null, 1.5, [3, 7]); label("嘲諷範圍（小怪）", p.x, p.y - u.taunt - 8, "#b03a3a", 10); }
     // 飄著的胞子
     for (let i = 0; i < 10; i++) {
       const a = now / 1600 + i * 0.63, rr = 40 + ((now / 25 + i * 37) % (B2?.sporeRadius || 140 - 40));
@@ -2441,6 +2455,8 @@
   }
 
   function drawUnit(u, now) {
+    if (u.def.host) return;                     // 不參戰的主持人由房間自己畫（例如大莊家斯賓沃迪）
+    if (u.state?.casinoHidden) return;          // 被猜位子的杯子蓋住：看不見
     if (u.state?.dived) return;                 // 潛到地底：看不到
     if (CH.hideUnit?.(B, u, now)) return;       // 角色的特效接手畫這個單位（例如被瑪莉卡甩上天的敵人）
     if (u.kind === "giantShroom") return drawGiant(u, now);

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bag.js": "20261122024623" });
 // 冒險的行囊（道具欄 20 格）：任務道具、消耗品、素材
 // 地圖探索、地圖上的戰鬥、酒館（酒保烤肉）都會用到
 // use：{ hp: 回復最大生命的比例, mp: 回復最大魔力的比例 }；field = 地圖上可以用、battle = 戰鬥中可以用（花 1 行動點）
@@ -29,6 +29,8 @@
     blockFish: { name: "方塊魚", desc: "蒙德里安的理想國的黃色水面裡釣到的方塊形的魚。帶回酒館請桑恩烤，或賣給商店", color: "#e8262c", icon: "block", stack: 20, sell: 8, mat: true },
     grilledBlockFish: { name: "烤方塊魚", desc: "桑恩烤的方塊魚，烤出了整齊的格子紋。回復 35% 生命、20% 魔力", color: "#c8742a", icon: "block", stack: 9, use: { hp: 0.35, mp: 0.2 }, field: true, battle: true, sell: 18 },
     borrowedInk: { name: "借來的墨水", desc: "色塊野獸借給你的黑色輪廓線，化成了一小罐墨水。拿來補畫布上的白縫", color: "#1d1d1f", icon: "bottle", stack: 9, quest: true },
+    icedCoffee: { name: "冰咖啡", desc: "斯賓沃迪大賭場的冰咖啡，苦到眼睛一亮。回復 70% 魔力（戰鬥中使用）", color: "#5a3a22", icon: "bottle", stack: 9, use: { mp: 0.7 }, battle: true, price: 60, sell: 20 },
+    steakMeal: { name: "牛排簡餐", desc: "賭場員工餐的牛排，意外地好吃。回復 55% 生命", color: "#a8442a", icon: "bottle", stack: 9, use: { hp: 0.55 }, field: true, battle: true, price: 60, sell: 20 },
     hotCocoa: { name: "熱可可", desc: "月台自動販賣機的熱可可，罐子燙手。回復 20% 生命", color: "#7a4a2a", icon: "bottle", stack: 9, use: { hp: 0.2 }, field: true, battle: true, price: 15, sell: 5 },
     lactoDrink: { name: "乳酸飲料", desc: "月台自動販賣機的乳酸飲料，酸酸甜甜。解除一個負面狀態（破綻、麻痺、破防、虛弱……；戰鬥中使用）", color: "#e8a0c0", icon: "bottle", stack: 9, use: { cleanse: 1 }, battle: true, price: 20, sell: 6 },
     colaCan: { name: "鋁罐可樂", desc: "月台自動販賣機的鋁罐可樂，冰得發麻。喝了之後 30 秒內，地圖探索的移動速度 ×1.5", color: "#c0392b", icon: "bottle", stack: 9, use: { rush: 30 }, field: true, price: 20, sell: 6 },
@@ -68,6 +70,10 @@
     baguaMirror: { name: "八卦鏡", desc: "第七位道士留下的八卦鏡。照一下，能看見宅子裡本來看不見的東西（陰氣會上升）", color: "#c8a040", icon: "block", stack: 1, quest: true },
     lilyPetal: { name: "彼岸花的花瓣", desc: "事務所外面彼岸花田的花瓣。據說能讓人想起已經忘記的事。可以賣給商店。戰鬥中：聞一下想起忘記的事（解除一個負面狀態、回復 10% 生命）", color: "#c40a1e", icon: "berry", stack: 20, sell: 16, mat: true, use: { cleanse: 1, hp: 0.1 }, battle: true },
     ruinCore: { name: "古代機關的核心", desc: "古代守衛機關、巡弋機關裡拆下來的發光核心。朵拉想要，也可以賣給商店。戰鬥中：放出核心的能量（身邊 180 內的敵人各 16 傷害）", color: "#5ad0e0", icon: "berry", stack: 20, sell: 18, mat: true, use: { blast: 16, radius: 180 }, battle: true },
+    // #SP10101 遞廻齒輪鑲嵌之國、如此靜謐的蔚藍
+    brassCog: { name: "黃銅齒輪", desc: "大型機械身上掉下來的齒輪，還在微微轉動。可以賣給商店。戰鬥中：彈向最近的敵人（傷害 24）", color: "#c8962a", icon: "block", stack: 20, sell: 22, mat: true, use: { hurt: 24 }, battle: true },
+    clockPart: { name: "鐘樓的零件", desc: "停擺的鐘樓少掉的零件（主發條、擒縱輪、大齒輪）", color: "#e8c050", icon: "block", stack: 3, quest: true },
+    fishScale: { name: "會發光的鱗片", desc: "水族館裡掉下來的鱗片，在暗處會發出藍光。可以賣給商店。戰鬥中：舉起來晃一晃（敵人看得出神，虛弱 1 回合）", color: "#7ad8ff", icon: "berry", stack: 20, sell: 18, mat: true, use: { weak: 1 }, battle: true },
     weirdBerry: { name: "怪異樹莓", desc: "從草原果樹摘下、泛著紫光的樹莓。委託要交的東西", color: "#7a3fb0", icon: "berry", stack: 1, quest: true },
   };
   const SIZE = 20;

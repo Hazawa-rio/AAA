@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261122024623" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -10,6 +10,7 @@ RPG.CONFIG = {
   grid: 40,             // 場地一格的大小
   body: 22,             // 單位碰撞半徑
   movePerSpd: 13,       // 移動半徑 = 速度 × 這個值
+  lowPriRange: 260,     // 幽靈魚這類低優先召喚物：玩家在敵人這個距離內，敵人先打玩家
   moveCost: 1,          // 自己回合移動一次的行動點
   offTurnMultiplier: 2, // 非自己回合也能行動（大招除外），行動點消耗 × 2
   initiativeDie: 20,    // 行動順序 = 1d20 + 速度，只在第一回合擲一次，之後沿用
@@ -1090,6 +1091,189 @@ RPG.CONFIG = {
     prideLion: Object.assign(vb("prideLion", "不肯認輸的獅子", "眾神的考驗：讓牠承認自己輸了", "<b>不肯認輸的獅子</b>：獅爪橫掃（身邊的圓）、飛撲（粗紅框）<br><b>傲氣</b>：生命還有一半以上時，毛皮硬得像青銅，受到的傷害 ×0.75"), { xp: 1400, gold: [180, 240] }),
   });
 
+
+  // #SP10101 遞廻齒輪鑲嵌之國：為了「轟動全國」做出來的大型機械、伊卡洛斯號（上層）、冷卻工廠的蒸氣幽靈（下層）。數值暫定（A 級：Lv 20～30）
+  E.steamHound = W_("轟鳴蒸氣犬", "#8a6a3a", { hp: 104, atk: 25, df: 8, spd: 12, r: 34, flank: 0.7,
+    bite: { name: "鉚釘利齒", ap: 1, length: 105, width: 84, base: 19, reaction: 0.85, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "蒸氣衝刺", ap: 2, length: 340, width: 84, base: 22, reaction: 1.0, cooldown: 2, sound: "sounds/hoffman-jet.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "brassCog", chance: 0.6 }] });
+  E.rivetTank = G_("鉚釘砲車", "#6a5a4a", { hp: 128, atk: 26, df: 10, spd: 9, r: 38, keep: 300,
+    shot: { name: "鉚釘砲", ranged: true, ap: 2, length: 640, width: 44, base: 21, reaction: 1.05, sound: "sounds/pirate-gun.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "brassCog", chance: 0.8 }, { item: "potionHp", chance: 0.25 }] });
+  E.steamGhost = W_("蒸氣幽靈", "#c8d8e0", { hp: 82, atk: 23, df: 4, spd: 14, r: 28, flank: 0.9,
+    bite: { name: "燙手的念頭", ap: 1, length: 100, width: 80, base: 17, reaction: 0.85, sound: "sounds/vivilla-spore.mp3" },
+    pounce: { name: "從管子裡噴出來", ap: 2, length: 320, width: 80, base: 20, reaction: 0.95, cooldown: 2, sound: "sounds/hoffman-jet.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "potionMp", chance: 0.35 }] });
+  // 制動人偶船員：伊卡洛斯號放下來的發條人偶（一碰到地面就照著上鍊時的指令動，停不下來）
+  E.automatonCrew = W_("制動人偶船員", "#8a7a5a", { hp: 64, atk: 22, df: 6, spd: 13, r: 22, flank: 0.9,
+    bite: { name: "上緊的發條拳", ap: 1, length: 90, width: 70, base: 15, reaction: 0.8, sound: "sounds/hoffman-wrench.mp3" },
+    pounce: { name: "照著指令衝過來", ap: 2, length: 300, width: 70, base: 17, reaction: 0.95, cooldown: 2, sound: "sounds/robot-move.mp3" },
+    sounds: { move: "sounds/robot-move.mp3" }, drops: [{ item: "brassCog", chance: 0.5 }] });
+  // 伊卡洛斯號：全機械的蒸氣飛艇（AI 在 js/ai-icarus.js）。越飛越高，往下噴的蒸氣、廢料、人偶船員越多
+  E.icarus = B_("伊卡洛斯號", "#b8862a", { ai: "icarus", hp: 1250, atk: 29, df: 9, spd: 10, ap: 4, r: 62, maxAlt: 5,
+    fly: { name: "下噴蒸氣", ap: 1, radius: 95, base: 18, reaction: 1.0, sound: "sounds/hoffman-jet.mp3" },
+    scrap: { name: "傾倒廢料", short: "廢料", ap: 2, radius: 85, base: 24, reaction: 1.15, cooldown: 1, sound: "sounds/slime-slam.mp3" },
+    crew: { kind: "automatonCrew", ap: 2, every: 2, max: 3, line: "（飛艇的艙門打開，喀啦喀啦——制動人偶船員一個接一個跳了下來）", sound: "sounds/robot-move.mp3" },
+    // 飛太高，打不太到：每一格高度，受到的傷害 −5%
+    incomingMult: (b, u) => 1 - Math.max(0, (u.state.alt || 0) - 1) * 0.05,
+    incomingNote: (k) => (k < 1 ? "（飛得太高）" : ""),
+    sounds: { move: "sounds/robot-move.mp3" } });
+  E.ideaGhost = B_("發明不出來的點子", "#9ab8c8", { hp: 1050, atk: 27, df: 7, spd: 13, ap: 4, r: 52,
+    sweep: { name: "靈光一閃", ap: 2, radius: 180, base: 23, reaction: 1.0, cooldown: 1, sound: "sounds/boss-electric.mp3" },
+    shot: { name: "被退回的專利", ranged: true, ap: 2, length: 620, width: 70, base: 25, reaction: 1.0, cooldown: 1, sound: "sounds/boss-laser.mp3", words: ["我……明明……想得出來……", "為什麼……做不出來……", "退件……退件……退件……"] },
+    call: { kind: "steamGhost", ap: 2, every: 3, max: 2, line: "（蒸氣管裡又鑽出一個沒被做出來的點子）" },
+    sounds: { move: "sounds/slime-move.mp3" } });
+  Rm.gearCity = cRoom("遞廻齒輪鑲嵌之國", "齒輪平台上的戰鬥", "brass", null, {
+    hounds: v2("steamHound", "轟鳴蒸氣犬", "兩隻轟鳴蒸氣犬", 320),
+    tankMix: { name: "鉚釘砲車和蒸氣犬", desc: "一台鉚釘砲車、一隻蒸氣犬", xp: 340, gold: [50, 76], playerStart: { x: 640, y: 600 }, wave: [{ kind: "rivetTank", x: 640, y: 140 }, { kind: "steamHound", x: 860, y: 200 }] },
+    mix3: { name: "博覽會的落選作品", desc: "兩台鉚釘砲車、一隻蒸氣犬", xp: 420, gold: [60, 90], playerStart: { x: 640, y: 600 }, wave: [{ kind: "rivetTank", x: 360, y: 150 }, { kind: "steamHound", x: 640, y: 210 }, { kind: "rivetTank", x: 920, y: 150 }] },
+    crews: v3("automatonCrew", "制動人偶船員", "三個從飛艇上掉下來的人偶船員", 300),
+    icarus: Object.assign(vb("icarus", "伊卡洛斯號", "一台全機械的蒸氣飛艇，越飛越高", "<b>伊卡洛斯號</b>：每輪到它一次就<b>飛高一格</b>（最多 5）。飛得越高——飛過頭頂時往下噴的蒸氣越多（每格高度一團）、傾倒的廢料越多、一次放下更多制動人偶船員，而且越難打到（每格 −5%）<br><b>融化的翅膀</b>：生命第一次低於一半時，整艘飛艇掉回高度 1"), { xp: 1400, gold: [180, 240] }),
+  });
+  Rm.coolFactory = cRoom("冷卻工廠", "冷卻管之間的戰鬥", "coolant", null, {
+    ghosts: v2("steamGhost", "蒸氣幽靈", "兩個蒸氣幽靈", 300), ghosts3: v3("steamGhost", "蒸氣幽靈群", "三個蒸氣幽靈", 380),
+    ideaGhost: Object.assign(vb("ideaGhost", "發明不出來的點子", "所有沒被做出來的點子，聚在一起", "<b>發明不出來的點子</b>：靈光一閃（身邊的圓）、被退回的專利（長長的紅框）、叫來蒸氣幽靈"), { xp: 1300, gold: [170, 230] }),
+  });
+
+  // #AQ00618 如此靜謐的蔚藍：水缸裡的掠食者（在缸裡看是人，在外面看是魚；戰鬥時是「人的樣子」）。數值暫定（A 級：Lv 20～30）
+  E.piranha = W_("食人魚", "#c84a3a", { hp: 72, atk: 22, df: 4, spd: 14, r: 24, flank: 0.9,
+    bite: { name: "一口", ap: 1, length: 90, width: 70, base: 15, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "成群撲上來", ap: 2, length: 300, width: 70, base: 18, reaction: 0.95, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.5 }] });
+  E.moray = W_("海鰻表演者", "#6a7a3a", { hp: 98, atk: 25, df: 6, spd: 12, r: 28, flank: 0.7,
+    bite: { name: "從洞裡咬出來", ap: 1, length: 120, width: 70, base: 19, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "謝幕的一咬", ap: 2, length: 340, width: 70, base: 22, reaction: 0.95, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "fishScale", chance: 0.6 }] });
+  E.leopardSeal = W_("豹斑海豹", "#8a8a9a", { hp: 118, atk: 26, df: 7, spd: 11, r: 32, flank: 0.7,
+    bite: { name: "冰冷的牙", ap: 1, length: 105, width: 84, base: 20, reaction: 0.85, sound: "sounds/bear-roar.mp3" },
+    pounce: { name: "從冰上滑過來", ap: 2, length: 360, width: 84, base: 23, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "fishScale", chance: 0.5 }, { item: "potionHp", chance: 0.25 }] });
+  E.angler = G_("提燈的鮟鱇", "#3a3a5a", { hp: 84, atk: 25, df: 5, spd: 11, r: 28, keep: 280,
+    shot: { name: "誘餌的光", ranged: true, ap: 2, length: 600, width: 40, base: 19, reaction: 1.0, sound: "sounds/boss-laser.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.7 }] });
+  E.orcaStar = B_("餵食秀的明星・虎鯨", "#1a1a22", { hp: 1300, atk: 29, df: 9, spd: 13, ap: 4, r: 58,
+    sweep: { name: "甩尾謝幕", ap: 2, radius: 190, base: 25, reaction: 1.05, cooldown: 1, sound: "sounds/cangyou-whale.mp3" },
+    shot: { name: "躍出水面的撲擊", ap: 2, length: 520, width: 120, base: 28, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-pounce.mp3", words: ["看著我。", "大家都在看。", "餌呢？……那就你吧。"] },
+    call: { kind: "piranha", ap: 2, every: 3, max: 2, line: "（觀眾席的黑暗裡，有東西被歡呼聲引了過來）" },
+    // 觀眾的歡呼：每過一回合，傷害 +5%（最多 +30%）
+    outgoingMult: (b) => 1 + Math.min(6, b.round || 0) * 0.05,
+    outgoingNote: () => "（觀眾在歡呼）",
+    sounds: { move: "sounds/cangyou-bubbles.mp3" } });
+  // 上流・大白鯊：上層階級，暖海水缸那場表演的劊子手（在缸裡看，是戴紅面具的人）
+  E.whiteShark = B_("上流・大白鯊", "#6a7a8a", { hp: 1200, atk: 30, df: 9, spd: 13, ap: 4, r: 52,
+    sweep: { name: "表演用的迴旋", ap: 2, radius: 180, base: 25, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-slash.mp3" },
+    shot: { name: "處刑的一擊", ap: 2, length: 480, width: 110, base: 28, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-pounce.mp3", words: ["觀眾在看。", "吃，和被吃。", "你從缸裡看過了吧？……那就該知道，這是表演。"] },
+    call: { kind: "piranha", ap: 2, every: 3, max: 2, line: "（缸外的歡呼聲裡，有一群小東西被趕了進來）" },
+    // 上層階級：生命還有一半以上時，觀眾替牠擋著（受到的傷害 ×0.85）
+    incomingMult: (b, u) => (u.hp > u.maxHp / 2 ? 0.85 : 1),
+    incomingNote: (k) => (k < 1 ? "（上層階級：觀眾替牠擋著）" : ""),
+    sounds: { move: "sounds/cangyou-bubbles.mp3" } });
+  Rm.aquarium = cRoom("如此靜謐的蔚藍", "水缸裡的戰鬥", "tank", null, {
+    piranhas: v3("piranha", "食人魚群", "三隻食人魚", 300),
+    morays: v2("moray", "海鰻表演者", "兩個海鰻表演者", 320),
+    seals: v2("leopardSeal", "豹斑海豹", "兩隻豹斑海豹", 340),
+    anglers: v2("angler", "提燈的鮟鱇", "兩隻提燈的鮟鱇", 320),
+    coralShow: { name: "表演變成了餵食秀", desc: "兩個海鰻表演者、一隻提燈的鮟鱇", xp: 460, gold: [70, 100], playerStart: { x: 640, y: 600 }, wave: [{ kind: "moray", x: 400, y: 170 }, { kind: "angler", x: 640, y: 120 }, { kind: "moray", x: 880, y: 170 }],
+      help: "<b>表演變成了餵食秀</b>：觀眾的歡呼越來越大聲——表演者們互相看了一眼，轉向了你" },
+    whiteShark: Object.assign(vb("whiteShark", "上流・大白鯊", "表演的劊子手，親自下來了", "<b>上流・大白鯊</b>：表演用的迴旋（身邊的圓）、處刑的一擊（很粗的紅框）、叫來食人魚<br><b>上層階級</b>：生命還有一半以上時，受到的傷害 ×0.85"), { xp: 1400, gold: [180, 240] }),
+    orcaStar: Object.assign(vb("orcaStar", "餵食秀的明星・虎鯨", "沒有餌的餵食秀", "<b>餵食秀的明星・虎鯨</b>：甩尾謝幕（身邊的圓）、躍出水面的撲擊（很粗的紅框）、叫來食人魚<br><b>觀眾的歡呼</b>：每過一回合，牠的傷害 +5%（最多 +30%）——別拖太久"), { xp: 1450, gold: [190, 250] }),
+  });
+
+  // #AQ00618 水族館外的原始水域（場景 wild）：獨有的食物鏈等級（小魚 0 → 捕食者 1 → 掠食者 2；蒼幽可以到原始獵手 3）
+  //   敵人的 tier＝牠在食物鏈上的等級；玩家的等級存在 trip.qdata.aq.chain（地圖上吃掉小隻的才會升級）
+  //   比自己等級高的敵人：每差一級，你對牠的傷害 ×0.7（最低 ×0.3）、牠對你的傷害 ×1.35；比自己低的：你對牠 ×1.15、牠對你 ×0.85
+  const chainRank = (b) => (b.chainRank ??= (RPG.Profile?.trip?.()?.qdata?.aq?.chain ?? 0));
+  const CHAIN_NAMES = ["小魚", "捕食者", "掠食者", "原始獵手"];
+  const chainIn = (b, u) => { const d = (u.def.tier ?? 0) - chainRank(b); return d > 0 ? Math.max(0.3, 1 - 0.3 * d) : d < 0 ? 1.15 : 1; };
+  const chainOut = (b, u) => { const d = (u.def.tier ?? 0) - chainRank(b); return d > 0 ? 1 + 0.35 * d : d < 0 ? 0.85 : 1; };
+  const chainNote = (k) => (k < 1 ? "（食物鏈：牠在你上面）" : k > 1 ? "（食物鏈：你在牠上面）" : "");
+  const chainNoteOut = (k) => (k > 1 ? "（食物鏈：被上位者咬了）" : "");
+  const wild = (o) => Object.assign(o, { incomingMult: chainIn, incomingNote: chainNote, outgoingMult: chainOut, outgoingNote: chainNoteOut });
+  RPG.Chain = { NAMES: CHAIN_NAMES, rank: chainRank };
+  // 小魚（tier 0）
+  E.wSardine = W_("沙丁魚群", "#7a9ab8", wild({ tier: 0, sea: "沙丁魚群", hp: 58, atk: 18, df: 3, spd: 14, r: 26, flank: 0.9,
+    bite: { name: "成群衝撞", ap: 1, length: 90, width: 80, base: 13, reaction: 0.8, sound: "sounds/cangyou-bubbles.mp3" },
+    pounce: { name: "魚群漩渦", ap: 2, length: 280, width: 80, base: 15, reaction: 0.95, cooldown: 2, sound: "sounds/cangyou-bubbles.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.3 }] }));
+  E.wIcefish = W_("冰魚", "#c8e8ff", wild({ tier: 0, sea: "冰魚", hp: 60, atk: 18, df: 4, spd: 13, r: 24, flank: 0.8,
+    bite: { name: "透明的牙", ap: 1, length: 90, width: 70, base: 13, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "冰下竄出", ap: 2, length: 280, width: 70, base: 15, reaction: 0.95, cooldown: 2, sound: "sounds/cangyou-bubbles.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.3 }] }));
+  E.wLantern = W_("燈籠魚群", "#2a3a5a", wild({ tier: 0, sea: "燈籠魚", hp: 56, atk: 19, df: 3, spd: 14, r: 24, flank: 0.9,
+    bite: { name: "一閃一閃", ap: 1, length: 90, width: 70, base: 14, reaction: 0.8, sound: "sounds/cangyou-bubbles.mp3" },
+    pounce: { name: "光點包圍", ap: 2, length: 280, width: 70, base: 15, reaction: 0.95, cooldown: 2, sound: "sounds/cangyou-bubbles.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.4 }] }));
+  E.wLoach = W_("泥鰍", "#7a6a4a", wild({ tier: 0, sea: "泥鰍", hp: 62, atk: 17, df: 4, spd: 13, r: 24, flank: 0.8,
+    bite: { name: "滑溜溜", ap: 1, length: 90, width: 70, base: 13, reaction: 0.8, sound: "sounds/slime-move.mp3" },
+    pounce: { name: "鑽出泥巴", ap: 2, length: 280, width: 70, base: 15, reaction: 0.95, cooldown: 2, sound: "sounds/slime-move.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "fishScale", chance: 0.3 }] }));
+  // 捕食者（tier 1）
+  E.wBarracuda = W_("梭魚", "#8a98a8", wild({ tier: 1, sea: "梭魚", hp: 100, atk: 25, df: 6, spd: 14, r: 30, flank: 0.8,
+    bite: { name: "銀色的一閃", ap: 1, length: 120, width: 70, base: 19, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "直線突刺", ap: 2, length: 380, width: 70, base: 22, reaction: 0.9, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.5 }] }));
+  E.wSeal = W_("海豹", "#9a9aa8", wild({ tier: 1, sea: "海豹", hp: 112, atk: 24, df: 7, spd: 12, r: 32, flank: 0.7,
+    bite: { name: "冰冷的牙", ap: 1, length: 105, width: 84, base: 19, reaction: 0.85, sound: "sounds/bear-roar.mp3" },
+    pounce: { name: "從冰上滑過來", ap: 2, length: 340, width: 84, base: 21, reaction: 1.0, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "fishScale", chance: 0.5 }] }));
+  E.wViper = G_("蝰魚", "#2a2a4a", wild({ tier: 1, sea: "蝰魚", hp: 92, atk: 26, df: 5, spd: 12, r: 28, keep: 260,
+    shot: { name: "黑暗裡的獠牙", ranged: true, ap: 2, length: 560, width: 44, base: 19, reaction: 1.0, sound: "sounds/boss-laser.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" }, drops: [{ item: "fishScale", chance: 0.6 }] }));
+  E.wGar = W_("鱷雀鱔", "#6a7a4a", wild({ tier: 1, sea: "鱷雀鱔", hp: 108, atk: 25, df: 8, spd: 11, r: 32, flank: 0.7,
+    bite: { name: "長長的嘴", ap: 1, length: 130, width: 70, base: 20, reaction: 0.85, sound: "sounds/wolf-bite.mp3" },
+    pounce: { name: "從水草裡衝出來", ap: 2, length: 340, width: 70, base: 22, reaction: 0.95, cooldown: 2, sound: "sounds/wolf-pounce.mp3" },
+    sounds: { move: "sounds/slime-move.mp3" }, drops: [{ item: "fishScale", chance: 0.5 }] }));
+  E.wGhostFish = W_("原始化的幽靈魚", "#5ab8d8", wild({ tier: 2, sea: "幽靈魚", hp: 90, atk: 26, df: 4, spd: 15, r: 26, flank: 0.9,
+    bite: { name: "沒有溫度的咬", ap: 1, length: 100, width: 70, base: 19, reaction: 0.8, sound: "sounds/cangyou-bubbles.mp3" },
+    pounce: { name: "穿過身體", ap: 2, length: 320, width: 70, base: 21, reaction: 0.9, cooldown: 2, sound: "sounds/cangyou-bubbles.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  // 掠食者（tier 2，每個水域一隻）
+  E.megalodon = B_("巨齒鯊", "#5a6a78", wild({ tier: 2, sea: "巨齒鯊", hp: 1150, atk: 30, df: 9, spd: 13, ap: 4, r: 64,
+    sweep: { name: "翻身撕咬", ap: 2, radius: 190, base: 25, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-bite.mp3" },
+    shot: { name: "從深處衝上來", ap: 2, length: 560, width: 120, base: 28, reaction: 1.0, cooldown: 1, sound: "sounds/wolf-pounce.mp3" },
+    call: { kind: "wBarracuda", ap: 2, every: 3, max: 2, line: "（血的味道把梭魚引了過來）" }, sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  E.livyatan = B_("利維坦鯨", "#3a3a48", wild({ tier: 2, sea: "利維坦鯨", hp: 1250, atk: 29, df: 10, spd: 11, ap: 4, r: 70,
+    sweep: { name: "巨顎", ap: 2, radius: 200, base: 26, reaction: 1.05, cooldown: 1, sound: "sounds/bear-roar.mp3" },
+    shot: { name: "冰層下的撞擊", ap: 2, length: 520, width: 130, base: 27, reaction: 1.05, cooldown: 1, sound: "sounds/cangyou-whale.mp3" },
+    call: { kind: "wSeal", ap: 2, every: 3, max: 2, line: "（冰層裂開，海豹被趕了出來）" }, sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  E.dunkleosteus = B_("鄧氏魚", "#4a4a5a", wild({ tier: 2, sea: "鄧氏魚", hp: 1200, atk: 31, df: 12, spd: 10, ap: 4, r: 62,
+    sweep: { name: "骨板剪斷", ap: 2, radius: 180, base: 27, reaction: 1.0, cooldown: 1, sound: "sounds/pirate-slash.mp3" },
+    shot: { name: "裝甲衝撞", ap: 2, length: 500, width: 120, base: 27, reaction: 1.0, cooldown: 1, sound: "sounds/slime-slam.mp3" },
+    call: { kind: "wViper", ap: 2, every: 3, max: 2, line: "（黑暗裡亮起了蝰魚的牙）" }, sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  E.deinosuchus = B_("恐鱷", "#3a4a2a", wild({ tier: 2, sea: "恐鱷", hp: 1200, atk: 30, df: 11, spd: 10, ap: 4, r: 66,
+    sweep: { name: "死亡翻滾", ap: 2, radius: 190, base: 26, reaction: 1.0, cooldown: 1, sound: "sounds/bear-roar.mp3" },
+    shot: { name: "從泥裡撲出來", ap: 2, length: 480, width: 120, base: 28, reaction: 0.95, cooldown: 1, sound: "sounds/wolf-pounce.mp3" },
+    call: { kind: "wGar", ap: 2, every: 3, max: 2, line: "（沼澤冒泡，鱷雀鱔浮了上來）" }, sounds: { move: "sounds/slime-move.mp3" } }));
+  // 滄游・滄龍（tier 3）：只有蒼幽成為原始獵手之後才會遇到。AI 和畫面在 js/ai-mosasaur.js（使用者 11/22 重做）
+  //   啃咬、噴射水柱（扇形掃動）、尾鰭揮掃出水波、呼喊（叫來不攻擊的幽靈魚）、吃掉幽靈魚→下一回合「溺亡」（吃幾隻用幾次）、潛伏（變成黑影，鑽出時周圍噴出泡泡）
+  E.mosasaur = B_("滄游・滄龍", "#2a6a9a", wild({ tier: 3, ai: "mosasaur", sea: "滄龍・原始", hp: 1700, atk: 32, df: 10, spd: 13, ap: 5, r: 76, moveCost: 1,
+    bite: { name: "啃咬", ap: 1, length: 190, width: 120, base: 26, reaction: 0.8, sound: "sounds/wolf-bite.mp3" },
+    jet: { name: "噴射水柱", ap: 2, radius: 520, half: 32, sweep: 70, base: 27, reaction: 1.0, cooldown: 1, sound: "sounds/cangyou-bubbles.mp3" },
+    waves: { name: "尾鰭揮掃", ap: 2, count: 3, spread: 28, length: 640, width: 80, base: 22, reaction: 1.0, cooldown: 1, sound: "sounds/cangyou-whale.mp3" },
+    call: { name: "呼喊", ap: 2, every: 3, count: 2, max: 3, kind: "mosaFish", line: "滄龍仰起頭呼喊——幽靈一樣的魚從水裡游了過來（牠們不會攻擊……牠們是餌）" },
+    eat: { ap: 1 },
+    lurk: { name: "潛伏", ap: 2, every: 4, radius: 180, base: 28, reaction: 0.6, sound: "sounds/slime-slam.mp3" },
+    meltOnDeath: ["mosaFish"],          // 滄龍倒下：被呼喚的幽靈魚也跟著散去
+    drown: { name: "溺亡", width: 440, base: 30, reaction: 1.3, sound: "sounds/cangyou-whale.mp3" },
+    sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  // 被滄龍呼喚來的幽靈魚：不攻擊，只會在滄龍身邊游（滄龍吃掉牠們就會放「溺亡」）
+  E.mosaFish = W_("被呼喚的幽靈魚", "#5ab8d8", wild({ tier: 2, ai: "mosaFish", sea: "幽靈魚", hp: 70, atk: 0, df: 3, spd: 13, ap: 2, r: 24, sounds: { move: "sounds/cangyou-bubbles.mp3" } }));
+  const CHAIN_HELP = "<b>食物鏈</b>：比你等級高的生物，每差一級你對牠的傷害 ×0.7、牠對你的傷害 ×1.35；比你低的，你對牠 ×1.15、牠對你 ×0.85。先從小隻的吃起";
+  Rm.wild = cRoom("原始水域", "沒有玻璃的水裡", "wildwater", null, {
+    sardines: Object.assign(v3("wSardine", "沙丁魚群", "小魚・三群沙丁魚", 200), { help: CHAIN_HELP }),
+    icefish: Object.assign(v3("wIcefish", "冰魚", "小魚・三隻冰魚", 200), { help: CHAIN_HELP }),
+    lanterns: Object.assign(v3("wLantern", "燈籠魚群", "小魚・三群燈籠魚", 200), { help: CHAIN_HELP }),
+    loaches: Object.assign(v3("wLoach", "泥鰍", "小魚・三隻泥鰍", 200), { help: CHAIN_HELP }),
+    barracudas: Object.assign(v2("wBarracuda", "梭魚", "捕食者・兩隻梭魚", 320), { help: CHAIN_HELP }),
+    seals: Object.assign(v2("wSeal", "海豹", "捕食者・兩隻海豹", 320), { help: CHAIN_HELP }),
+    vipers: Object.assign(v2("wViper", "蝰魚", "捕食者・兩隻蝰魚", 320), { help: CHAIN_HELP }),
+    gars: Object.assign(v2("wGar", "鱷雀鱔", "捕食者・兩隻鱷雀鱔", 320), { help: CHAIN_HELP }),
+    megalodon: Object.assign(vb("megalodon", "巨齒鯊", "大洋的掠食者", `<b>巨齒鯊</b>：翻身撕咬（身邊的圓）、從深處衝上來（粗紅框）、引來梭魚<br>${CHAIN_HELP}`), { xp: 1100, gold: [150, 200] }),
+    livyatan: Object.assign(vb("livyatan", "利維坦鯨", "寒帶的掠食者", `<b>利維坦鯨</b>：巨顎（身邊的圓）、冰層下的撞擊（粗紅框）、趕出海豹<br>${CHAIN_HELP}`), { xp: 1100, gold: [150, 200] }),
+    dunkleosteus: Object.assign(vb("dunkleosteus", "鄧氏魚", "深海的掠食者", `<b>鄧氏魚</b>：骨板剪斷（身邊的圓）、裝甲衝撞（粗紅框）、叫來蝰魚<br>${CHAIN_HELP}`), { xp: 1100, gold: [150, 200] }),
+    deinosuchus: Object.assign(vb("deinosuchus", "恐鱷", "沼澤的掠食者", `<b>恐鱷</b>：死亡翻滾（身邊的圓）、從泥裡撲出來（粗紅框）、叫來鱷雀鱔<br>${CHAIN_HELP}`), { xp: 1100, gold: [150, 200] }),
+    mosasaur: Object.assign(vb("mosasaur", "滄游・滄龍", "原始水域的頂點", `<b>滄游・滄龍</b>：啃咬（面前的紅框）、噴射水柱（扇形掃動）、尾鰭揮掃（好幾道水波）、潛伏（變成黑影，下次從你腳下鑽出來）<br><b>呼喊</b>：叫來不會攻擊的幽靈魚——滄龍吃掉牠們，下一回合就會放<b>溺亡</b>（吃了幾隻就衝幾次）。先把魚打掉！<br>${CHAIN_HELP}`, "sounds/bgm-mosasaur.mp3"), { xp: 1800, gold: [220, 300] }),
+  });
 
   // #KN59810 克亞貝魯巴斯諾：街機裡的像素敵機、像素小兵（地圖上碰到時是一般戰鬥；關卡本身是射擊小遊戲）
   E.pixelJet = G_("像素敵機", "#e83a8a", { hp: 90, atk: 25, df: 6, spd: 14, keep: 300,

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261122024623" });
 // 寶物：玩家有 6 格寶物欄，放在欄裡的寶物都會生效
 // 寶物存在角色的成長資料裡（R.Progress），戰鬥開始時帶進場
 (function () {
@@ -10,10 +10,20 @@
     rare: { name: "稀有", color: "#3d7fe0" },
     epic: { name: "史詩", color: "#8a4fd1" },
     legendary: { name: "傳說", color: "#e08a00" },
+    signature: { name: "專武", color: "#c8326a" },        // 第七格：綁定角色的專武（build.sig）
   };
 
   // stats：直接加在數值上的寶物（商店賣的普通寶物）
   const LIST = {
+    // ===== 專武（第七格寶物欄；只有綁定的角色能帶）=====
+    // 蒼幽：在如此靜謐的蔚藍的原始水域，打倒沉溺原始的自己（滄龍）取得
+    mosaCard: {
+      id: "mosaCard", name: "滄龍名片", rarity: "signature", sig: "cangyou",
+      desc: "一張被水泡軟的卡片，畫著一隻滄龍，背面用小孩的字寫著一個名字。生命 +20、攻擊 +4；幽靈虎鯨再吃 45 顆泡泡可以進化成幽靈滄龍（場上只能有一隻）",
+      stats: { hp: 20, atk: 4 },
+      source: "如此靜謐的蔚藍・原始水域（蒼幽限定）",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="7" width="24" height="18" rx="2" fill="#e8f0f4" stroke="#2a6a9a" stroke-width="2"/><path d="M7 19 Q12 13 18 16 Q22 18 26 14 L24 19 Q20 21 15 19 Q11 18 9 21 Z" fill="#2a6a9a"/><circle cx="22" cy="15" r="1" fill="#fff"/></svg>',
+    },
     // ===== #CI00001 奇儂鎮：打倒變異發泡水母得到（稀有） =====
     mutantShell: {
       id: "mutantShell", name: "異變硬殼", rarity: "rare",
@@ -214,6 +224,73 @@
         if (total > 0) b.heal(u, Math.max(1, Math.round(total * G.healRatio)), "（輝煌之冠）");
       },
     },
+    // ===== #DG00777 致命賭局：斯賓沃迪大賭場的籌碼兌換櫃台（只能用籌碼換） =====
+    classicCards: {
+      id: "classicCards", name: "經典紙牌", rarity: "common", casino: true,
+      desc: "一副磨到發亮的紙牌，洗牌的聲音很好聽。速度 +1", stats: { spd: 1 },
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="7" width="14" height="20" rx="2" fill="#fffdf8" stroke="#1d1d1f" stroke-width="2" transform="rotate(-12 13 17)"/><rect x="12" y="5" width="14" height="20" rx="2" fill="#fffdf8" stroke="#1d1d1f" stroke-width="2"/><path d="M19 10 L22 14 L19 18 L16 14 Z" fill="#c62828"/></svg>',
+    },
+    steelBall: {
+      id: "steelBall", name: "小鋼珠", rarity: "common", casino: true,
+      desc: "柏青哥滾到底的那一顆，被斯賓沃迪抓起來又放回去好幾次。攻擊 +2", stats: { atk: 2 },
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10" fill="#b8bec8" stroke="#5a6070" stroke-width="2"/><circle cx="12.5" cy="12.5" r="3" fill="#fff"/></svg>',
+    },
+    loadedDice: {
+      id: "loadedDice", name: "灌鉛骰子", rarity: "rare", casino: true,
+      desc: "一顆動過手腳的骰子，六點那面特別重。其他寶物「有機率」的效果，觸發機率 +5%", luck: 0.05,
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="20" rx="4" fill="#fffdf8" stroke="#1d1d1f" stroke-width="2"/><g fill="#1d1d1f"><circle cx="11" cy="11" r="2"/><circle cx="21" cy="11" r="2"/><circle cx="11" cy="16" r="2"/><circle cx="21" cy="16" r="2"/><circle cx="11" cy="21" r="2"/><circle cx="21" cy="21" r="2"/></g><path d="M22 4 L28 4 L28 10" fill="none" stroke="#5a6070" stroke-width="2"/></svg>',
+    },
+    betToken: {
+      id: "betToken", name: "投注代幣", rarity: "rare", casino: true,
+      desc: "一枚刻著斯賓沃迪笑臉的代幣。地圖上打贏戰鬥時，拿到的金幣 +10%", goldBonus: 0.1,
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="#e8c050" stroke="#8a5a10" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="none" stroke="#8a5a10" stroke-width="1.5"/><text x="16" y="20.5" text-anchor="middle" font-size="11" font-weight="900" fill="#8a1a24">7</text></svg>',
+    },
+    specialWheel: {
+      id: "specialWheel", name: "特別轉盤", rarity: "epic", casino: true,
+      desc: "一個只有兩格的小轉盤：一格「再來一次」，一格什麼都沒寫。使用大招時，有 10% 機率返還 1 點行動點", chance: 0.1,
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="#1d1d22" stroke="#e8c050" stroke-width="2"/><path d="M16 16 L16 4 A12 12 0 0 1 28 16 Z" fill="#b81e28"/><path d="M16 16 L28 16 A12 12 0 0 1 16 28 Z" fill="#1d1d22"/><path d="M16 16 L16 28 A12 12 0 0 1 4 16 Z" fill="#b81e28"/><circle cx="16" cy="16" r="3" fill="#e8c050"/></svg>',
+      onSkill(b, u, sk) {
+        if (b.char?.skills?.[b.char.ultimate] !== sk) return;
+        if (Math.random() >= this.chance + R.Items.luck(u) || u.ap >= u.maxAp) return;
+        u.ap += 1;
+        b.say(`特別轉盤轉到了「再來一次」：${u.name} 拿回 1 點行動點`);
+        b.emit({ type: "buff", unit: u, text: "+1 行動點", color: "#e8c050" });
+      },
+    },
+    diceCup: {
+      id: "diceCup", name: "古怪骰盅", rarity: "epic", casino: true,
+      desc: "搖一搖會自己跳出骰子的骰盅。普攻時，有 15% 機率飛出一枚骰子砸向最近的敵人", chance: 0.15, die: { base: 10, range: 480 },
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 24 L10 8 L22 8 L25 24 Z" fill="#a81e28" stroke="#e8c050" stroke-width="2"/><rect x="18" y="18" width="9" height="9" rx="2" fill="#fffdf8" stroke="#1d1d1f" stroke-width="1.5"/><circle cx="22.5" cy="22.5" r="1.5" fill="#c62828"/></svg>',
+      onSkill(b, u, sk) {
+        if (b.char?.skills?.[b.char.basic] !== sk) return;
+        if (Math.random() >= this.chance + R.Items.luck(u)) return;
+        const D = this.die, t = b.enemies().filter((e) => e.alive && !e.def.host && R.dist(e.x, e.y, u.x, u.y) <= D.range).sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y))[0];
+        if (!t) return;
+        b.emit({ type: "talisman", from: { x: u.x, y: u.y }, to: { x: t.x, y: t.y }, star: true, dur: 260 });
+        b.damage(u, t, D.base, 1, "（古怪骰盅的骰子）");
+      },
+    },
+    dealerRevolver: {
+      id: "dealerRevolver", name: "莊家左輪", rarity: "legendary", casino: true,
+      desc: "斯賓沃迪死亡輪盤中間的那把左輪。使用投射技能時，有 5% 機率額外射出一枚左輪子彈（大量傷害）", chance: 0.05, shot: { base: 34, range: 720 },
+      source: "致命賭局・籌碼兌換櫃台",
+      icon: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="12" y="11" width="16" height="5" fill="#6a6e78" stroke="#2a2a30" stroke-width="1.5"/><circle cx="12" cy="14" r="5" fill="#4a4e58" stroke="#2a2a30" stroke-width="1.5"/><path d="M9 16 L5 27 L10 28 L13 18 Z" fill="#6a3a1a" stroke="#2a1a0a" stroke-width="1.5"/></svg>',
+      onSkill(b, u, sk) {
+        if (!sk.tags?.includes("projectile")) return;
+        if (Math.random() >= this.chance + R.Items.luck(u)) return;
+        const S = this.shot, t = b.enemies().filter((e) => e.alive && !e.def.host && R.dist(e.x, e.y, u.x, u.y) <= S.range).sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y))[0];
+        if (!t) return;
+        b.say(`莊家左輪：砰！`);
+        b.emit({ type: "talisman", from: { x: u.x, y: u.y }, to: { x: t.x, y: t.y }, star: true, dur: 160 });
+        b.damage(u, t, S.base, 1, "（莊家左輪）");
+      },
+    },
   };
 
   // ===================== 自訂寶物（玩家自己做、自己命名的寶物） =====================
@@ -371,6 +448,9 @@
     },
     paintIcon,
     get(id) { return LIST[id]; },
+    // 灌鉛骰子：其他寶物「有機率」的效果，觸發機率加多少；投注代幣：金幣加成
+    luck(u) { let n = 0; for (const id of u?.items || []) n += LIST[id]?.luck || 0; return n; },
+    goldBonus(items) { let n = 0; for (const id of items || []) n += LIST[id]?.goldBonus || 0; return n; },
     // 寶物格的 HTML（滑鼠停留顯示名稱與效果）
     slotHtml(id) {
       const it = LIST[id];
@@ -392,6 +472,15 @@
     onHurt(b, u, src) { for (const id of u.items || []) LIST[id]?.onHurt?.(b, u, src); },
     onHit(b, u, dst) { for (const id of u.items || []) LIST[id]?.onHit?.(b, u, dst); },
     onSummonHurt(b, s, src) { for (const id of b.player.items || []) LIST[id]?.onSummonHurt?.(b, s, src); },
+    // 專武：放進第七格（build.sig）。只有綁定的角色拿得到
+    giveSig(charId, id) {
+      const P = R.Progress, it = LIST[id];
+      if (!P || !it || it.sig !== charId) return { ok: false, text: "" };
+      const build = P.load(charId);
+      if (build.sig === id) return { ok: false, text: `已經擁有專武【${it.name}】` };
+      build.sig = id; P.save(charId, build);
+      return { ok: true, text: `取得專武【${it.name}】` };
+    },
     // 獲得寶物：放進第一個空格。回傳 { ok, text }
     give(charId, id) {
       const P = R.Progress, it = LIST[id];

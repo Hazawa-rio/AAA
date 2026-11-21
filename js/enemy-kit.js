@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-kit.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-kit.js": "20261122024623" });
 // 一般敵人的「攻擊方式」和「特有被動」（Boss 有自己的 AI，不在這裡）
 // 攻擊方式（style）：wolf／gunner 這兩種 AI 讀 def.style，沒設定就是原本的打法
 //   近戰（wolf）：charge 衝撞・hitRun 打帶跑・sweep 揮掃・frenzy 連咬
@@ -82,6 +82,10 @@
     jumpSpider: { trait: "ambush" }, aphid: { trait: "regen" },
     // B 級
     skyCatcher: { style: "spread", trait: "evasive" }, stitched: { style: "sweep", trait: "regen" },
+    wSardine: { style: "frenzy", trait: "pack" }, wIcefish: { style: "hitRun", trait: "evasive" }, wLantern: { style: "frenzy", trait: "pack" }, wLoach: { style: "hitRun", trait: "evasive" },
+    wBarracuda: { style: "charge", trait: "ambush" }, wSeal: { style: "charge", trait: "thickHide" }, wViper: { style: "snipe", trait: "ambush" }, wGar: { style: "charge", trait: "armor" }, wGhostFish: { style: "hitRun", trait: "evasive" },
+    piranha: { style: "frenzy", trait: "pack" }, moray: { style: "hitRun", trait: "ambush" }, leopardSeal: { style: "charge", trait: "enrage" }, angler: { style: "snipe", trait: "evasive" },
+    steamHound: { style: "charge", trait: "armor" }, rivetTank: { style: "snipe", trait: "thickHide" }, steamGhost: { style: "hitRun", trait: "evasive" }, automatonCrew: { style: "frenzy", trait: "deathBurst" },
     sporeMole: { style: "frenzy", trait: "deathBurst" }, hyphaBeast: { style: "charge", trait: "ambush" }, looter: { style: "charge", trait: "enrage" },
     eraAgent: { style: "snipe", trait: "ambush" }, grudge: { style: "sweep", trait: "lifesteal" },
     // A 級
