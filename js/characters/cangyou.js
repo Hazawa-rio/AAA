@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261122024623" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血
@@ -30,7 +30,11 @@
     { name: "幽靈魚", ap: 2, ram: 6, swim: 200, size: 1, r: 11, hp: 0.22 },
     { name: "幽靈墨魚", ap: 3, ram: 8, swim: 220, size: 1.25, r: 16, hp: 0.4, ink: { range: 340, base: 4, slow: 0.6, cd: 2 } },
     { name: "幽靈虎鯨", ap: 4, ram: 13, swim: 260, size: 1.6, r: 26, hp: 0.7, bite: { range: 420, base: 18, cd: 2 } },
+    // 專武「滄龍名片」：虎鯨再吃 45 顆泡泡進化成幽靈滄龍（場上只能有一隻）
+    { name: "幽靈滄龍", ap: 5, ram: 18, swim: 300, size: 2, r: 34, hp: 1.0, bite: { range: 480, base: 26, cd: 2 } },
   ];
+  const MOSA_NEED = 45;
+  const hasCard = (u) => (u.items || []).includes("mosaCard");
   const fishOf = (u) => (u.state.fish || []).filter((f) => f.alive);
 
   const C = {
@@ -113,7 +117,7 @@
         tiers: [
           [
             { id: "parade", name: "靜謐遊行", desc: "蝠鱝夫人放出去以後會一直往前游（留下一串泡泡），方向跟著滑鼠轉。碰到幽靈魚，魚會加入遊行一起游，游的距離也變長；遊行的魚越多，撞到敵人的傷害越高" },
-            { id: "shelter", name: "溫柔庇護", desc: "蝠鱝夫人從外圍繞著圈游向蒼幽（撞到路上的敵人），游到蒼幽身上時給予大量護盾" },
+            { id: "shelter", name: "溫柔庇護", desc: "照原本的放法丟出蝠鱝夫人；路上和落點附近的幽靈魚受到庇護，造成的傷害 ×1.5（2 回合）" },
           ],
         ],
       },
@@ -165,27 +169,29 @@
     },
 
     // ===== 魚群 =====
-    need(u, stage) { return (upg(u).q1 === "glutton" ? [10, 20] : [15, 30])[stage]; },
+    need(u, stage) { const n = (R.upHas(upg(u), "glutton") ? [10, 20] : [15, 30]); return stage === 2 ? n[1] + MOSA_NEED : n[stage]; },
+    // 最高能進化到哪一階：有滄龍名片、而且場上還沒有幽靈滄龍 → 3
+    maxStage(u, f) { return hasCard(u) && !fishOf(u).some((x) => x !== f && x.stage === 3) ? 3 : 2; },
     eat(b, u, f, test) {
       let n = 0;
       for (const z of this.bubbles(b)) if (z.born <= now() + 2000 && test(z)) { b.zones = b.zones.filter((x) => x !== z); n++; }
       if (!n) return 0;
       f.eaten += n;
       f.munch = now();
-      const per = upg(u).q2 === "sugar" ? 2 : this.passive.heal;
+      const per = R.upHas(upg(u), "sugar") ? 2 : this.passive.heal;
       if (per > 0 && u.hp < u.maxHp) { b.heal(u, n * per, `（安慰劑：${STAGES[f.stage].name}吃了 ${n} 顆泡泡）`); b.bark(u, "placebo", 0.3); }
       // 一次只進化一階（不會一口氣從小魚跳成虎鯨）：同一回合進化過就等下一回合
-      if (f.stage < 2 && f.eaten >= this.need(u, f.stage) && f.evoRound !== b.round) {
+      if (f.stage < this.maxStage(u, f) && f.eaten >= this.need(u, f.stage) && f.evoRound !== b.round) {
         f.evoRound = b.round;
         const old = STAGES[f.stage].name;
         f.stage++;
         const S = STAGES[f.stage], mx = Math.max(5, Math.round(u.maxHp * S.hp));
         f.hp += mx - f.maxHp; f.maxHp = mx; f.r = S.r; f.name = S.name; f.maxAp = S.ap;      // 進化：變大、生命上限變高（多出來的直接補上）、行動點變多
         b.say(`${old}進化成了${S.name}！`);
-        b.bark(u, f.stage === 2 ? "evolve2" : "evolve1", 0.4);
+        b.bark(u, f.stage >= 2 ? "evolve2" : "evolve1", 0.4);
         b.emit({ type: "buff", unit: f, text: `進化：${S.name}`, color: "#3a7bd5" });
         b.emit({ type: "fishEvolve", x: f.x, y: f.y, stage: f.stage });
-        if (f.stage === 2) b.emit({ type: "sfx", sound: SND.whale });
+        if (f.stage >= 2) b.emit({ type: "sfx", sound: SND.whale });
       }
       return n;
     },
@@ -211,7 +217,7 @@
     },
     // 魚的一個動作，回傳花掉的行動點（0＝沒事做）。ap＝現在還有幾點
     fishAct(b, u, f, i, ap = 9) {
-      const S = STAGES[f.stage], mult = upg(u).q2 === "fangs" ? 1.3 : 1;
+      const S = STAGES[f.stage], mult = (R.upHas(upg(u), "fangs") ? 1.3 : 1) * (f.shelterUntil >= b.round ? C.skills.manta.shelterMult : 1);   // 溫柔庇護：範圍內的魚傷害提高
       // 先吃掉身邊的泡泡（不花行動點）
       this.eat(b, u, f, (z) => R.dist(z.x, z.y, f.x, f.y) <= 120);
       const foes = b.targetsFor(u).filter((e) => e.alive);
@@ -269,6 +275,8 @@
       if (f.kind !== "ghostFish") return;
       const u = b.player, i = fishOf(u).indexOf(f);
       if (f.cd > 0) f.cd--;
+      // 命路「海底巡迴」：魚群只在蒼幽身邊繞圈（不去追敵人），順路吃掉身邊的泡泡
+      if (R.upHas(upg(u), "cy_patrol")) { this.orbit(b, u); f.ap = 0; return; }
       for (let guard = 0; guard < 8 && f.alive && f.ap > 0; guard++) {
         const cost = this.fishAct(b, u, f, i, f.ap);
         if (!cost) break;
@@ -279,8 +287,21 @@
       }
       f.ap = 0;
     },
+    // 海底巡迴：魚群排成一圈繞著蒼幽
+    orbitR: 70,
+    orbit(b, u) {
+      const fs = fishOf(u), base = (b.round || 0) * 0.9;
+      fs.forEach((f, i) => {
+        const a = base + (i / Math.max(1, fs.length)) * Math.PI * 2, r = this.orbitR + f.r;
+        const fx0 = f.x, fy0 = f.y;
+        this.swim(b, f, u.x + Math.cos(a) * r, u.y + Math.sin(a) * r, 0.4);
+        f.face = a + Math.PI / 2;
+        this.eat(b, u, f, (q) => R.dist(q.x, q.y, f.x, f.y) <= 120 || R.geo.pointSeg(q.x, q.y, fx0, fy0, f.x, f.y) <= 50);
+      });
+    },
     // 魚群出擊：每隻魚馬上做兩個動作（不用行動點）
     schoolAct(b, u) {
+      if (R.upHas(upg(u), "cy_patrol")) { this.orbit(b, u); return; }
       fishOf(u).forEach((f, i) => { for (let k = 0; k < 2 && f.alive; k++) if (!this.fishAct(b, u, f, i)) break; });
     },
     // 放出一隻小幽靈魚（場上的召喚物：會被攻擊、會吸引敵人的火力）
@@ -290,7 +311,7 @@
       for (let k = 0; k < 24 && !spot; k++) { const a = k * 2.4, d = k ? 18 + k * 6 : 0, px = x + Math.cos(a) * d, py = y + Math.sin(a) * d; if (!b.blocked(probe, px, py)) spot = { x: px, y: py }; }
       if (!spot) return null;
       const f = b.spawnSpecial("player", "ghostFish", { name: S.name, hp: 1, atk: 0, df: 0, spd: 0, ap: 0, r: S.r }, spot.x, spot.y,
-        { summon: true, decoy: true, owner: u, eaten: 0, stage: 0, cd: 0, face: u.facing ?? -Math.PI / 2, born: Math.random() * 1000 });
+        { summon: true, decoy: true, lowPri: true, owner: u, eaten: 0, stage: 0, cd: 0, face: u.facing ?? -Math.PI / 2, born: Math.random() * 1000 });
       f.maxHp = f.hp = Math.max(5, Math.round(u.maxHp * S.hp)); f.df = u.df; f.r = S.r; f.maxAp = S.ap; f.ap = 0;
       f.spd = u.spd;
       (u.state.fish = fishOf(u)).push(f);
@@ -312,11 +333,11 @@
       if (!h) return;
       const t = h.follow?.alive ? h.follow : unit;
       const sk = this.skills.seahorse, up = upg(unit);
-      const amt = Math.round((sk.shield + unit.atk * 0.3) * (up.e1 === "thick" ? 1.5 : 1));
+      const amt = Math.round((sk.shield + unit.atk * 0.3) * (R.upHas(up, "thick") ? 1.5 : 1));
       b.emit({ type: "seaPuff", unit: t });
       b.addShield(t, amt, "（海馬先生吐的泡泡）");
-      if (up.e2 === "soothe") b.heal(t, 3, "（泡泡浴）");
-      if (up.e1 === "spit") {
+      if (R.upHas(up, "soothe")) b.heal(t, 3, "（泡泡浴）");
+      if (R.upHas(up, "spit")) {
         const e = b.targetsFor(unit).filter((x) => x.alive).sort((a, c) => R.dist(a.x, a.y, t.x, t.y) - R.dist(c.x, c.y, t.x, t.y))[0];
         if (e) {
           const a = Math.atan2(e.y - t.y, e.x - t.x);
@@ -333,6 +354,8 @@
         name: "泡沫散射", slot: "普攻", key: "a", sound: SND.bubble,
         tags: ["projectile"],
         ap: 1, range: 270, halfDeg: 16, count: 7, base: 3,
+        jetBase: 5, jetWidth: 26, jetMp: 4, jetNear: 160,   // 命路「海底巡迴」：身邊每條魚多一道水柱，每條魚普攻多花 4 魔力
+        jetFish(b, u) { return R.upHas(upg(u), "cy_patrol") ? fishOf(u).filter((f) => R.dist(f.x, f.y, u.x, u.y) <= this.jetNear + f.r) : []; },
         desc: "朝前方細長扇形丟出 7 顆泡泡。泡泡打中敵人會破裂造成傷害，沒打中會留在場上（敵人走過會踩破；幽靈魚會吃掉）",
         rays(u, arg) {
           const d = dirOf(u, arg), n = this.count, half = this.halfDeg * DEG, out = [];
@@ -342,7 +365,11 @@
           }
           return { d, out };
         },
-        status(b, u) { return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range, free: true, sector: { radius: this.range, half: this.halfDeg * DEG } } }; },
+        status(b, u) {
+          const n = this.jetFish(b, u).length, mp = n * this.jetMp;
+          if (n && u.mp < mp) return { ready: false, cost: this.ap, mp, label: this.name, note: `${mp} MP`, reason: "魔力不足（身邊的魚群要噴水柱）" };
+          return { ready: true, cost: this.ap, mp: mp || undefined, label: this.name, note: n ? `水柱 ×${n}・${mp} MP` : undefined, aim: { type: "enemy", range: this.range, free: true, sector: { radius: this.range, half: this.halfDeg * DEG } } };
+        },
         predict(b, u, arg) {
           const t = arg.target;
           if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
@@ -359,8 +386,17 @@
           b.say(`${u.name}「泡沫散射」`);
           b.bark(u, "foam");
           b.emit({ type: "sfx", sound: this.sound });
+          const jf = this.jetFish(b, u);
           const n = C.shootBubbles(b, u, out, this.base, "（泡泡破裂）");
-          if (!n) b.say("泡泡飄在空中……");
+          if (!n && !jf.length) b.say("泡泡飄在空中……");
+          // 海底巡迴：身邊的每條魚朝同一個方向噴一道水柱（穿過路上的敵人）
+          for (const f of jf) {
+            const x2 = f.x + d.dx * (this.range + 40), y2 = f.y + d.dy * (this.range + 40);
+            f.face = d.ang;
+            b.emit({ type: "waterJet", x1: f.x, y1: f.y, x2, y2, w: this.jetWidth });
+            for (const e of b.targetsFor(u)) if (e.alive && R.geo.pointSeg(e.x, e.y, f.x, f.y, x2, y2) <= this.jetWidth / 2 + e.r) b.damage(u, e, this.jetBase, 1, `（${f.name}的水柱）`);
+          }
+          if (jf.length) b.say(`海底巡迴：${jf.length} 條魚一起噴出水柱`);
         },
       },
 
@@ -370,7 +406,7 @@
         tags: ["summon"],
         ap: 1, mp: 20, cooldown: 2,
         desc: "在左右兩邊各召喚一隻幽靈魚（召喚物，會被攻擊，被打死就要重養）。魚有自己的回合（排在蒼幽後面，小魚 2 行動點）：吃掉身邊的泡泡、找敵人撞過去；吃 15 顆進化成幽靈墨魚（3 行動點，遠距離噴墨麻痺），再吃 15 顆變成幽靈虎鯨（4 行動點，傷害更高，衝刺啃咬）。一回合只會進化一階。魚群沒有全滅時再用＝只補小魚補滿；魚群全員都在＝「魚群出擊」：每隻魚馬上做兩個動作",
-        slots(u) { return upg(u).q1 === "trio" ? 3 : 2; },
+        slots(u) { return R.upHas(upg(u), "trio") ? 3 : 2; },
         status(b, u) {
           const cd = u.cd.school || 0, n = fishOf(u).length, label = n >= this.slots(u) ? "魚群出擊" : n ? "補充小魚" : this.name;
           if (cd > 0) return { ready: false, cost: this.ap, mp: this.mp, label, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
@@ -414,12 +450,12 @@
         use(b, u, arg) {
           const t = this.pick(b, u, arg);
           b.setCooldown(u, "seahorse", this.cooldown);
-          u.state.seahorse = { follow: t, turns: this.turns + (upg(u).e2 === "loyal" ? 2 : 0), born: now() };
+          u.state.seahorse = { follow: t, turns: this.turns + (R.upHas(upg(u), "loyal") ? 2 : 0), born: now() };
           b.emit({ type: "sfx", sound: this.sound });
           b.say(`${u.name} 丟出了海馬先生${t === u ? "" : `，跟著 ${t.name}`}`);
           b.bark(u, t === u ? "seahorseSelf" : "seahorseAlly");
           // 丟出去的時候先吐一次
-          const amt = Math.round((this.shield + u.atk * 0.3) * (upg(u).e1 === "thick" ? 1.5 : 1));
+          const amt = Math.round((this.shield + u.atk * 0.3) * (R.upHas(upg(u), "thick") ? 1.5 : 1));
           b.emit({ type: "seaPuff", unit: t });
           b.addShield(t, amt, "（海馬先生吐的泡泡）");
         },
@@ -487,33 +523,23 @@
             b.emit({ type: "sfx", sound: sk.sound });
             C.shootBubbles(b, u, list, sk.sprayBase, "（蝠鱝噴射的泡泡）", 0);
             b.say(`遊行結束：${P.fish.length} 隻魚一起游、撞到 ${P.hit.size} 個敵人`);
+            if (R.upHas(upg(u), "cy_patrol")) C.orbit(b, u);          // 海底巡迴：遊行結束，魚群回到蒼幽身邊
             b.checkEnd?.();
             b.emit();
           };
           tick();
         },
-        // ----- 溫柔庇護：從外圍繞圈游向蒼幽，給護盾 -----
-        shelter(b, u, arg) {
-          const d = dirOf(u, arg), R0 = 320, turns = 1.4, dur = 1.3;
-          u.charge = 0; u.facing = d.ang;
-          b.say(`${u.name}「蝠鱝夫人」——溫柔庇護`);
-          b.bark(u, "ult");
-          b.emit({ type: "sfx", sound: SND.whale });
-          b.emit({ type: "mantaSpiral", x: u.x, y: u.y, a0: d.ang, r0: R0, turns, dur });
-          // 螺旋路上的敵人：撞一次
-          const hit = new Set();
-          for (let i = 0; i <= 60; i++) {
-            const q = i / 60, a = d.ang + q * turns * Math.PI * 2, r = R0 * (1 - q), x = u.x + Math.cos(a) * r, y = u.y + Math.sin(a) * r;
-            for (const e of b.targetsFor(u)) if (e.alive && !hit.has(e.id) && R.dist(e.x, e.y, x, y) <= this.width / 2 + e.r) { hit.add(e.id); b.hitDelay = q * dur; b.damage(u, e, this.base, 1, "（溫柔庇護・蝠鱝撞擊）"); }
-          }
-          b.hitDelay = 0;
-          const sh = Math.round(30 + u.maxHp * 0.25);
-          setTimeout(() => { if (b.phase === "over" || !u.alive) return; b.addShield(u, sh, "（溫柔庇護）"); b.emit({ type: "seaPuff", unit: u }); b.emit(); }, dur * 1000);
-        },
+        // ----- 溫柔庇護（使用者 11/22：改回原本的放法）：照一般的蝠鱝夫人丟出去；路上和落點附近的幽靈魚傷害提高 -----
+        shelterMult: 1.5, shelterTurns: 2,
+        shelterFish(b, u, p) { return fishOf(u).filter((f) => R.geo.pointSeg(f.x, f.y, u.x, u.y, p.x2, p.y2) <= this.width / 2 + f.r || R.dist(f.x, f.y, p.x2, p.y2) <= this.sprayLen + f.r); },
         use(b, u, arg) {
           if (upg(u).w1 === "parade") return this.parade(b, u, arg);
-          if (upg(u).w1 === "shelter") return this.shelter(b, u, arg);
           const p = this.path(u, arg), hits = this.predict(b, u, arg);
+          if (upg(u).w1 === "shelter") {
+            const fs = this.shelterFish(b, u, p);
+            for (const f of fs) { f.shelterUntil = b.round + this.shelterTurns; b.emit({ type: "buff", unit: f, text: `庇護：傷害 ×${this.shelterMult}`, color: "#3a7bd5" }); }
+            if (fs.length) b.say(`溫柔庇護：${fs.length} 隻幽靈魚受到庇護，傷害提高（${this.shelterTurns} 回合）`);
+          }
           u.charge = 0; u.facing = p.d.ang;
           b.say(`${u.name}「蝠鱝夫人」！`);
           b.bark(u, "ult");
@@ -530,6 +556,7 @@
 
     // ===== 畫面 =====
     fxEvents: {
+      waterJet: () => 500,
       bubbles: (ev) => 520,
       ink: () => 600,
       bite: () => 450,
@@ -541,6 +568,14 @@
     },
     drawFx(ctx, ev, k, t, H) {
       switch (ev.type) {
+        case "waterJet": {
+          const q = Math.min(1, k * 2.2), x = ev.x1 + (ev.x2 - ev.x1) * q, y = ev.y1 + (ev.y2 - ev.y1) * q;
+          ctx.globalAlpha = 1 - Math.max(0, k - 0.5) * 2;
+          H.line(ev.x1, ev.y1, x, y, "rgba(126,200,240,.55)", ev.w);
+          H.line(ev.x1, ev.y1, x, y, "rgba(230,248,255,.9)", ev.w * 0.3);
+          for (let i = 0; i < 5; i++) drawBubble(ctx, ev.x1 + (x - ev.x1) * (i + 0.5) / 5 + Math.sin(i * 3 + t / 90) * 6, ev.y1 + (y - ev.y1) * (i + 0.5) / 5, 4, t);
+          break;
+        }
         case "bubbles":
           for (const s of ev.list) {
             const q = Math.min(1, k / 0.7), x = s.x1 + (s.x2 - s.x1) * q, y = s.y1 + (s.y2 - s.y1) * q;
@@ -590,7 +625,7 @@
       if (f.kind !== "ghostFish") return false;
       const p = H.pos(f), S = STAGES[f.stage], y = p.y + Math.sin(t / 380 + f.born) * 4;
       drawFish(ctx, p.x, y, f.face || 0, f.stage, t, f.munch && t - f.munch < 900);
-      const w = 18 + S.r * 1.4, by = p.y + S.r + 14;
+      const w = 18 + Math.min(S.r, 26) * 1.4, by = p.y + S.r + 14;
       ctx.fillStyle = "rgba(29,29,31,.15)"; ctx.fillRect(p.x - w / 2, by, w, 4);
       ctx.fillStyle = "#3a7bd5"; ctx.fillRect(p.x - w / 2, by, (w * Math.max(0, f.hp)) / f.maxHp, 4);
       ctx.globalAlpha = 0.8; H.label(`${S.name}・${f.eaten}`, p.x, by + 12, "#1f3a8a", 10); ctx.globalAlpha = 1;
@@ -598,7 +633,7 @@
     },
     summonInfo(f) {
       if (f.kind !== "ghostFish") return null;
-      const S = STAGES[f.stage], next = f.stage < 2 ? `${C.need(f.owner, f.stage)} 顆進化成${STAGES[f.stage + 1].name}` : "已經是最終型態";
+      const S = STAGES[f.stage], next = f.stage < C.maxStage(f.owner, f) ? `${C.need(f.owner, f.stage)} 顆進化成${STAGES[f.stage + 1].name}` : "已經是最終型態";
       return [["生命", `${f.hp} / ${f.maxHp}`], ["吃了", `${f.eaten} 顆泡泡（${next}）`], ["行動點", S.ap], ["撞擊", S.ram], ...(S.ink ? [["噴墨", `${S.ink.range} 內，麻痺`]] : []), ...(S.bite ? [["衝刺啃咬", `${S.bite.range} 內，傷害 ${S.bite.base}`]] : []), ["說明", "會吸引敵人的火力；被打死就要重養"]];
     },
     drawBattle(ctx, t, b, H) {
@@ -633,6 +668,13 @@
   // 魚群：畫的時候頭朝上（-y），再轉到面向的方向。大小照設定圖：小魚 ≈ 40、墨魚 ≈ 62、虎鯨 ≈ 107
   const FILL = "#3f48cc", EDGE = "#8fd3ea";
   function drawFish(ctx, x, y, a, stage, t, munch) {
+    if (stage === 3) {               // 幽靈滄龍：舊的滄龍外型、沒有眼睛、幽靈魚的顏色（js/sea-art.js）
+      ctx.save();
+      const glow = ctx.createRadialGradient(x, y, 4, x, y, 80); glow.addColorStop(0, "rgba(143,211,234,.4)"); glow.addColorStop(1, "rgba(143,211,234,0)");
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, 80, 0, Math.PI * 2); ctx.fill();
+      R.SeaArt?.draw(ctx, "幽靈滄龍", x, y, 30, a, t, null, 0);
+      ctx.restore(); return;
+    }
     ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI / 2);
     ctx.globalAlpha *= 0.9;
     const glow = ctx.createRadialGradient(0, 0, 2, 0, 0, [24, 34, 60][stage]); glow.addColorStop(0, "rgba(143,211,234,.45)"); glow.addColorStop(1, "rgba(143,211,234,0)");
@@ -719,5 +761,6 @@
     ctx.restore();
   }
 
+  C.drawFishArt = drawFish;          // 給時空用（原始水域：滄游變成幽靈魚、墨魚、虎鯨的演出）
   R.CHARACTERS[C.id] = C;
 })();

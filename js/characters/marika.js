@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261122024623" });
 // 角色：瑪莉卡（索德綜合學院埃里托德分校的優秀畢業生，用蛇腹劍）
 // 魔力角色：只有在「燃火狀態」下，普攻和所有技能才會花魔力
 // 被動「烈火之舞」：燃火狀態下，所有攻擊都會在攻擊範圍留下火焰；敵人在火焰裡移動、或回合開始時站在火焰裡，就會被燒傷（傷害隨攻擊力提高）
@@ -108,7 +108,7 @@
     },
 
     // ===== 燃火：花魔力 =====
-    fireCost(u, base) { return Math.round(base * (upg(u).e2 === "steady" ? 0.6 : 1)); },
+    fireCost(u, base) { return Math.round(base * (R.upHas(upg(u), "steady") ? 0.6 : 1)); },
     // 技能的魔力：燃火中才要付；魔力不夠就照一般版本出招，火也會熄
     costOf(b, u, base) { if (!ablaze(u)) return 0; const c = this.fireCost(u, base); return u.mp >= c ? c : 0; },
     useFire(b, u, base) {
@@ -122,7 +122,7 @@
     // 烈火之舞：在攻擊範圍留下火焰
     leaveFire(b, u, x, y, big = 1) {
       const P = this.passive, up = upg(u);
-      const r = P.radius * (up.e1 === "wildfire" ? 1.4 : 1) * big, turns = P.turns + (up.e1 === "embers" ? 1 : 0);
+      const r = P.radius * (R.upHas(up, "wildfire") ? 1.4 : 1) * big, turns = P.turns + (R.upHas(up, "embers") ? 1 : 0);
       b.zones.push({ id: "fz" + Math.random().toString(36).slice(2, 7), type: "fire", owner: u, x, y, r, base: P.base, turnsLeft: turns, burned: {} });
     },
     burn(b, z, e) {
@@ -141,12 +141,13 @@
     },
     onTurnStart(b, unit) {
       if (unit === b.player) {
+        unit.state.freeWhip = false;
         if (ablaze(unit)) { unit.state.fireTurns--; if (!unit.state.fireTurns) { b.bark(unit, "out", 0.4); b.say(`${unit.name} 劍上的火熄了`); b.emit({ type: "buff", unit, text: "火熄了", color: "#8a8478" }); } }
         return;
       }
       if (unit.team === "enemy" && unit.alive) for (const z of this.inFire(b, unit.x, unit.y, unit.r)) this.burn(b, z, unit);
     },
-    outgoingMult(b, src) { return ablaze(src) && upg(src).e2 === "frenzy" ? { mult: 1.15, note: "（狂熱）" } : null; },
+    outgoingMult(b, src) { return ablaze(src) && R.upHas(upg(src), "frenzy") ? { mult: 1.15, note: "（狂熱）" } : null; },
 
     tune: [
       ["每回合回復魔力（比例）", "char", "mpRegen", 0, 1, 0.05],
@@ -180,7 +181,8 @@
         },
         status(b, u) {
           const f = this.lit(b, u), r = f ? this.fireRadius : this.radius, half = (f ? this.fireHalfDeg : this.halfDeg) * DEG, mp = C.costOf(b, u, this.mp);
-          return { ready: true, cost: this.ap, mp, label: f ? this.fireName : this.name, note: f ? `${mp} MP` : undefined, aim: { type: "enemy", range: r, free: true, sector: { radius: r, half } } };
+          const free = u.state.freeWhip;     // 命路「迴旋連斬」：抓取後的下一次普攻不花行動點
+          return { ready: true, cost: free ? 0 : this.ap, mp, label: f ? this.fireName : this.name, note: [f ? `${mp} MP` : "", free ? "免費" : ""].filter(Boolean).join("・") || undefined, aim: { type: "enemy", range: r, free: true, sector: { radius: r, half } } };
         },
         predict(b, u, arg) {
           const t = arg.target;
@@ -191,9 +193,10 @@
         },
         preview(b, u, arg) { return { shapes: [this.shape(b, u, arg)], hits: this.predict(b, u, arg) }; },
         use(b, u, arg) {
-          const fire = C.useFire(b, u, this.mp), sec = this.shape(b, u, arg), n = fire ? this.fireHits : this.hits;
+          const fire = C.useFire(b, u, this.mp), sec = this.shape(b, u, arg), n = fire ? this.fireHits + (R.upHas(upg(u), "mk_frenzy") ? 1 : 0) : this.hits;
+          const free = u.state.freeWhip; u.state.freeWhip = false;
           u.facing = sec.ang;
-          b.say(`${u.name} ${fire ? "甩動燃燒的蛇腹劍——「火舌折磨」" : "甩動蛇腹劍「鞭打」"}`);
+          b.say(`${u.name} ${fire ? "甩動燃燒的蛇腹劍——「火舌折磨」" : "甩動蛇腹劍「鞭打」"}${free ? "（迴旋連斬：不花行動點）" : ""}`);
           b.bark(u, fire ? "fireWhip" : "whip");
           lashSounds(b, n);
           if (fire) b.emit({ type: "sfx", sound: this.fireSound });
@@ -213,7 +216,7 @@
         tags: ["melee"],
         ap: 1, cooldown: 2, range: 380, width: 36, base: 6, mp: 8,
         desc: "伸長蛇腹劍，把直線上第一個敵人勾到自己面前（Boss 太重勾不動，只會受傷）",
-        rng(u) { return this.range * (upg(u).q1 === "longChain" ? 1.35 : 1); },
+        rng(u) { return this.range * (R.upHas(upg(u), "longChain") ? 1.35 : 1); },
         path(b, u, arg) {
           const d = dirOf(u, arg), L = this.rng(u);
           let hit = null, t = L;
@@ -233,7 +236,9 @@
           b.setCooldown(u, "grab", this.cooldown);
           b.emit({ type: "sfx", sound: this.sound });
           b.emit({ type: "grab", from: { x: u.x, y: u.y }, to: p.to, fire });
-          if (fire && upg(u).q2 === "hotHook") for (let k = 0.25; k < 1; k += 0.3) C.leaveFire(b, u, u.x + (p.to.x - u.x) * k, u.y + (p.to.y - u.y) * k, 0.7);
+          const chain = R.upHas(upg(u), "mk_hook");      // 命路「熾熱鎖鏈」：不用燃火也留下火焰
+          if (R.upHas(upg(u), "mk_spin")) u.state.freeWhip = true;
+          if ((fire && R.upHas(upg(u), "hotHook")) || chain) for (let k = 0.25; k < 1; k += 0.3) C.leaveFire(b, u, u.x + (p.to.x - u.x) * k, u.y + (p.to.y - u.y) * k, 0.7);
           if (!p.hit) { b.say(`${u.name} 伸長蛇腹劍——什麼都沒勾到`); b.emit({ type: "miss", x: p.to.x, y: p.to.y }); return; }
           const e = p.hit;
           b.say(`${u.name} 伸長蛇腹劍「抓取」${e.name}！`);
@@ -244,11 +249,11 @@
             let to = from;
             for (let s = want; s < R.dist(u.x, u.y, e.x, e.y); s += 8) { const x = u.x + p.d.dx * s, y = u.y + p.d.dy * s; if (!b.blocked(e, x, y)) { to = { x, y }; break; } }
             if (to !== from) { e.x = to.x; e.y = to.y; b.emit({ type: "leap", unit: e, from, to, duration: 0.25 }); b.emit({ type: "move", unit: e }); }
-            if (upg(u).q1 === "bind") { e.state.slowUntil = b.round + 1; e.state.slowMult = 0.5; b.emit({ type: "buff", unit: e, text: "麻痺", color: "#7a3fb0" }); }
+            if (R.upHas(upg(u), "bind")) { e.state.slowUntil = b.round + 1; e.state.slowMult = 0.5; b.emit({ type: "buff", unit: e, text: "麻痺", color: "#7a3fb0" }); }
           } else b.say(`${e.name} 太重了，勾不動！`);
           b.damage(u, e, this.base);
-          if (fire) C.leaveFire(b, u, e.x, e.y, 0.8);
-          if (upg(u).q2 === "spinPull") {
+          if (fire || chain) C.leaveFire(b, u, e.x, e.y, 0.8);
+          if (R.upHas(upg(u), "spinPull")) {
             const ring = { shape: "circle", x: u.x, y: u.y, radius: 120 };
             b.emit({ type: "lash", x: u.x, y: u.y, ang: p.d.ang, half: Math.PI, radius: 120, hits: 1, fire });
             for (const x of b.targetsFor(u)) if (x.alive && R.dist(x.x, x.y, u.x, u.y) <= ring.radius + x.r) b.damage(u, x, this.base, 1, "（迴旋收劍）");
@@ -277,6 +282,7 @@
           b.emit({ type: "sfx", sound: this.sound });
           b.emit({ type: "buff", unit: u, text: ext ? "火焰延續" : "燃火！", color: "#e8781e" });
           b.emit({ type: "fxShape", shape: { shape: "circle", x: u.x, y: u.y, radius: 70 }, color: "#e8781e", dur: 600 });
+          if (R.upHas(upg(u), "mk_wild")) { C.leaveFire(b, u, u.x, u.y, 1.5); b.say("燎原之焰：腳下燒起一大片火焰"); }   // 命路「燎原之焰」
         },
       },
 

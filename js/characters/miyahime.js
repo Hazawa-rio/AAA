@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261122024623" });
 // 角色：彌華姬（卡池角色・若色組組長・毒）
 // 三代目若色組組長。男扮女裝隱藏自己是被肅清的初代組長長子的身分；唯一信任的是親手「培養」的人造人最高顧問・渡冥隱子（簡介是使用者寫的）
 // 中毒（這個角色帶進來的狀態）：每層每回合扣「姬的最大生命 × 1.2%」，最多 50 層；被中毒的單位在自己的回合開始時扣血，之後少 1 層
@@ -11,7 +11,7 @@
 //   強化 1：駛向黃泉（姬揮扇子把毒霧搧到遠處）／護衛組長（毒霧擊退敵人）
 //   強化 2：無禮懲戒（中毒層數 +1）／效忠之心（使用時回復一點生命）
 // W「彌生艷華」：瞄準大範圍裡所有中毒的敵人，蓄力一回合（下一次輪到自己時）連續揮扇射出淬毒苦無，最多 5 發
-//   強化（二選一）：啼哭之雀（從扇子裡抽出太刀蓄力，蓄力完砍出大範圍劍氣：清除命中敵人的中毒，結算剩下中毒傷害的 1.2 倍）
+//   強化（二選一）：啼哭之雀（從扇子裡抽出太刀蓄力，蓄力完瞄準最近的中毒敵人揮出大型刀光：清除命中敵人的中毒，結算剩下中毒傷害的 1.2 倍）
 //                    黑冥散華（蓄力完顧問出現在身後，放出和苦無一樣多的毒霧，讓姬一起搧出去）
 // 樣子（使用者的設計圖）：姬＝黃色方塊「彌」；顧問＝灰色方塊「冥」；毒霧＝淡紫色的雲；姬搧扇子＝紅色的弧線
 // 數值都是暫定；個性台詞之後由使用者提供；音效暫用現有的
@@ -169,7 +169,7 @@
         skill: "yayoi",
         tiers: [
           [
-            { id: "sparrow", name: "啼哭之雀", desc: "瞄準的回合從扇子中抽出一把太刀蓄力；蓄力完砍出一道大範圍劍氣：清除命中敵人的中毒，並一口氣結算剩下中毒傷害的 1.2 倍" },
+            { id: "sparrow", name: "啼哭之雀", desc: "瞄準的回合從扇子中抽出一把太刀蓄力；蓄力完瞄準最近的中毒敵人揮出一道大型刀光（前方扇形＋往前拉長的長條）：清除命中敵人的中毒，並一口氣結算剩下中毒傷害的 1.2 倍" },
             { id: "dark", name: "黑冥散華", desc: "蓄力完畢時顧問出現在姬的身後，放出和苦無一樣多的毒霧，讓姬跟著苦無一起搧出去（每團毒霧：範圍內＋2 層中毒）" },
           ],
         ],
@@ -259,7 +259,7 @@
         ap: 1, cooldown: 2, range: 300, base: 6, lowBase: 11, ring: 3, ringR: 110, stacks: 2, lowStacks: 2, mistR: 140, mistStacks: 3, speed: 520, spin: 0.35,
         desc: "丟出鐵扇，轉著飛到終點；碰到敵人或牆就停下，原地旋轉後向四周射出一圈毒針（範圍裡的敵人＋2 層中毒，同一個目標只算一次）",
         get projectileSpeed() { return this.speed; },
-        rng(u) { return this.range * (upg(u).q1 === "low" ? 1.4 : 1); },
+        rng(u) { return this.range * (R.upHas(upg(u), "low") ? 1.4 : 1); },
         // 鐵扇的路線：往終點飛，第一個碰到的敵人或牆就停
         path(b, u, arg) {
           const d = dirOf(u, arg), L = Math.min(this.rng(u), d.len);
@@ -268,7 +268,7 @@
         },
         // 旋轉爆發會打到誰
         burst(b, u, p) {
-          const mist = upg(u).q1 === "mist", R0 = mist ? this.mistR : this.ringR, thru = upg(u).q2 === "pierce";
+          const mist = R.upHas(upg(u), "mist"), R0 = mist ? this.mistR : this.ringR, thru = R.upHas(upg(u), "pierce");
           return { mist, R0, list: b.targetsFor(u).filter((e) => e.alive && inR(e, p.x, p.y, R0) && (thru || clearLine(b, p.x, p.y, e.x, e.y))) };
         },
         status(b, u) {
@@ -282,7 +282,7 @@
           return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x, y2: p.y, width: 12, color: COL }, { shape: "circle", x: p.x, y: p.y, radius: bs.R0, color: POI }], hits: this.predict(b, u, arg) };
         },
         use(b, u, arg) {
-          const p = this.path(b, u, arg), bs = this.burst(b, u, p), lowU = upg(u).q1 === "low";
+          const p = this.path(b, u, arg), bs = this.burst(b, u, p), lowU = R.upHas(upg(u), "low");
           const fly = Math.max(0.12, p.t / this.speed), at = fly + this.spin;
           u.facing = p.d.ang;
           b.setCooldown(u, "plume", this.cooldown);
@@ -298,10 +298,10 @@
             if (lowU) addPoison(b, p.hit, this.lowStacks, fly);
           }
           // 旋轉爆發
-          const extra = upg(u).q2 === "brew" ? 1 : 0;
+          const extra = R.upHas(upg(u), "brew") ? 1 : 0;
           b.emit({ type: "sfx", sound: bs.mist ? SND.mist : SND.burst, delay: at });
           if (bs.mist) b.emit({ type: "mhMist", x: p.x, y: p.y, r: bs.R0, dur: 1.4, delay: at });
-          else b.emit({ type: "mhRing", x: p.x, y: p.y, r: bs.R0, thru: upg(u).q2 === "pierce", delay: at });
+          else b.emit({ type: "mhRing", x: p.x, y: p.y, r: bs.R0, thru: R.upHas(upg(u), "pierce"), delay: at });
           for (const e of bs.list) {
             if (!e.alive) continue;
             if (!bs.mist) { b.hitDelay = at + 0.08; b.damage(u, e, this.ring, 1, "（環狀毒針）"); b.hitDelay = 0; }
@@ -331,7 +331,7 @@
           const d = dirOf(u, arg), c = this.cone(u, d);
           const a = b.targetsFor(u).filter((e) => e.alive && R.geo.inSector(e.x, e.y, c, e.r));
           let bb = [];
-          if (upg(u).e1 === "yomi") { const dr = this.drift(b, u, d); bb = b.targetsFor(u).filter((e) => e.alive && !a.includes(e) && R.geo.pointSeg(e.x, e.y, dr.x1, dr.y1, dr.x2, dr.y2) <= this.farR + e.r); }
+          if (R.upHas(upg(u), "yomi")) { const dr = this.drift(b, u, d); bb = b.targetsFor(u).filter((e) => e.alive && !a.includes(e) && R.geo.pointSeg(e.x, e.y, dr.x1, dr.y1, dr.x2, dr.y2) <= this.farR + e.r); }
           return { d, c, a, bb };
         },
         status(b, u) {
@@ -342,12 +342,12 @@
         predict(b, u, arg) { const h = this.hits(b, u, arg); return [...h.a, ...h.bb]; },
         preview(b, u, arg) {
           const h = this.hits(b, u, arg), shapes = [{ ...h.c, color: POI }];
-          if (upg(u).e1 === "yomi") { const dr = this.drift(b, u, h.d); shapes.push({ shape: "line", x1: dr.x1, y1: dr.y1, x2: dr.x2, y2: dr.y2, width: this.farR * 2, color: MIST_D }); }
+          if (R.upHas(upg(u), "yomi")) { const dr = this.drift(b, u, h.d); shapes.push({ shape: "line", x1: dr.x1, y1: dr.y1, x2: dr.x2, y2: dr.y2, width: this.farR * 2, color: MIST_D }); }
           return { shapes, hits: [...h.a, ...h.bb] };
         },
         use(b, u, arg) {
           const h = this.hits(b, u, arg), d = h.d, o = this.spot(u, d), up = upg(u);
-          const n = this.stacks + (up.e2 === "punish" ? 1 : 0), T0 = 0.35;
+          const n = this.stacks + (R.upHas(up, "punish") ? 1 : 0), T0 = 0.35;
           u.facing = d.ang;
           b.setCooldown(u, "river", this.cooldown);
           b.say(`${u.name}「向冥之河」——最高顧問・渡冥隱子出現在身旁，朝前方噴出毒霧`);
@@ -360,11 +360,11 @@
             e.state.slowUntil = b.round + 1; e.state.slowMult = this.slow; e.state.slowLabel = "緩速";
             b.emit({ type: "buff", unit: e, text: "緩速", color: MIST_D, delay: at });
             addPoison(b, e, n, at);
-            if (up.e1 === "guard" && !heavy(e)) { b.knockback(e, o.x, o.y, this.knock); b.emit({ type: "buff", unit: e, text: "擊退", color: ADV, delay: at }); }
+            if (R.upHas(up, "guard") && !heavy(e)) { b.knockback(e, o.x, o.y, this.knock); b.emit({ type: "buff", unit: e, text: "擊退", color: ADV, delay: at }); }
           };
           for (const e of h.a) hit(e, T0 + 0.25);
           let end = T0 + 1.0;
-          if (up.e1 === "yomi") {
+          if (R.upHas(up, "yomi")) {
             const dr = this.drift(b, u, d), T1 = T0 + 0.75;
             b.say(`${u.name} 揮動鐵扇，把毒霧搧向遠處`);
             b.emit({ type: "sfx", sound: SND.gust, delay: T1 });
@@ -374,7 +374,7 @@
             end = T1 + 1.0;
           }
           if (!h.a.length && !h.bb.length) b.say("……毒霧裡沒有敵人");
-          if (up.e2 === "loyal") { b.emit({ type: "sfx", sound: SND.heal, delay: 0.2 }); b.heal(u, Math.max(1, Math.round(u.maxHp * this.heal)), "（效忠之心）"); }
+          if (R.upHas(up, "loyal")) { b.emit({ type: "sfx", sound: SND.heal, delay: 0.2 }); b.heal(u, Math.max(1, Math.round(u.maxHp * this.heal)), "（效忠之心）"); }
           b.lockUntil = now() + end * 1000;
         },
       },
@@ -448,25 +448,35 @@
           }
           b.lockUntil = now() + (last + 0.6) * 1000;
         },
-        // 啼哭之雀：大範圍劍氣，清除中毒並結算
+        // 啼哭之雀（使用者 11/22）：瞄準最近的中毒目標，揮出一道大型刀光（使用者的圖２：幾道新月形的刀弧＋一條往前拉長的刀光）
+        //   命中：前方的扇形＋沿著方向的長條；清除中毒並一口氣結算
+        bladeHalf: 42, bladeLen: 620, bladeWidth: 70,
+        bladeHits(b, u, ang) {
+          const sec = { x: u.x, y: u.y, ang, half: this.bladeHalf * DEG, radius: this.slashR }, x2 = u.x + Math.cos(ang) * this.bladeLen, y2 = u.y + Math.sin(ang) * this.bladeLen;
+          return b.targetsFor(u).filter((e) => e.alive && (R.geo.inSector(e.x, e.y, sec, e.r) || R.geo.pointSeg(e.x, e.y, u.x, u.y, x2, y2) <= this.bladeWidth / 2 + e.r));
+        },
         sparrow(b, u) {
-          const list = b.targetsFor(u).filter((e) => e.alive && inR(e, u.x, u.y, this.slashR)), T0 = 0.25;
-          b.say(`${u.name}：「啼哭之雀」——蓄力完畢，太刀砍出一道大範圍的劍氣！`);
+          const foes = b.targetsFor(u).filter((e) => e.alive), byD = (a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y);
+          const tgt = foes.filter((e) => e.state.poison > 0).sort(byD)[0] || foes.sort(byD)[0];
+          const ang = tgt ? Math.atan2(tgt.y - u.y, tgt.x - u.x) : (u.facing || 0), T0 = 0.25;
+          u.facing = ang;
+          const list = this.bladeHits(b, u, ang);
+          b.say(`${u.name}：「啼哭之雀」——蓄力完畢，太刀朝${tgt ? ` ${tgt.name} ` : "前方"}揮出一道巨大的刀光！`);
           b.emit({ type: "sfx", sound: SND.wave, delay: T0 });
-          b.emit({ type: "mhWave", x: u.x, y: u.y, r: this.slashR, ang: u.facing, delay: T0 });
+          b.emit({ type: "mhBlade", x: u.x, y: u.y, ang, r: this.slashR, len: this.bladeLen, w: this.bladeWidth, delay: T0 });
           for (const e of list) {
-            const at = T0 + 0.15 + (R.dist(e.x, e.y, u.x, u.y) / this.slashR) * 0.25;
+            const at = T0 + 0.12 + (R.dist(e.x, e.y, u.x, u.y) / this.bladeLen) * 0.3;
             b.hitDelay = at;
-            b.damage(u, e, this.slash, 1, "（劍氣）");
+            b.damage(u, e, this.slash, 1, "（刀光）");
             b.hitDelay = 0;
             if (!e.alive || !(e.state.poison > 0)) continue;
             const n = e.state.poison, raw = remaining(b, e) * this.settle * (low(e) ? 1 + C.passive.bonus : 1), amt = Math.max(1, Math.round(raw));
             e.state.poison = 0;
             b.emit({ type: "mhBubble", x: e.x, y: e.y, r: e.r + 10, big: true, delay: at + 0.1 });
-            poisonHurt(b, e, amt, `${e.name} 的 ${n} 層中毒被劍氣一口氣結算：${amt} 點傷害`, at + 0.2);
+            poisonHurt(b, e, amt, `${e.name} 的 ${n} 層中毒被刀光一口氣結算：${amt} 點傷害`, at + 0.2);
           }
-          if (!list.length) b.say("……劍氣範圍裡沒有敵人");
-          b.lockUntil = now() + (T0 + 1.0) * 1000;
+          if (!list.length) b.say("……刀光沒有砍到敵人");
+          b.lockUntil = now() + (T0 + 1.1) * 1000;
         },
       },
     },
@@ -554,6 +564,23 @@
           ctx.restore();
           break;
         }
+        case "mhBlade": {
+          // 啼哭之雀的刀光：起點一叢新月形的刀弧，接著一道往前拉長、尾端尖細的刀光
+          const p = Math.min(1, k * 2.2), fade = 1 - Math.max(0, k - 0.45) / 0.55;
+          ctx.save(); ctx.translate(ev.x, ev.y); ctx.rotate(ev.ang); ctx.globalAlpha = fade; ctx.lineJoin = "round";
+          ctx.fillStyle = "rgba(160,72,168,.85)"; ctx.strokeStyle = "#a01870"; ctx.lineWidth = 4;
+          const Rr = ev.r * 0.42;
+          for (let i = 0; i < 3; i++) {
+            const rr = Rr * (0.75 + i * 0.22), sp = 0.9 + i * 0.15, off = -i * 16;
+            ctx.beginPath(); ctx.arc(off, 0, rr, -sp * p, sp * p); ctx.arc(off - 18, 0, rr - 10, sp * p, -sp * p, true); ctx.closePath(); ctx.fill(); ctx.stroke();
+          }
+          const L = ev.len * p;
+          ctx.beginPath(); ctx.moveTo(Rr * 0.4, -ev.w * 0.32); ctx.quadraticCurveTo(L * 0.5, -ev.w * 0.2, L, -2); ctx.lineTo(L * 0.62, 4); ctx.quadraticCurveTo(L * 0.4, ev.w * 0.25, Rr * 0.4, ev.w * 0.3);
+          ctx.quadraticCurveTo(Rr * 0.9, ev.w * 0.55, Rr * 0.6, ev.w * 0.1); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Rr * 0.6, 0); ctx.lineTo(L * 0.9, 0); ctx.stroke();
+          ctx.restore();
+          break;
+        }
         case "mhWave": {
           // 啼哭之雀：太刀的劍氣，一圈往外掃出去的白色刀光
           const p = Math.min(1, k * 2), r = ev.r * (0.2 + 0.8 * p);
@@ -620,7 +647,7 @@
   const OWN_FX = {
     mhSwing: () => 320, mhNeedle: (ev) => ev.dur * 1000 + 150, mhFan: (ev) => (ev.dur + ev.spin) * 1000 + 200, mhRing: () => 520,
     mhMist: (ev) => ev.dur * 1000, mhDrift: (ev) => ev.dur * 1000, mhCone: (ev) => ev.dur * 1000, mhAdvisor: (ev) => ev.dur * 1000,
-    mhKunai: (ev) => ev.dur * 1000 + 150, mhWave: () => 700, mhAim: (ev) => ev.dur * 1000, mhBubble: (ev) => (ev.big ? 900 : 700),
+    mhKunai: (ev) => ev.dur * 1000 + 150, mhWave: () => 700, mhBlade: () => 900, mhAim: (ev) => ev.dur * 1000, mhBubble: (ev) => (ev.big ? 900 : 700),
   };
   C.fxEvents = OWN_FX;
   // 中毒的數值掛在角色上，測試數值面板才調得到

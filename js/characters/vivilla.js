@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261122024623" });
 // 角色：薇薇拉（輔助，第一個使用魔力的角色）
 // 技能格式同 firsler.js：status / predict / use；status 可以回傳 mp（魔力消耗，由 battle 扣）
 // 蘑菇丟出去之後要過一下才爆炸（飛行＋引信），所以爆炸是非同步結算
@@ -21,9 +21,9 @@
     color: "#3d9a5b",
     role: "輔助・使用魔力",
     profile: "居住一處神奇世界的少女，與蘑菇作伴，有些慵懶怕事，不太擅長人際互動，被意外捲入時空亂流後在尋找回家的方法。",
-    desc: "使用魔力的輔助角色。投擲會延遲爆炸的蘑菇：炸到敵人會降低防禦，炸到自己人可以回血；還能種下蘑菇陷阱、長出吸引火力的巨大蘑菇。",
+    desc: "使用魔力的輔助角色。投擲會延遲爆炸的蘑菇：炸到敵人會降低防禦，炸到自己人可以回血；還能種下蘑菇陷阱、長出嘲諷周圍小怪的巨大蘑菇。",
     // 戰鬥風格：酒館名牌架上顯示
-    style: { role: "輔助・蘑菇（魔力）", text: "站在後排丟蘑菇的輔助。蘑菇會延遲爆炸：炸到敵人降低防禦，炸到自己人回血；再用蘑菇陷阱封住路線、讓巨大蘑菇吸引火力。靠預判敵人的位置取勝。" },
+    style: { role: "輔助・蘑菇（魔力）", text: "站在後排丟蘑菇的輔助。蘑菇會延遲爆炸：炸到敵人降低防禦，炸到自己人回血；再用蘑菇陷阱封住路線、讓巨大蘑菇嘲諷周圍的小怪。靠預判敵人的位置取勝。" },
     stats: { hp: 70, mp: 100, atk: 14, df: 4, spd: 11, ap: 6 },     // 暫定
     growth: { hp: 3.2, mp: 3, atk: 0.75, df: 0.3, spd: 0.1 },       // 每升一級（暫定）
     mpRegen: 0.35,                     // 每次輪到自己時回復最大魔力的 35%
@@ -201,7 +201,7 @@
         b.damage(u, e, S.base, 1, "（菇菇快跑）");
         if (!e.alive) continue;
         this.slow(b, e, S.slowMult);
-        if (up.q1 === "daze") {
+        if (R.upHas(up, "daze")) {
           const who = e.parent || e;
           who.state.apPenalty = (who.state.apPenalty || 0) + 1;
           b.emit({ type: "buff", unit: e, text: "迷幻：下回合 −1 ★" });
@@ -227,10 +227,10 @@
         desc: "投出蘑菇，落地後過一下才爆炸。炸到敵人造成較低的傷害並降低防禦；炸到自己（或我方）會回血。按 A 可以丟到地面上，點敵人直接丟向敵人",
         status(b, u) {
           const n = u.state.dose || 0;
-          const note = n ? (upg(u).e1 === "hormone" ? "三顆" : `×${this.doseMult(u)}`) : "";
+          const note = n ? (R.upHas(upg(u), "hormone") ? "三顆" : `×${this.doseMult(u)}`) : "";
           return { ready: true, cost: this.ap, label: this.name, note, aim: { type: "point", range: this.range, preview: "toss" } };
         },
-        doseMult(u) { return upg(u).e1 === "concentrate" ? C.skills.dose.multHigh : C.skills.dose.mult; },
+        doseMult(u) { return R.upHas(upg(u), "concentrate") ? C.skills.dose.multHigh : C.skills.dose.mult; },
         point(b, u, arg) {
           const t = arg.target ? { x: arg.target.x, y: arg.target.y } : arg;
           if (!t || !Number.isFinite(t.x)) err("請點選地面或敵人");
@@ -240,7 +240,7 @@
         // 這一次會丟出哪些蘑菇
         drops(b, u, arg) {
           const p = this.point(b, u, arg);
-          if (u.state.dose && upg(u).e1 === "hormone") {
+          if (u.state.dose && R.upHas(upg(u), "hormone")) {
             const a = Math.atan2(p.y - u.y, p.x - u.x), s = this.hormoneSpread;
             return [p, { x: p.x + Math.cos(a + 2.1) * s, y: p.y + Math.sin(a + 2.1) * s }, { x: p.x + Math.cos(a - 2.1) * s, y: p.y + Math.sin(a - 2.1) * s }];
           }
@@ -257,7 +257,7 @@
           let mult = 1;
           const dosed = (u.state.dose || 0) > 0;
           if (dosed) {
-            if (up.e1 !== "hormone") mult = this.doseMult(u);
+            if (!R.upHas(up, "hormone")) mult = this.doseMult(u);
             u.state.dose--;
           }
           u.facing = Math.atan2(ps[0].y - u.y, ps[0].x - u.x);
@@ -265,14 +265,14 @@
           b.emit({ type: "sfx", sound: this.sounds.throw });
           for (const p of ps) b.emit({ type: "shroomThrow", from: { x: u.x, y: u.y }, to: p, flight: this.flight, fuse: this.fuse, radius: this.radius });
           // 菇菇農場：丟在種下的蘑菇上
-          if (up.q1 === "farm") for (const z of traps(b)) {
+          if (R.upHas(up, "farm")) for (const z of traps(b)) {
             if (!z.farm && ps.some((p) => R.dist(p.x, p.y, z.x, z.y) <= z.r + 10)) {
               z.farm = true;
               b.say("種下的蘑菇變成了菇菇農場！");
               b.emit({ type: "buff", unit: { x: z.x, y: z.y, r: 10 }, text: "菇菇農場" });
             }
           }
-          this.explodeLater(b, u, ps, mult, dosed && up.e2 === "reflux");
+          this.explodeLater(b, u, ps, mult, dosed && R.upHas(up, "reflux"));
         },
         async explodeLater(b, u, ps, mult, reflux) {
           await b.wait(this.flight + this.fuse);
@@ -320,13 +320,13 @@
           return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "point", range: this.range, preview: "run" } };
         },
         sizes(u) {
-          const mine = upg(u).q2 === "mine";
+          const mine = R.upHas(upg(u), "mine");
           return { trigger: this.trigger * (mine ? this.mineTrigger : 1), blast: this.blast * (mine ? this.mineBlast : 1) };
         },
         dashTo(b, u, p) {
           const d = R.dist(u.x, u.y, p.x, p.y) || 1, ux = (u.x - p.x) / d, uy = (u.y - p.y) / d;
           const A = b.cfg.arena, cage = b.cageOf?.(u);
-          let len = this.dash * (upg(u).q2 === "sprint" ? 2 : 1);
+          let len = this.dash * (R.upHas(upg(u), "sprint") ? 2 : 1);
           const at = (s) => ({ x: Math.min(Math.max(u.x + ux * s, u.r), A.w - u.r), y: Math.min(Math.max(u.y + uy * s, u.r), A.h - u.r) });
           while (len > 0) {
             const q = at(len);
@@ -354,7 +354,7 @@
             u.x = to.x; u.y = to.y;
             b.emit({ type: "leap", unit: u, from, to, duration: 0.2 });
           }
-          if (upg(u).q2 === "sprint") u.state.sprintNext = true;
+          if (R.upHas(upg(u), "sprint")) u.state.sprintNext = true;
           // 種下陷阱（太多就移除最舊的）
           const list = traps(b);
           if (list.length >= this.maxTraps) b.zones = b.zones.filter((z) => z !== list[0]);
@@ -379,8 +379,8 @@
         use(b, u) {
           const up = upg(u);
           b.setCooldown(u, "dose", this.cooldown);
-          u.state.dose = up.e2 === "extend" ? 2 : 1;
-          const what = up.e1 === "hormone" ? "下一次普攻丟出三顆蘑菇" : `下一次普攻 ×${up.e1 === "concentrate" ? this.multHigh : this.mult}`;
+          u.state.dose = R.upHas(up, "extend") ? 2 : 1;
+          const what = R.upHas(up, "hormone") ? "下一次普攻丟出三顆蘑菇" : `下一次普攻 ×${R.upHas(up, "concentrate") ? this.multHigh : this.mult}`;
           b.say(`${u.name} 加大劑量：${what}${u.state.dose > 1 ? "（兩次）" : ""}`);
           b.bark(u, "dose");
           b.emit({ type: "buff", unit: u, text: "加大劑量" });
@@ -394,8 +394,9 @@
         ap: 2, mp: 40, charge: 6, range: 300,
         hpRatio: 0.6,                      // 巨大蘑菇生命 = 薇薇拉最大生命 × 0.6
         sporeRadius: 140, sporeBase: 7, slowMult: 0.6, turns: 3,
+        tauntRadius: 220,                  // 範圍嘲諷：這個範圍內的小怪（不含 Boss）都會打巨大蘑菇
         sounds: { spore: "sounds/vivilla-spore.mp3" },
-        desc: "在指定位置長出巨大蘑菇（召喚物）。敵人在周圍開始回合時會被胞子打到並麻痺；會吸引低智力敵人的火力，血量不高會被破壞",
+        desc: "在指定位置長出巨大蘑菇（召喚物）。敵人在周圍開始回合時會被胞子打到並麻痺；嘲諷周圍範圍內的小怪（對 Boss 無效），血量不高會被破壞",
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
           if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
@@ -410,7 +411,7 @@
           const old = giantOf(b);
           if (old) { b.units = b.units.filter((x) => x !== old); b.emit({ type: "summonDeath", unit: old, quiet: true }); }
           u.charge = 0;
-          const g = b.spawnSpecial("player", "giantShroom", GIANT, arg.x, arg.y, { summon: true, decoy: true, owner: u });
+          const g = b.spawnSpecial("player", "giantShroom", GIANT, arg.x, arg.y, { summon: true, taunt: this.tauntRadius, owner: u });
           g.maxHp = g.hp = Math.max(10, Math.round(u.maxHp * this.hpRatio));
           g.df = u.df; g.atk = u.atk;
           g.turnsLeft = this.turns;

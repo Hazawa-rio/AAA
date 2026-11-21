@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261122024623" });
 // 角色：魅影（卡池角色・怪盜・近戰突進）
 // 本名不詳，以「魅影」為代號的怪盜。利用穿梭時空的能力來往各個時空盜竊（簡介是使用者寫的）
 // 被動「掠奪本能」：每件寶物（寶物欄）讓造成的傷害 +6%；無法接受任何來自隊友給予的道具（連線時：隊友不能從背包給她東西）
@@ -28,7 +28,7 @@
     return { dx: (t.x - u.x) / L, dy: (t.y - u.y) / L, ang: Math.atan2(t.y - u.y, t.x - u.x) };
   };
   const heavy = (e) => e.def.boss || e.def.bigBar || e.def.trial || e.part || e.def.block;
-  const SND = { stab: "sounds/ilshu-thrust.mp3", hook: "sounds/marika-whip.mp3", card: "sounds/vivilla-throw.mp3", cloak: "sounds/firsler-smoke.mp3", slash: "sounds/pirate-slash.mp3", coin: "sounds/phantom-coin-short.mp3", coinLong: "sounds/phantom-coin.mp3", firework: "sounds/phantom-firework.mp3" };
+  const SND = { stab: "sounds/ilshu-thrust.mp3", hook: "sounds/marika-whip.mp3", card: "sounds/vivilla-throw.mp3", cloak: "sounds/firsler-smoke.mp3", slash: "sounds/pirate-slash.mp3", coin: "sounds/phantom-coin-short.mp3", coinLong: "sounds/phantom-coin.mp3", firework: "sounds/phantom-firework.mp3", tighten: "sounds/rope-tighten.mp3" };   // tighten：勾爪勾到東西、拉緊繩索（尼龍束帶的聲音）
   // 財寶的種類（使用者的設計圖）：水晶項鍊、鈔票、金幣、紅色鑽石
   const LOOT = ["coin", "necklace", "ruby", "bill", "coin", "ruby"];
   // 名字煙火：P 紅、H 藍、A 綠、N 橘、T 紫、O 粉、M 黃
@@ -117,18 +117,23 @@
     },
 
     // ===== 掠奪本能：寶物越多傷害越高 =====
-    outgoingMult(b, src) {
+    outgoingMult(b, src, dst) {
+      // 命路「今日祕寶」：標記了目標，這一回合只能對目標造成傷害
+      const tr = src.state?.treasure;
+      if (tr && tr.alive && dst && dst !== tr && dst.team === "enemy") return { mult: 0, note: "（今日祕寶：只能傷害目標）" };
       const n = loot(src);
       return n ? { mult: 1 + n * C.passive.per, note: `（掠奪本能 +${Math.round(n * C.passive.per * 100)}%）` } : null;
     },
     // 被預告的隊友：防備魅影而提速（到期就恢復）；被預告的敵人：恐慌
     onTurnStart(b, unit) {
+      // 今日祕寶：到魅影自己的下一個回合就解除
+      if (unit === b.player && unit.state.treasure) { const x = unit.state.treasure; if (x.state) x.state.rooted = false; unit.state.treasure = null; }
       for (const x of b.units) if (x.state?.waryUntil && x.state.waryUntil < b.round) { x.state.waryUntil = 0; x.state.speedBoost = 0; }
     },
     // 預告達成：被預告的敵人倒下
     onUnitDeath(b, e) {
       const u = b.player;
-      if (e.team !== "enemy" || upg(u).e2 !== "done" || !(e.state.noticedBy === u && e.state.flawUntil >= b.round)) return;
+      if (e.team !== "enemy" || !R.upHas(upg(u), "done") || !(e.state.noticedBy === u && e.state.flawUntil >= b.round)) return;
       const need = u.def.skills.nightfall.charge, before = u.charge;
       u.charge = Math.min(need, u.charge + 2);
       let t = `預告達成！充能 +${u.charge - before}`;
@@ -192,7 +197,7 @@
         tags: ["melee"],
         ap: 1, cooldown: 2, range: 300, base: 6, kick: 80,
         desc: "朝一個方向射出勾爪：勾到敵人或地圖場景（障礙物、場地邊緣）就把自己拉過去；勾到隊友可以偷走對方的一個小技能，下一次按 Q 不花行動點地放一次",
-        rng(u) { return this.range * (upg(u).q1 === "longline" ? 1.4 : 1); },
+        rng(u) { return this.range * (R.upHas(upg(u), "longline") ? 1.4 : 1); },
         // 偷來的技能（{ charId, id }）
         stolen(u) { const s = u.state.stolen; const sk = s && R.CHARACTERS[s.charId]?.skills?.[s.id]; return sk || null; },
         // 勾爪的路徑：第一個碰到的東西（敵人／隊友／場景），以及自己會停在哪裡
@@ -244,8 +249,9 @@
           b.emit({ type: "myHook", x1: from.x, y1: from.y, x2: p.tip.x, y2: p.tip.y, back: !p.kind });
           if (!p.kind) { b.say(`${u.name} 射出勾爪——什麼都沒勾到`); return; }
           b.bark(u, "hook", 0.2);
+          if (p.kind) b.emit({ type: "sfx", sound: SND.tighten });                 // 勾到了：拉緊繩索
           if (R.dist(from.x, from.y, p.stop.x, p.stop.y) > 4) { u.x = p.stop.x; u.y = p.stop.y; b.emit({ type: "leap", unit: u, from, to: { ...p.stop }, duration: 0.25 }); b.emit({ type: "move", unit: u }); }
-          if (upg(u).q2 === "spare") { u.ap += 1; b.emit({ type: "buff", unit: u, text: "游刃有餘 +1", color: COL }); }
+          if (R.upHas(upg(u), "spare")) { u.ap += 1; b.emit({ type: "buff", unit: u, text: "游刃有餘 +1", color: COL }); }
           if (p.kind === "wall") { b.say(`${u.name}「怪盜勾爪」勾住了場景，把自己拉了過去`); return; }
           const e = p.hit;
           if (p.kind === "ally") {
@@ -258,8 +264,8 @@
           b.damage(u, e, this.base);
           b.hitDelay = 0;
           if (!e.alive) return;
-          if (upg(u).q1 === "pick") b.weaken(e, 0.75, 1, "被偷走了東西");
-          if (upg(u).q2 === "kick" && !heavy(e)) { b.knockback(e, u.x, u.y, this.kick); b.emit({ type: "buff", unit: e, text: "飛身踢", color: COL }); }
+          if (R.upHas(upg(u), "pick")) b.weaken(e, 0.75, 1, "被偷走了東西");
+          if (R.upHas(upg(u), "kick") && !heavy(e)) { b.knockback(e, u.x, u.y, this.kick); b.emit({ type: "buff", unit: e, text: "飛身踢", color: COL }); }
         },
         // 勾到隊友：偷走對方的 Q 或 E（隨機一個）
         steal(b, u, ally) {
@@ -314,7 +320,7 @@
           if (!f.hit) { b.say("預告信沒有寄到任何人手上"); return; }
           this.deliver(b, u, f.hit, fly);
           // 雙重預告：再寄一張給離第一個目標最近的另一個敵人
-          if (upg(u).e1 === "twin" && f.hit.team === "enemy") {
+          if (R.upHas(upg(u), "twin") && f.hit.team === "enemy") {
             const o = b.targetsFor(u).filter((e) => e !== f.hit && e.alive).sort((a, c) => R.dist(a.x, a.y, f.hit.x, f.hit.y) - R.dist(c.x, c.y, f.hit.x, f.hit.y))[0];
             if (o) {
               const L = R.dist(u.x, u.y, o.x, o.y), fly2 = L / this.speed + 0.12;
@@ -331,7 +337,7 @@
             b.emit({ type: "buff", unit: x, text: "防備魅影", color: COL, delay: fly });
             return;
           }
-          const declare = upg(u).e1 === "declare";
+          const declare = R.upHas(upg(u), "declare");
           b.hitDelay = fly;
           b.damage(u, x, this.base, 1, "（預告信）");
           b.hitDelay = 0;
@@ -342,7 +348,15 @@
           x.state.noticedBy = u;
           b.say(`${x.name} 被預告了：受到的傷害 ×${x.state.flawMult}`);
           b.emit({ type: "buff", unit: x, text: "犯罪預告", color: COL, delay: fly });
-          if (upg(u).e2 === "panic") { x.state.apPenalty = (x.state.apPenalty || 0) + 1; b.emit({ type: "buff", unit: x, text: "恐慌：行動點 −1", color: "#7a3fb0", delay: fly }); }
+          // 命路「今日祕寶」：成為目標——地上出現魅影標誌，鎖住移動（Boss 只會變慢）
+          if (R.upHas(upg(u), "ph_treasure")) {
+            const old = u.state.treasure; if (old?.state) old.state.rooted = false;
+            u.state.treasure = x;
+            if (b.isBossUnit(x)) { x.state.slowUntil = b.round + 1; x.state.slowMult = 0.5; b.say(`今日祕寶：${x.name} 被魅影標誌盯上，腳步變慢了`); }
+            else { x.state.rooted = true; b.say(`今日祕寶：${x.name} 被魅影標誌鎖住，動不了了。這一回合只能對牠造成傷害`); }
+            b.emit({ type: "buff", unit: x, text: "今日祕寶", color: COL, delay: fly });
+          }
+          if (R.upHas(upg(u), "panic")) { x.state.apPenalty = (x.state.apPenalty || 0) + 1; b.emit({ type: "buff", unit: x, text: "恐慌：行動點 −1", color: "#7a3fb0", delay: fly }); }
         },
       },
 
@@ -629,6 +643,8 @@
     // 偷到技能時：頭上飄著一張小小的金色卡片
     drawBattle(ctx, t, b, H) {
       const u = b.player;
+      const tr = u?.state?.treasure;
+      if (tr?.alive) { const p = H.pos ? H.pos(tr) : tr; drawMark(ctx, p.x, p.y + tr.r * 0.4, tr.r + 26, t); }
       if (!u?.alive || !u.state.stolen) return;
       const p = H.pos ? H.pos(u) : u, y = p.y - u.r - 26 + Math.sin(t / 300) * 3;
       ctx.save(); ctx.fillStyle = GOLD; ctx.strokeStyle = "#7a5a10"; ctx.lineWidth = 1.5;
@@ -636,6 +652,22 @@
       ctx.restore();
     },
   };
+  // 魅影標誌（使用者的圖１）：上面一片尖角的葉子形狀，下面一顆圓點、兩道彎彎的眼睛和一個大大的笑——畫成地上的印記
+  function drawMark(ctx, x, y, R0, t) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.55);
+    ctx.globalAlpha = 0.75 + 0.2 * Math.sin(t / 260);
+    ctx.strokeStyle = COL; ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.fillStyle = "rgba(138,26,74,.12)"; ctx.beginPath(); ctx.arc(0, 0, R0, 0, Math.PI * 2); ctx.fill();
+    const k = R0 / 100;
+    ctx.beginPath();     // 葉子（尖角）
+    ctx.moveTo(-8 * k, -18 * k); ctx.lineTo(-34 * k, -40 * k); ctx.quadraticCurveTo(-30 * k, -62 * k, -36 * k, -84 * k); ctx.quadraticCurveTo(-8 * k, -76 * k, 8 * k, -90 * k);
+    ctx.quadraticCurveTo(16 * k, -68 * k, 36 * k, -58 * k); ctx.quadraticCurveTo(18 * k, -48 * k, 20 * k, -30 * k); ctx.moveTo(0, -18 * k); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 9 * k, 0, Math.PI * 2); ctx.stroke();                       // 圓點
+    ctx.beginPath(); ctx.moveTo(-42 * k, -14 * k); ctx.quadraticCurveTo(-12 * k, -24 * k, -6 * k, -12 * k); ctx.moveTo(42 * k, -14 * k); ctx.quadraticCurveTo(12 * k, -24 * k, 6 * k, -12 * k); ctx.stroke();   // 上面兩道
+    ctx.beginPath(); ctx.moveTo(-36 * k, 6 * k); ctx.quadraticCurveTo(-26 * k, 0, -14 * k, 12 * k); ctx.moveTo(36 * k, 6 * k); ctx.quadraticCurveTo(26 * k, 0, 14 * k, 12 * k); ctx.stroke();   // 眼睛
+    ctx.beginPath(); ctx.moveTo(-30 * k, 26 * k); ctx.quadraticCurveTo(0, 48 * k, 34 * k, 22 * k); ctx.quadraticCurveTo(4 * k, 36 * k, -30 * k, 26 * k); ctx.stroke();       // 笑
+    ctx.restore();
+  }
   const OWN_FX = { myStab: () => 300, myHook: () => 500, myCard: (ev) => ev.dur * 1000 + 500, myCloak: () => 550, myX: () => 450, myLoot: (ev) => (ev.big ? 1100 : 800), myWave: (ev) => ev.dur * 1000 + 1100, myDash: () => 320, myFirework: (ev) => (ev.big ? 1500 : 1000 + ev.pts.length * 60) };
 
   // ===== 財寶和煙火的畫法 =====

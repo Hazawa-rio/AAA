@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261122024623" });
 // 角色：悠魘（洋紅色的「悠」，卡池角色）
 // 表面上：來自■■■■的魔法少女，和使魔咕哩咕妞簽了契約，用魔法守護愛與正義
 // 隱藏簡介（酒館名牌架滑鼠移到簡介上才看得到）：鮫島事件時空的少女，人格被那裡的「異常現象」吃掉，成了高危異常現象的容器
@@ -9,7 +9,8 @@
 // 普攻「揮動法杖」（魘：人格抽離）：短距離扇形
 // Q「魔導法陣」（魘：血肉囚牢）：法陣把「整個被關在裡面」的敵人困住（走不出去），但我方也打不到裡面的敵人（打下去會打在法陣上）；
 //   法陣有耐久，被打壞（我方打、裡面的敵人撞）會立刻噴出較弱的光束；沒被打壞的話，下次輪到悠魘時向上噴出光束
-// E「魔法結晶」（魘：詭異血繭）：做出一顆結晶，湊滿三顆就一起射向最近的敵人
+// E「魔法結晶」（魘：詭異血繭）：做出一顆結晶繞在身邊（最多三顆，不會自己瞄準）；
+//   滿三顆時，普攻會消耗掉三顆，射出一顆星星（魘：一顆長著眼睛的肉團）（使用者 11/22）
 // W「夢想變身」（12 次行動充能，照十二星座；隱藏名：攝食至死）：伸出觸手吸取指定的敵人，傷害多少就回復多少，
 //   回到滿血或回復了一半生命就變身：一瞬間露出「真身」→ 被抖動的黑色馬賽克蓋住 → 變成魘
 //   充能每 3 點唸一段變身詠唱（雙子座、處女座、射手座、雙魚座）
@@ -58,8 +59,8 @@
     profileHidden: "來自鮫島事件時空的少女，位於那裏的「異常現象」吃掉了她的人格，她成了某個高危異常現象的容器，她的認知被修改成了一位魔法少女，咕哩咕妞並不需要寄生在人類身上生存，只是對於一位為了虛假的幻象活著的人，感到有趣而已",
     desc: "揮動法杖的魔法少女。法陣困住敵人再噴出光束、湊滿三顆魔法結晶一起射擊；普攻也要花魔力，不夠就用生命支付。大招吸取敵人的生命變身成「魘」，所有技能大幅強化，但只能用生命支付、無法回復。",
     style: { role: "中距離・魔法少女（魔力）", text: "用法陣把敵人關起來、等光束噴發的魔法少女。法陣裡的敵人走不出來，但我方也打不到裡面，要算好時機；魔法結晶湊滿三顆就一起射出。魔力不夠時會用生命支付。大招吸取敵人的生命變身，變身後的技能強得多，代價是只能用生命、無法回復。" },
-    stats: { hp: 70, mp: 110, atk: 15, df: 2, spd: 11, ap: 6 },     // 暫定
-    growth: { hp: 3.4, mp: 3.5, atk: 0.9, df: 0.25, spd: 0.1 },
+    stats: { hp: 70, mp: 70, atk: 15, df: 2, spd: 11, ap: 6 },      // 暫定（使用者 11/22：魔力調低，更常用生命支付）
+    growth: { hp: 3.4, mp: 2.2, atk: 0.9, df: 0.25, spd: 0.1 },
     mpRegen: 0.25,
     field: {
       basicRange: 120,
@@ -142,8 +143,8 @@
             { id: "twin", name: "雙生結晶", desc: "每次做出兩顆結晶" },
           ],
           [
-            { id: "spread", name: "分散射擊", desc: "三顆結晶分別射向最近的三個敵人（不夠三個就重複）" },
-            { id: "guard", name: "結晶護盾", desc: "每做出一顆結晶，得到 4 點護盾" },
+            { id: "spread", name: "分散射擊", desc: "星星（肉團）打中時炸開，打到周圍的敵人" },
+            { id: "pierceStar", name: "貫穿之星", desc: "星星（肉團）穿過路上所有的敵人" },
           ],
         ],
       },
@@ -189,6 +190,8 @@
       if (w === "guri" && (c === 12 || c === 24)) { b.say(c === 12 ? "大招充滿了……可是什麼都沒有發生。夢想變身好像被什麼侵蝕了。" : "又充滿了一次……大招的名字，越來越不像夢想變身了。"); b.emit({ type: "buff", unit: u, text: "侵蝕", color: RED }); }
     },
     init(b, u) { u.state.form = "you"; u.name = "悠"; u.state.crystals = 0; u.state.dreamUses = 0; CALM = calmOf(b); },
+    // 命路「魔法祝福」：結晶繞在身邊時移動範圍變大（每顆 +15%）
+    syncBless(u) { if (R.upHas(upg(u), "yy_bless")) u.state.speedBoost = 1 + 0.15 * Math.min(3, u.state.crystals || 0); },
     // 角色方塊的樣子：魘＝紅底、灰色的「魘」字
     barkKey(b, u, key) { return yan(u) && key === "hurt" ? "yanHurt" : key; },
     look(b, u) {
@@ -258,12 +261,12 @@
     erupt(b, z, early) {
       const u = b.player, sk = this.skills.circle, up = upg(u);
       b.zones = b.zones.filter((q) => q !== z);
-      const k = (early && up.q2 !== "chain" ? 0.55 : 1) * (up.q2 === "burst" ? 1.35 : 1);
+      const k = (early && !R.upHas(up, "chain") ? 0.55 : 1) * (R.upHas(up, "burst") ? 1.35 : 1);
       const base = (z.yan ? sk.yanBeam + u.atk * 0.95 : sk.beam + u.atk * 0.45) * k;
       b.emit({ type: "sfx", sound: SND.beam });
       if (z.yan) b.emit({ type: "sfx", sound: SND.flesh });
       if (!early) b.bark(u, z.yan ? "yanBeam" : "beam");
-      b.emit({ type: "yyBeam", x: z.x, y: z.y, r: z.r, yan: z.yan, weak: early && up.q2 !== "chain" });
+      b.emit({ type: "yyBeam", x: z.x, y: z.y, r: z.r, yan: z.yan, weak: early && !R.upHas(up, "chain") });
       const name = z.yan ? "血肉囚牢" : "魔導法陣";
       for (const e of b.targetsFor(u)) if (e.alive && R.dist(e.x, e.y, z.x, z.y) <= z.r + e.r * 0.5) b.damage(u, e, base, 1, `（${name}的光束${early ? "・提早噴發" : ""}）`);
     },
@@ -304,21 +307,57 @@
         tags: ["melee"],
         ap: 1, mp: 5, yanHp: 4, radius: 120, halfDeg: 50, base: 2, atkScale: 0.24,      // 悠比較弱、魘比較強（拉開兩個型態的差距）
         yanRadius: 150, yanHalfDeg: 65, yanBase: 6, yanScale: 0.65,
-        desc: "揮動法杖，打到前方短距離扇形裡的敵人（也要花魔力；魘：人格抽離，範圍更大、傷害更高，花生命）",
+        desc: "揮動法杖，打到前方短距離扇形裡的敵人（也要花魔力；魘：人格抽離，範圍更大、傷害更高，花生命）。身邊有三顆結晶時，改成消耗三顆結晶射出一顆星星（魘：一顆長著眼睛的肉團）",
+        starRange: 560, starWidth: 34, starBlast: 90,
+        full(u) { return (u.state.crystals || 0) >= C.skills.crystal.need; },
+        starBase(u) { const K = C.skills.crystal, y = yan(u); return 3 * (y ? K.yanBase + u.atk * K.yanScale : K.base + u.atk * K.atkScale) * (R.upHas(upg(u), "sharp") ? 1.3 : 1); },
+        starPath(b, u, arg) {
+          const d = dirOf(u, arg), L = this.starRange, pierce = R.upHas(upg(u), "pierceStar");
+          const on = b.targetsFor(u).filter((e) => e.alive && R.geo.pointSeg(e.x, e.y, u.x, u.y, u.x + d.dx * L, u.y + d.dy * L) <= this.starWidth / 2 + e.r)
+            .map((e) => ({ e, s: (e.x - u.x) * d.dx + (e.y - u.y) * d.dy })).filter((o) => o.s > 0).sort((a, c) => a.s - c.s);
+          const hits = pierce ? on.map((o) => o.e) : on.slice(0, 1).map((o) => o.e), end = !pierce && on[0] ? on[0].s : L;
+          return { d, hits, x2: u.x + d.dx * end, y2: u.y + d.dy * end };
+        },
         sec(u, arg) { const d = dirOf(u, arg), y = yan(u); return { x: u.x, y: u.y, ang: d.ang, half: (y ? this.yanHalfDeg : this.halfDeg) * DEG, radius: y ? this.yanRadius : this.radius }; },
         status(b, u) {
           const c = C.cost(b, u, this.mp, this.yanHp), y = yan(u), r = y ? this.yanRadius : this.radius;
           if (!c.ok) return { ready: false, cost: this.ap, mp: c.mp, label: this.name, note: c.note, reason: c.reason };
+          if (this.full(u)) return { ready: true, cost: this.ap, mp: c.mp, label: y ? "眼之肉團" : "魔法星星", note: `結晶 ×3・${c.note || ""}`, aim: { type: "direction", range: this.starRange } };
           return { ready: true, cost: this.ap, mp: c.mp, label: y ? this.yanName : this.name, note: c.note, aim: { type: "enemy", range: r, free: true, sector: { radius: r, half: (y ? this.yanHalfDeg : this.halfDeg) * DEG } } };
         },
         predict(b, u, arg) {
           const t = arg.target;
           if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
+          if (this.full(u)) return this.starPath(b, u, arg).hits;
           const s = this.sec(u, arg);
           return b.targetsFor(u).filter((e) => R.geo.inSector(e.x, e.y, s, e.r));
         },
-        preview(b, u, arg) { const s = this.sec(u, arg); return { shapes: [{ shape: "sector", ...s }], hits: this.predict(b, u, arg) }; },
+        preview(b, u, arg) {
+          if (this.full(u)) { const p = this.starPath(b, u, arg); return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2, width: this.starWidth, color: yan(u) ? RED : PINK }], hits: p.hits }; }
+          const s = this.sec(u, arg); return { shapes: [{ shape: "sector", ...s }], hits: this.predict(b, u, arg) };
+        },
+        // 滿三顆結晶：消耗掉，射出一顆星星（魘：長著眼睛的肉團）
+        shoot(b, u, arg, c) {
+          const y = yan(u), p = this.starPath(b, u, arg), base = this.starBase(u), nm = y ? "眼之肉團" : "魔法星星";
+          u.facing = p.d.ang;
+          C.pay(b, u, c, nm);
+          u.state.crystals = 0; C.syncBless(u);
+          b.say(`${u.name}揮動法杖，三顆${y ? "血繭" : "結晶"}合成了${y ? "一顆長著眼睛的肉團" : "一顆星星"}——射出去！`);
+          b.bark(u, y ? "yanShots" : "shots");
+          b.emit({ type: "sfx", sound: y ? SND.flesh : SND.shot });
+          const fly = R.dist(u.x, u.y, p.x2, p.y2) / 900;
+          b.emit({ type: "yyStar", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2, dur: fly, yan: y, blast: R.upHas(upg(u), "spread") ? this.starBlast : 0 });
+          if (!p.hits.length) b.say(`${nm}沒有打中任何敵人`);
+          b.hitDelay = fly;
+          for (const e of p.hits) if (e.alive) b.damage(u, e, base, 1, `（${nm}）`);
+          if (R.upHas(upg(u), "spread") && p.hits.length) {
+            const h = p.hits[p.hits.length - 1];
+            for (const e of b.targetsFor(u)) if (e.alive && !p.hits.includes(e) && R.dist(e.x, e.y, h.x, h.y) <= this.starBlast + e.r) b.damage(u, e, base * 0.5, 1, `（${nm}炸開）`);
+          }
+          b.hitDelay = 0;
+        },
         use(b, u, arg) {
+          if (this.full(u)) return this.shoot(b, u, arg, C.cost(b, u, this.mp, this.yanHp));
           const c = C.cost(b, u, this.mp, this.yanHp), y = yan(u), s = this.sec(u, arg);
           u.facing = s.ang;
           C.pay(b, u, c, y ? "人格抽離" : "揮動法杖");
@@ -338,7 +377,7 @@
         tags: ["area"],
         ap: 1, mp: 25, yanHp: 14, cooldown: 3, range: 380, radius: 110, yanRadius: 140, hp: 30, yanHpWall: 50, beam: 14, yanBeam: 34,
         desc: "在指定位置創造法陣：整個被關在裡面的敵人走不出去，但我方也打不到裡面的敵人（攻擊會打在法陣上）。下次輪到自己時，法陣向上噴出光束；法陣被打壞會提早噴出較弱的光束",
-        r(u) { return (yan(u) ? this.yanRadius : this.radius) * (upg(u).q1 === "wide" ? 1.25 : 1); },
+        r(u) { return (yan(u) ? this.yanRadius : this.radius) * (R.upHas(upg(u), "wide") ? 1.25 : 1); },
         status(b, u) {
           const c = C.cost(b, u, this.mp, this.yanHp), cd = u.cd.circle || 0, label = yan(u) ? this.yanName : this.name;
           if (cd > 0) return { ready: false, cost: this.ap, mp: c.mp, label, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
@@ -354,7 +393,7 @@
           const c = C.cost(b, u, this.mp, this.yanHp), y = yan(u), r = this.r(u), trapped = this.inside(b, u, arg);
           C.pay(b, u, c, y ? "血肉囚牢" : "魔導法陣");
           b.setCooldown(u, "circle", this.cooldown);
-          const hp = Math.round(((y ? this.yanHpWall : this.hp) + u.atk * (y ? 2 : 1.5)) * (upg(u).q1 === "sturdy" ? 1.6 : 1));
+          const hp = Math.round(((y ? this.yanHpWall : this.hp) + u.atk * (y ? 2 : 1.5)) * (R.upHas(upg(u), "sturdy") ? 1.6 : 1));
           b.zones.push({ id: "yc" + Math.random().toString(36).slice(2, 7), type: "yyCircle", owner: u, x: arg.x, y: arg.y, r, hp, maxHp: hp, yan: y, round: b.round, turnsLeft: 99, trapped: trapped.map((e) => e.id), born: now() });
           b.emit({ type: "sfx", sound: y ? SND.grow : this.sound });
           b.bark(u, y ? "yanCircle" : "circle");
@@ -364,41 +403,27 @@
       },
 
       // ---------- E 魔法結晶（魘：詭異血繭） ----------
+      // 使用者 11/22：結晶不會自己瞄準；做出來繞在身邊（最多三顆），滿三顆時普攻消耗掉射出一顆星星（魘：長眼睛的肉團）
       crystal: {
         name: "魔法結晶", yanName: "詭異血繭", slot: "E", key: "e", sound: SND.magic,
-        tags: ["projectile"],
-        ap: 1, mp: 15, yanHp: 8, base: 5, atkScale: 0.16, yanBase: 15, yanScale: 0.5, need: 3,          // 三顆一起射：悠每顆約 6、魘每顆約 18
-        desc: "做出一顆魔法結晶，湊滿三顆就一起射向最近的敵人（魘：詭異血繭，傷害更高）",
+        tags: [],
+        ap: 1, mp: 15, yanHp: 8, base: 5, atkScale: 0.16, yanBase: 15, yanScale: 0.5, need: 3,          // 星星＝三顆的份量：悠約 18、魘約 54
+        desc: "做出一顆魔法結晶繞在身邊（最多三顆）。滿三顆時，普攻會消耗掉三顆，射出一顆星星（魘：詭異血繭，射出一顆長著眼睛的肉團，傷害更高）",
         status(b, u) {
           const c = C.cost(b, u, this.mp, this.yanHp), n = u.state.crystals || 0, label = yan(u) ? this.yanName : this.name;
+          if (n >= this.need) return { ready: false, cost: this.ap, mp: c.mp, label, note: `${n}/${this.need}`, reason: "結晶已經滿了——用普攻射出去" };
           if (!c.ok) return { ready: false, cost: this.ap, mp: c.mp, label, note: c.note, reason: c.reason };
           return { ready: true, cost: this.ap, mp: c.mp, label, note: `${n}/${this.need}・${c.note || ""}`, aim: { type: "none" } };
         },
-        predict(b, u) { return (u.state.crystals || 0) + (upg(u).e1 === "twin" ? 2 : 1) >= this.need ? this.targets(b, u) : []; },
-        preview(b, u) { return { shapes: [{ shape: "circle", x: u.x, y: u.y, radius: u.r + 24, color: yan(u) ? RED : PINK }], hits: this.predict(b, u) }; },
-        targets(b, u) {
-          const foes = b.targetsFor(u).filter((e) => e.alive).sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y));
-          if (!foes.length) return [];
-          return upg(u).e2 === "spread" ? [0, 1, 2].map((i) => foes[i % foes.length]) : [foes[0], foes[0], foes[0]];
-        },
+        predict() { return []; },
+        preview(b, u) { return { shapes: [{ shape: "circle", x: u.x, y: u.y, radius: u.r + 24, color: yan(u) ? RED : PINK }], hits: [] }; },
         use(b, u) {
-          const c = C.cost(b, u, this.mp, this.yanHp), y = yan(u), add = upg(u).e1 === "twin" ? 2 : 1;
+          const c = C.cost(b, u, this.mp, this.yanHp), y = yan(u), add = R.upHas(upg(u), "twin") ? 2 : 1;
           C.pay(b, u, c, y ? "詭異血繭" : "魔法結晶");
-          u.state.crystals = (u.state.crystals || 0) + add;
+          u.state.crystals = Math.min(this.need, (u.state.crystals || 0) + add);
+          C.syncBless(u);
           b.emit({ type: "sfx", sound: y ? SND.grow : this.sound });
-          if (upg(u).e2 === "guard") b.addShield(u, 4 * add, "（結晶護盾）");
-          b.say(`${u.name}「${y ? this.yanName : this.name}」（${Math.min(u.state.crystals, this.need)} / ${this.need}）`);
-          if (u.state.crystals < this.need) return;
-          // 湊滿三顆：一起射向最近的敵人
-          u.state.crystals = 0;
-          const ts = this.targets(b, u);
-          if (!ts.length) { b.say("……沒有敵人，結晶碎掉了"); return; }
-          const base = (y ? this.yanBase + u.atk * this.yanScale : this.base + u.atk * this.atkScale) * (upg(u).e1 === "sharp" ? 1.3 : 1);
-          b.emit({ type: "sfx", sound: SND.shot });
-          b.bark(u, y ? "yanShots" : "shots");
-          b.emit({ type: "yyShots", x: u.x, y: u.y, to: ts.map((e) => ({ x: e.x, y: e.y })), yan: y });
-          ts.forEach((e, i) => { b.hitDelay = 0.15 + i * 0.12; if (e.alive) b.damage(u, e, base, 1, `（${y ? "血繭" : "結晶"}・第 ${i + 1} 顆）`); });
-          b.hitDelay = 0;
+          b.say(`${u.name}「${y ? this.yanName : this.name}」（${u.state.crystals} / ${this.need}）${u.state.crystals >= this.need ? "——滿了，下一次普攻會射出去" : ""}`);
         },
       },
 
@@ -406,8 +431,8 @@
       dream: {
         name: "夢想變身", hiddenName: "攝食至死", slot: "W", key: "w", ultimate: true, sound: SND.tentacle,
         tags: ["melee"],
-        ap: 2, charge: 12, range: 380, base: 6, atkScale: 0.3, ticks: 10,
-        desc: "伸出觸手吸取指定的敵人：造成多少傷害就回復多少生命，回到滿血或回復了一半生命就變身成「魘」（所有技能換成隱藏名、大幅強化；只用生命支付、無法回復；生命耗盡變回悠：生命補滿，但這場戰鬥的最大生命少掉 25%）。魘型態不能使用；一場戰鬥最多變身三次。充能每 3 次唸一段變身詠唱",
+        ap: 2, charge: 12, range: 380, base: 4, atkScale: 0.22, ticks: 10, gain: 0.6,   // 使用者 11/22 下修：吸取的傷害和回復都變少
+        desc: "伸出觸手吸取指定的敵人：回復造成傷害的六成生命，回到滿血或回復了一半生命就變身成「魘」（所有技能換成隱藏名、大幅強化；只用生命支付、無法回復；生命耗盡變回悠：生命補滿，但這場戰鬥的最大生命少掉 25%）。魘型態不能使用；一場戰鬥最多變身三次。充能每 3 次唸一段變身詠唱",
         status(b, u) {
           if (yan(u)) return { ready: false, cost: this.ap, label: this.hiddenName, note: "魘", reason: "魘型態不能使用大招" };
           if ((u.state.dreamUses || 0) >= 3) return { ready: false, cost: this.ap, label: this.name, note: "3/3", reason: "夢想變身一場最多用三次" };
@@ -428,7 +453,7 @@
           b.say(`${u.name}：「夢想變身」！`);
           b.bark(u, "dream");
           b.emit({ type: "sfx", sound: this.sound });
-          const want = u.maxHp * 0.5, gain = 1, W = upg(u).w1;
+          const want = u.maxHp * 0.5, gain = this.gain, W = upg(u).w1;
           u.state.dreamUses = (u.state.dreamUses || 0) + 1;
           let healed = 0, i = 0;
           const path = [];
@@ -472,7 +497,7 @@
           b.say("……咕哩咕妞。");
           const spent = u.hp, foes = b.targetsFor(u).filter((e) => e.alive);
           b.hitDelay = total;
-          for (const e of foes) b.damage(u, e, spent * 1.4 + u.atk * 2, 1, `（咕哩咕妞・消耗 ${spent} 生命）`);
+          for (const e of foes) b.damage(u, e, spent * 1.1 + u.atk * 1.5, 1, `（咕哩咕妞・消耗 ${spent} 生命）`);
           b.hitDelay = 0;
           setTimeout(() => {
             if (b.phase === "over" || !u.alive) return;
@@ -495,7 +520,7 @@
     fxEvents: {
       yySwing: () => 360, yyBeam: (ev) => (ev.weak ? 700 : 1000), yyShots: () => 600,
       yyTentacle: (ev) => 300 + ev.ticks * 160 + 300, yyMorph: () => 2000, yyRevert: () => 900,
-      yyStars: () => 900, yyStarRing: () => 600, yyGuri: (ev) => ev.dur * 1000,
+      yyStars: () => 900, yyStarRing: () => 600, yyGuri: (ev) => ev.dur * 1000, yyStar: (ev) => ev.dur * 1000 + 450,
     },
     drawFx(ctx, ev, k, t, H) {
       switch (ev.type) {
@@ -526,6 +551,21 @@
             const q = (k * 1.6 + i / 8) % 1, x = ev.x + Math.sin(i * 2.3) * w * 0.8, y = ev.y - q * 480;
             if (ev.yan) { ctx.fillStyle = "rgba(140,0,20,.85)"; ctx.beginPath(); ctx.arc(x, y, 5 + (i % 3) * 2, 0, Math.PI * 2); ctx.fill(); }
             else star(ctx, x, y, 5, "#fff");
+          }
+          break;
+        }
+        case "yyStar": {
+          // 三顆結晶合成的星星（魘：長著眼睛的肉團）
+          const T = ev.dur * 1000 + 450, q = Math.min(1, (k * T) / Math.max(1, ev.dur * 1000)), x = ev.x1 + (ev.x2 - ev.x1) * q, y = ev.y1 + (ev.y2 - ev.y1) * q, a = Math.atan2(ev.y2 - ev.y1, ev.x2 - ev.x1);
+          if (q < 1) {
+            ctx.globalAlpha = 0.5; H.line(ev.x1 + (x - ev.x1) * 0.6, ev.y1 + (y - ev.y1) * 0.6, x, y, ev.yan ? "rgba(160,10,30,.6)" : "rgba(255,150,210,.7)", 10);
+            ctx.globalAlpha = 1;
+            if (ev.yan) drawFleshEye(ctx, x, y, 16, t, a); else { star(ctx, x, y, 20, "#ff8ac4"); star(ctx, x, y, 11, "#fff"); }
+          } else {
+            const kk = (k * T - ev.dur * 1000) / 450, R0 = (ev.blast || 30) * (0.4 + kk);
+            ctx.globalAlpha = 1 - kk;
+            H.circle(x, y, R0, ev.yan ? RED : PINK, null, 4);
+            for (let i = 0; i < 8; i++) { const aa = i * 0.785 + kk; if (ev.yan) { ctx.fillStyle = "rgba(140,0,20,.85)"; ctx.beginPath(); ctx.arc(x + Math.cos(aa) * R0, y + Math.sin(aa) * R0, 4, 0, Math.PI * 2); ctx.fill(); } else star(ctx, x + Math.cos(aa) * R0, y + Math.sin(aa) * R0, 5, "#ffd6ec"); }
           }
           break;
         }
@@ -690,6 +730,18 @@
     ctx.save(); ctx.fillStyle = col; ctx.beginPath();
     for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2, rr = i % 2 ? r * 0.35 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
     ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  // 長著眼睛的肉團：不規則的紅色肉塊、一隻大眼睛
+  function drawFleshEye(ctx, x, y, r, t, a) {
+    ctx.save(); ctx.translate(x, y);
+    ctx.fillStyle = "#b01028"; ctx.strokeStyle = "#5a0010"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) { const aa = (i / 16) * Math.PI * 2, rr = r * (0.85 + 0.18 * Math.sin(aa * 3 + t / 120)); i ? ctx.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr) : ctx.moveTo(Math.cos(aa) * rr, Math.sin(aa) * rr); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f4ead8"; ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1d1d1f"; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.18, Math.sin(a) * r * 0.12, r * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(90,0,10,.8)"; ctx.lineWidth = 1.2; for (let i = 0; i < 4; i++) { const aa = i * 1.6 + 0.4; ctx.beginPath(); ctx.moveTo(Math.cos(aa) * r * 0.5, Math.sin(aa) * r * 0.36); ctx.lineTo(Math.cos(aa) * r * 0.8, Math.sin(aa) * r * 0.7); ctx.stroke(); }
+    ctx.restore();
   }
   function drawCrystal(ctx, x, y, r, a, red) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(a);

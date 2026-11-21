@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261122024623" });
 // 角色：霍夫曼（怪鼠機關屋的主人）
 // 被動「時間壓縮」：回合結束時消耗所有剩下的行動點存起來（最多 5）；滿了也照樣消耗
 // 大招「壓縮加速機」：把存起來的行動點換回來，展開齒輪領域，普攻變成在領域裡直線來回撞擊
@@ -107,7 +107,41 @@
       max: 5,
       status(b, u) { const n = u.state.stored || 0; return { text: `已壓縮 ${n} / ${this.max}`, on: n > 0 }; },
     },
-    init(b, u) { u.state.stored = 0; },
+    init(b, u) { u.state.stored = 0; u.state.spinGears = []; },
+    addStored(b, u, n, why) {
+      const before = u.state.stored || 0;
+      u.state.stored = Math.min(this.passive.max, before + n);
+      b.say(`${why}：時間壓縮 +${u.state.stored - before}（${u.state.stored} / ${this.passive.max}）`);
+      b.emit({ type: "buff", unit: u, text: `壓縮 +${u.state.stored - before}`, color: "#2f6fd6" });
+    },
+    // 轉速維持：碰到轉動中的齒輪的敵人受到傷害（每個齒輪對同一個敵人一回合一次）
+    spinTouch(b, u, only) {
+      const gs = (u.state.spinGears || []).filter((g) => g.until >= b.round);
+      for (const g of gs) for (const e of only ? [only] : b.targetsFor(u)) {
+        if (!e.alive || g.hit.has(e.id + "@" + b.round) || R.dist(e.x, e.y, g.x, g.y) > g.r + e.r) continue;
+        g.hit.add(e.id + "@" + b.round);
+        b.damage(u, e, this.skills.gear.keepBase, 1, "（轉速維持）");
+      }
+    },
+    onEnemyAction(b, e) { const u = b.player; if (u?.state?.spinGears?.length) this.spinTouch(b, u, e); },
+    onTurnStart(b, unit) {
+      if (unit !== b.player || !unit.state.spinGears?.length) return;
+      const before = unit.state.spinGears.length;
+      unit.state.spinGears = unit.state.spinGears.filter((g) => g.until >= b.round);
+      if (unit.state.spinGears.length < before) b.say("轉動的齒輪停下來了");
+    },
+    drawBattle(ctx, t, b, H) {
+      for (const g of b.player?.state?.spinGears || []) {
+        H.circle(g.x, g.y, g.r, "rgba(90,96,112,.6)", "rgba(90,96,112,.08)", 1.5, [5, 5]);
+        ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(t / 80);
+        ctx.fillStyle = "#5a6070"; ctx.strokeStyle = "#2a2e38"; ctx.lineWidth = 2;
+        const R0 = 14 * g.size;
+        ctx.beginPath(); for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, rr = i % 2 ? R0 : R0 * 1.3; ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#d8dce4"; ctx.beginPath(); ctx.arc(0, 0, R0 * 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        H.label(g.until > b.round ? "轉速維持" : "這回合結束後停下", g.x, g.y - g.r - 8, "#5a6070", 10);
+      }
+    },
     onTurnEnd(b, u) {
       const left = u.ap;
       if (left > 0) {
@@ -218,14 +252,16 @@
         name: "噴氣裝置", slot: "Q", key: "q", sound: "sounds/hoffman-jet.mp3",
         tags: [],
         ap: 1, cooldown: 2, dash: 170, steamBase: 8, steamWidth: 90,
-        cd(u) { return this.cooldown - (upg(u).q2 === "light" ? 1 : 0); },
-        pumped(u) { return upg(u).q1 === "pump" && (u.state.stored || 0) >= 1; },
+        // 命路「擠壓時間」：多花 1 點行動點、多存 1 層；「避險噴發」：應急使用時多付的那一倍變成 1 層
+        cd(u) { return this.cooldown - (R.upHas(upg(u), "light") ? 1 : 0); },
+        pumped(u) { return R.upHas(upg(u), "pump") && (u.state.stored || 0) >= 1; },
         len(u) { return this.dash * (this.pumped(u) ? 1.6 : 1); },
         desc: "距離不遠的噴射位移，可以直接越過擋路的單位",
         status(b, u) {
           const cd = u.cd.jet || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
-          return { ready: true, cost: this.ap, label: this.name, note: this.pumped(u) ? "泵動" : undefined, aim: { type: "point", range: this.len(u) } };
+          const sq = R.upHas(upg(u), "hf_squeeze");
+          return { ready: true, cost: this.ap + (sq ? 1 : 0), label: this.name, note: [this.pumped(u) ? "泵動" : "", sq ? "擠壓" : "", R.upHas(upg(u), "hf_hedge") && b.offTurn() ? "避險" : ""].filter(Boolean).join("・") || undefined, aim: { type: "point", range: this.len(u) } };
         },
         to(b, u, arg) {
           if (!Number.isFinite(arg.x)) err("請點選地面");
@@ -238,12 +274,14 @@
           return p;
         },
         predict() { return []; },
-        steamHits(b, u, a, c) { return upg(u).q1 === "steam" ? b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, a.x, a.y, c.x, c.y) <= e.r + this.steamWidth / 2) : []; },
-        preview(b, u, arg) { const p = this.to(b, u, arg); return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x, y2: p.y, width: upg(u).q1 === "steam" ? this.steamWidth : 10, color: "#a8784e" }, { shape: "circle", x: p.x, y: p.y, radius: u.r, color: "#a8784e" }], hits: this.steamHits(b, u, u, p) }; },
+        steamHits(b, u, a, c) { return R.upHas(upg(u), "steam") ? b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, a.x, a.y, c.x, c.y) <= e.r + this.steamWidth / 2) : []; },
+        preview(b, u, arg) { const p = this.to(b, u, arg); return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x, y2: p.y, width: R.upHas(upg(u), "steam") ? this.steamWidth : 10, color: "#a8784e" }, { shape: "circle", x: p.x, y: p.y, radius: u.r, color: "#a8784e" }], hits: this.steamHits(b, u, u, p) }; },
         use(b, u, arg) {
           const p = this.to(b, u, arg), from = { x: u.x, y: u.y }, pumped = this.pumped(u);
           b.setCooldown(u, "jet", this.cd(u));
           if (pumped) { u.state.stored--; b.say(`時間泵動：消耗 1 層壓縮時間（剩 ${u.state.stored}）`); }
+          const gain = (R.upHas(upg(u), "hf_squeeze") ? 1 : 0) + (R.upHas(upg(u), "hf_hedge") && b.offTurn() ? 1 : 0);
+          if (gain) C.addStored(b, u, gain, R.upHas(upg(u), "hf_squeeze") ? "擠壓時間" : "避險噴發");
           u.facing = Math.atan2(p.y - u.y, p.x - u.x);
           b.say(`${u.name} 使用「噴氣裝置」`);
           b.emit({ type: "sfx", sound: this.sound });
@@ -251,7 +289,7 @@
           u.x = p.x; u.y = p.y;
           b.emit({ type: "leap", unit: u, from, to: p, duration: 0.3 });
           b.bark(u, "jet");
-          if (upg(u).q1 === "steam") {
+          if (R.upHas(upg(u), "steam")) {
             b.emit({ type: "fxShape", shape: { shape: "line", x1: from.x, y1: from.y, x2: p.x, y2: p.y, width: this.steamWidth }, color: "#e8e8ee", dur: 600 });
             for (const e of steam) if (e.alive) b.damage(u, e, this.steamBase, 1, "（灼熱蒸汽）");
           }
@@ -263,8 +301,9 @@
         name: "齒輪飛盤", slot: "E", key: "e", sound: "sounds/hoffman-gear.mp3",
         tags: ["projectile"],
         ap: 1, cooldown: 2, range: 340, width: 40, base: 10, speed: 760, hover: 1.4, knock: 45,
-        rng(u) { return this.range * (upg(u).e2 === "jetDisc" ? 1.35 : 1); },
-        wid(u) { return this.width * (upg(u).e2 === "steel" ? 1.6 : 1); },
+        keepR: 64, keepBase: 7,             // 命路「轉速維持」：留在場上的齒輪（半徑、每次傷害）
+        rng(u) { return this.range * (R.upHas(upg(u), "jetDisc") ? 1.35 : 1); },
+        wid(u) { return this.width * (R.upHas(upg(u), "steel") ? 1.6 : 1); },
         desc: "射出齒輪飛盤，飛到底停一下再直線飛回手上，去程和回程路上的敵人都會被打到。飛盤在外面時移動，可以改變回程的路線",
         status(b, u) {
           const cd = u.cd.gear || 0;
@@ -283,7 +322,7 @@
         predict(b, u, arg) { const e = this.end(b, u, arg); return this.lineHits(b, u, u, e); },
         preview(b, u, arg) {
           const e = this.end(b, u, arg);
-          return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: e.x, y2: e.y, width: this.wid(u), color: "#5a6070" }, { shape: "circle", x: e.x, y: e.y, radius: this.wid(u) / 2, color: "#5a6070", label: upg(u).e1 === "hard" ? "飛盤停在這裡（不會飛回來）" : "飛盤停在這裡，再飛回手上" }], hits: this.lineHits(b, u, u, e) };
+          return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: e.x, y2: e.y, width: this.wid(u), color: "#5a6070" }, { shape: "circle", x: e.x, y: e.y, radius: this.wid(u) / 2, color: "#5a6070", label: R.upHas(upg(u), "hard") ? "飛盤停在這裡（不會飛回來）" : "飛盤停在這裡，再飛回手上" }], hits: this.lineHits(b, u, u, e) };
         },
         use(b, u, arg) {
           const e = this.end(b, u, arg);
@@ -296,7 +335,7 @@
         },
         // 去程 → 停留 → 回程（回程朝霍夫曼當下的位置）
         async fly(b, u, from, to) {
-          const hard = upg(u).e1 === "hard", W = this.wid(u);
+          const hard = R.upHas(upg(u), "hard"), W = this.wid(u);
           const disc = (u.state.disc = { x: from.x, y: from.y, back: false, size: W / 40 });
           const hit = new Set(), step = 0.03;
           let vx = 0, vy = 0;
@@ -306,7 +345,7 @@
               hit.add(e);
               b.damage(u, e, this.base, hard ? 1.6 : 1, disc.back ? "（回程）" : hard ? "（堅硬齒輪）" : "");
               // 持續運轉：回程把敵人沿著飛盤前進的方向推開
-              if (disc.back && upg(u).e1 === "spin" && e.alive && !e.def.immovable) b.knockback(e, e.x - vx, e.y - vy, this.knock);
+              if (disc.back && R.upHas(upg(u), "spin") && e.alive && !e.def.immovable) b.knockback(e, e.x - vx, e.y - vy, this.knock);
             }
           };
           const D = R.dist(from.x, from.y, to.x, to.y), dur = D / this.speed;
@@ -318,6 +357,14 @@
             strike(); b.checkEnd();
           }
           if (hard) { u.state.disc = null; b.say("堅硬齒輪：飛盤沒有飛回來"); b.emit(); return; }
+          // 命路「轉速維持」：飛盤不飛回來，留在場上繼續轉（靠近的敵人受到傷害，1 回合後消失）
+          if (R.upHas(upg(u), "hf_keep")) {
+            u.state.disc = null;
+            (u.state.spinGears = u.state.spinGears || []).push({ x: disc.x, y: disc.y, r: this.keepR, until: b.round + 1, size: W / 40, hit: new Set() });
+            b.say("轉速維持：齒輪留在場上繼續轉");
+            C.spinTouch(b, u);
+            b.emit(); return;
+          }
           await b.wait(this.hover);
           if (!alive(b)) { u.state.disc = null; return; }
           disc.back = true; hit.clear();

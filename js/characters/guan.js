@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261122024623" });
 // 角色：觀知命（卜卦人）
 // 吉位／兇位是場上的區域（zones 的 lucky / unlucky）。從吉位打兇位的敵人傷害更高
 // 魔力角色：趨吉避凶、陰陽兩和、乾坤挪移花魔力；被動「天明道法」：給護盾時魔力夠就消耗雙倍魔力，護盾 ×1.5
@@ -99,24 +99,24 @@
     },
     // 敵人的指向攻擊偏掉（大凶之兆）
     deflect(b, e) {
-      if (upg(b.player).q1 !== "doomOmen" || !(e.state.cursedUntil >= b.round) || Math.random() >= 0.4) return 0;
+      if (!R.upHas(upg(b.player), "doomOmen") || !(e.state.cursedUntil >= b.round) || Math.random() >= 0.4) return 0;
       return (Math.random() < 0.5 ? -1 : 1) * (25 + Math.random() * 20) * Math.PI / 180;
     },
     onAction(b, u, id, cost) {
-      if (upg(u).e1 === "double" && cost > 0 && u.alive && inZone(b, "lucky", u.x, u.y) && u.hp < u.maxHp) b.heal(u, Math.max(1, Math.round(u.maxHp * 0.05)), "（好事成雙）");
+      if (R.upHas(upg(u), "double") && cost > 0 && u.alive && inZone(b, "lucky", u.x, u.y) && u.hp < u.maxHp) b.heal(u, Math.max(1, Math.round(u.maxHp * 0.05)), "（好事成雙）");
     },
     // 任何單位回合開始：噩運連連的禁錮、難神降禍的陰陽陣
     onTurnStart(b, unit) {
       if (unit.team !== "enemy" || !unit.alive) return;
       const up = upg(b.player);
-      if (up.e1 === "jinx" && !unit.def.trial && !b.room.trial && zonesOf(b, "unlucky").some((z) => R.dist(z.x, z.y, unit.x, unit.y) + unit.r <= z.r)) unit.state.imprisoned = true;
+      if (R.upHas(up, "jinx") && !unit.def.trial && !b.room.trial && zonesOf(b, "unlucky").some((z) => R.dist(z.x, z.y, unit.x, unit.y) + unit.r <= z.r)) unit.state.imprisoned = true;
       for (const z of zonesOf(b, "taijiField")) if (R.dist(z.x, z.y, unit.x, unit.y) <= z.r + unit.r) { b.emit({ type: "fxShape", shape: { shape: "circle", x: unit.x, y: unit.y, radius: unit.r + 10 }, color: "#7a3fb0", dur: 400 }); b.damage(b.player, unit, z.base, 1, "（難神降禍）"); }
     },
     // 從吉位攻擊兇位：傷害增加（battle.damage 會問）
     positionMult(b, src, dst) {
       let mult = 1, note = "";
-      if (inZone(b, "lucky", src.x, src.y) && inZone(b, "unlucky", dst.x, dst.y)) { const k = upg(src).e2 === "fullLuck" ? C.skills.yinyang.bonusHigh : C.skills.yinyang.bonus; mult *= k; note += `（吉位打兇位 ×${k}）`; }
-      if (upg(src).q1 === "luckyAura" && src.shield > 0 && src.state.blessed) { mult *= 1.2; note += "（大吉之勢）"; }
+      if (inZone(b, "lucky", src.x, src.y) && inZone(b, "unlucky", dst.x, dst.y)) { const k = R.upHas(upg(src), "fullLuck") ? C.skills.yinyang.bonusHigh : C.skills.yinyang.bonus; mult *= k; note += `（吉位打兇位 ×${k}）`; }
+      if (R.upHas(upg(src), "luckyAura") && src.shield > 0 && src.state.blessed) { mult *= 1.2; note += "（大吉之勢）"; }
       return { mult, note };
     },
     giveShield(b, u, a, base, note) {
@@ -207,7 +207,7 @@
           if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
           return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "none" } };
         },
-        rad(u) { return this.radius * (upg(u).q2 === "calamity" ? 1.4 : 1); },
+        rad(u) { return this.radius * (R.upHas(upg(u), "calamity") ? 1.4 : 1); },
         hits(b, u) { return b.enemies().filter((e) => R.dist(e.x, e.y, u.x, u.y) <= this.rad(u) + e.r); },
         predict(b, u) { return []; },
         preview(b, u) { return { shapes: [{ shape: "circle", x: u.x, y: u.y, radius: this.rad(u) }], hits: this.hits(b, u), allies: C.friends(b, u).filter((a) => a !== u && R.dist(a.x, a.y, u.x, u.y) <= this.rad(u) + a.r) }; },
@@ -222,7 +222,7 @@
           for (const a of C.friends(b, u)) {
             if (R.dist(a.x, a.y, u.x, u.y) > R0 + a.r) continue;
             const gone = [];
-            if (a === u || !a.ward) for (let i = 0; i < (upg(u).q2 === "fortune" ? 2 : 1); i++) { const g = b.cleanse(a); if (g) gone.push(g); }
+            if (a === u || !a.ward) for (let i = 0; i < (R.upHas(upg(u), "fortune") ? 2 : 1); i++) { const g = b.cleanse(a); if (g) gone.push(g); }
             if (gone.length) b.emit({ type: "buff", unit: a, text: `吉卦：去除${gone.join("、")}`, color: "#b8860b" });
             C.giveShield(b, u, a, this.shield * (gone.length ? 1 + this.cleanseBonus : 1), `（吉卦${gone.length ? "・去除" + gone.join("、") : ""}）`);
           }
@@ -235,7 +235,7 @@
         name: "陰陽兩和", slot: "E", key: "e", sound: "sounds/guan-chime.mp3",
         tags: ["area"],
         ap: 1, mp: 15, cooldown: 3, luckyR: 110, unluckyR: 100, dist: 270, turns: 2, bonus: 1.35, bonusHigh: 1.7,
-        size(u) { return upg(u).e2 === "greatEvil" ? 1.35 : 1; },
+        size(u) { return R.upHas(upg(u), "greatEvil") ? 1.35 : 1; },
         desc: "自己周圍變成吉位，前方固定距離的地方變成兇位（持續 2 回合）。從吉位攻擊兇位的敵人傷害增加",
         status(b, u) {
           const cd = u.cd.yinyang || 0;
@@ -263,7 +263,7 @@
           u.facing = s.d.ang;
           b.setCooldown(u, "yinyang", this.cooldown);
           b.zones = b.zones.filter((z) => !((z.type === "lucky" || z.type === "unlucky") && z.owner === u));
-          const k = this.size(u), turns = upg(u).e1 === "jinx" ? 1 : this.turns;
+          const k = this.size(u), turns = R.upHas(upg(u), "jinx") ? 1 : this.turns;
           b.zones.push({ id: "lk" + Math.random().toString(36).slice(2, 7), type: "lucky", owner: u, x: s.lucky.x, y: s.lucky.y, r: this.luckyR * k, turnsLeft: turns });
           b.zones.push({ id: "uk" + Math.random().toString(36).slice(2, 7), type: "unlucky", owner: u, x: s.unlucky.x, y: s.unlucky.y, r: this.unluckyR * k, turnsLeft: turns });
           b.bark(u, "yinyang");

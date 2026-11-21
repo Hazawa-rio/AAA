@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261122024623" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
@@ -175,13 +175,13 @@
         u.state.speedBoost = 0;
       }
       // 煙霾填補：在煙霧裡行動回血
-      if (upg(u).e1 === "mend" && inSmoke(b, u.x, u.y) && b.heal(u, this.skills.smoke.mendHeal, "（煙霾填補）") > 0) b.bark(u, "heal");
+      if (R.upHas(upg(u), "mend") && inSmoke(b, u.x, u.y) && b.heal(u, this.skills.smoke.mendHeal, "（煙霾填補）") > 0) b.bark(u, "heal");
     },
 
     // 敵人每次行動時
     onEnemyAction(b, e, from) {
       // 慘白瘟疫：敵人在煙霧裡行動會受到傷害（移動時起點或終點在煙霧裡都算）
-      if (upg(b.player).e1 !== "plague" || !e.alive) return;
+      if (!R.upHas(upg(b.player), "plague") || !e.alive) return;
       if (inSmoke(b, e.x, e.y, e.r * 0.5) || (from && inSmoke(b, from.x, from.y, e.r * 0.5))) {
         b.emit({ type: "plague", unit: e });
         b.damage(b.player, e, this.skills.smoke.plagueBase, 1, "（慘白瘟疫）");
@@ -238,7 +238,8 @@
         cooldown: 2,                        // 暫定：射箭後的冷卻（行動次數）
         // 強化數值（暫定）
         splitDeg: 15, pierceMult: 2, guerrillaMult: 1.5, snipeMult: 1.5,
-        splitStack: 0.25,                   // 分裂箭：同一個目標每多中一支，總傷害再 +25%
+        splitStack: 0.25,
+        coldMult: 1.2,                      // 命路「霧中冷箭」                   // 分裂箭：同一個目標每多中一支，總傷害再 +25%
         desc: "花 1 點上膛。上膛後沒移動可以免費射箭，移動過要 1 點。箭 16 × 攻擊力%，穿過煙霧 ×1.5（不疊加）。射箭後冷卻",
         status(b, u) {
           if (u.state.loaded) {
@@ -250,11 +251,13 @@
           }
           const cd = u.cd.load || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
+          // 命路「藏身霧幕」：站在煙霧裡上膛不花行動點
+          if (R.upHas(upg(u), "fs_veil") && inSmoke(b, u.x, u.y)) return { ready: true, cost: 0, label: this.name, note: "霧中免費", aim: { type: "none" } };
           return { ready: true, cost: this.ap, label: this.name, aim: { type: "none" } };
         },
         // 遠處狙擊：沒移動就射，射程變長
         rangeFor(u) {
-          return this.range * (upg(u).q2 === "snipe" && !movedSinceLoad(u) ? this.snipeMult : 1);
+          return this.range * (R.upHas(upg(u), "snipe") && !movedSinceLoad(u) ? this.snipeMult : 1);
         },
         // 箭的路線。回傳 arrows：每支箭的起點、終點、命中（含倍率）、延遲（分裂箭要等主箭飛到）
         path(b, u, arg) {
@@ -330,9 +333,16 @@
           }
           const { arrows, dx, dy } = this.path(b, u, arg);
           const up = upg(u);
+          const cold = R.upHas(up, "fs_cold") && inSmoke(b, u.x, u.y);   // 命路「霧中冷箭」：從煙霧裡射
           u.facing = Math.atan2(dy, dx);
           u.state.loaded = false;
-          b.setCooldown(u, "load", this.cooldown);
+          b.setCooldown(u, "load", Math.max(0, this.cooldown - (cold ? 1 : 0)));
+          // 命路「引信箭」：箭穿過的煙霧被點燃（煙霧爆發時那團的尖刺 ×1.5）
+          if (R.upHas(up, "fs_fuse")) {
+            const lit = smokes(b).filter((z) => !z.lit && arrows.some((a) => R.geo.pointSeg(z.x, z.y, a.from.x, a.from.y, a.to.x, a.to.y) <= z.r));
+            for (const z of lit) { z.lit = true; b.emit({ type: "fxShape", shape: { shape: "circle", x: z.x, y: z.y, radius: z.r }, color: "#e8781e", dur: 600 }); }
+            if (lit.length) b.say(`引信箭：點燃了 ${lit.length} 團煙霧`);
+          }
           const boosted = arrows.some((a) => a.boosted);
           const kind = arrows.some((a) => a.pierce) ? "穿雲之箭！" : arrows.some((a) => a.split) ? "箭矢分裂成三支！" : boosted ? "（穿過煙霧！）" : "";
           b.say(`${u.name} 射出箭矢${kind}`);
@@ -340,9 +350,9 @@
           b.emit({ type: "sfx", sound: this.sound });     // Q 的音效只在射箭時播放
           b.bark(u, arrows.some((a) => a.pierce) ? "pierce" : arrows.some((a) => a.split) ? "split" : "shoot");
           let any = false;
-          for (const h of this.mergeHits(arrows)) if (h.unit.alive) { any = true; b.damage(u, h.unit, this.base, h.mult, h.note); }
+          for (const h of this.mergeHits(arrows)) if (h.unit.alive) { any = true; b.damage(u, h.unit, this.base, h.mult * (cold ? this.coldMult : 1), h.note + (cold ? "（霧中冷箭）" : "")); }
           if (!any) b.say("……箭沒有射中");
-          if (up.q2 === "guerrilla") u.state.guerrillaNext = true;   // 下一個行動速度 ×1.5
+          if (R.upHas(up, "guerrilla")) u.state.guerrillaNext = true;   // 下一個行動速度 ×1.5
         },
       },
 
@@ -354,8 +364,8 @@
         duration: 3, max: 3, cooldown: 4,
         mendHeal: 4, plagueBase: 6,         // 強化數值（暫定）
         desc: "在身邊放一團煙霧，放下後持續 3 回合，最多 3 團。冷卻 4 次行動",
-        maxFor(u) { return this.max + (upg(u).e2 === "plume" ? 1 : 0); },
-        durationFor(u) { return this.duration + (upg(u).e2 === "linger" ? 1 : 0); },
+        maxFor(u) { return this.max + (R.upHas(upg(u), "plume") ? 1 : 0); },
+        durationFor(u) { return this.duration + (R.upHas(upg(u), "linger") ? 1 : 0); },
         status(b, u) {
           const cd = u.cd.smoke || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
@@ -376,6 +386,11 @@
           });
           b.setCooldown(u, "smoke", this.cooldown);
           b.say(`${u.name} 吐出一團煙霧`);
+          // 命路「佈陣之煙」：每吐一團煙霧，大招充能 +1
+          if (R.upHas(upg(u), "fs_powder")) {
+            const need = C.skills.burst.charge;
+            if (u.charge < need) { u.charge = Math.min(need, u.charge + 1); b.emit({ type: "buff", unit: u, text: "充能 +1", color: "#c2477a" }); }
+          }
           b.bark(u, "smoke");
           b.emit({ type: "sfx", sound: this.sound });
         },
@@ -403,12 +418,14 @@
           return { ready: true, cost: this.ap, label: this.name, aim: { type: "point", range: this.range, radius: 14, preview } };
         },
         // 每根尖刺：points（折線）、hits、delayDist（從開始到出發飛了多遠，用來排動畫）
+        litMult: 1.5,                       // 命路「引信箭」：點燃的煙霧
+        litW(z) { return z.lit ? this.litMult : 1; },
         spikes(b, u, arg) {
           if (!(R.dist(u.x, u.y, arg.x, arg.y) <= this.range + 0.5)) err("太遠了");
           const target = { x: arg.x, y: arg.y };
-          if (upg(u).w1 === "dance") return smokes(b).flatMap((z) => this.danceSpike(b, z, target));
+          if (upg(u).w1 === "dance") return smokes(b).flatMap((z) => this.danceSpike(b, z, target).map((s) => ({ ...s, w: this.litW(z) })));
           return smokes(b).map((z) => ({
-            points: [{ x: z.x, y: z.y }, target],
+            points: [{ x: z.x, y: z.y }, target], w: this.litW(z),
             hits: alongSeg(b, z.x, z.y, target.x, target.y, this.spikeWidth), delayDist: 0,
           }));
         },
@@ -466,7 +483,7 @@
           if (dy > 1e-9) t = Math.min(t, (A.h - F.y) / dy);
           if (dy < -1e-9) t = Math.min(t, -F.y / dy);
           const end = { x: F.x + dx * t, y: F.y + dy * t };
-          return { F, end, ang: a, hits: alongSeg(b, F.x, F.y, end.x, end.y, this.finaleWidth), count: smokes(b).length };
+          return { F, end, ang: a, hits: alongSeg(b, F.x, F.y, end.x, end.y, this.finaleWidth), count: smokes(b).length, weight: smokes(b).reduce((s, z) => s + this.litW(z), 0) };
         },
         predict(b, u, arg) {
           if (upg(u).w1 === "finale") return this.finalePath(b, u, arg).hits;
@@ -488,7 +505,7 @@
             b.emit({ type: "spikes", spikes: list.map((z) => ({ points: [{ x: z.x, y: z.y }, fp.F], delayDist: 0 })), consumed: list, speed: this.projectileSpeed });
             b.emit({ type: "finale", from: fp.F, to: fp.end, width: this.finaleWidth, count: fp.count });
             b.emit({ type: "sfx", sound: this.sound });
-            const base = this.finalePerSpike * fp.count;
+            const base = this.finalePerSpike * fp.weight;
             if (!fp.hits.length) b.say("……飛箭沒有命中");
             for (const e of fp.hits) if (e.alive) b.damage(u, e, base, 1, `（${fp.count} 根尖刺的飛箭）`);
             return;
@@ -504,9 +521,10 @@
           b.emit({ type: "sfx", sound: this.sound });
           // 每個敵人依命中的尖刺數量結算一次：單根傷害 × 根數
           const count = new Map();
-          for (const s of spikes) for (const e of s.hits) count.set(e, (count.get(e) || 0) + 1);
+          const lit = new Map();
+          for (const s of spikes) for (const e of s.hits) { count.set(e, (count.get(e) || 0) + 1); lit.set(e, (lit.get(e) || 0) + (s.w || 1)); }
           if (!count.size) b.say("……尖刺沒有命中任何敵人");
-          for (const [e, n] of count) if (e.alive) b.damage(u, e, this.base, n, `（命中 ${n} 根尖刺）`);
+          for (const [e, n] of count) if (e.alive) { const m = lit.get(e); b.damage(u, e, this.base, m, `（命中 ${n} 根尖刺${m > n ? "・點燃" : ""}）`); }
         },
       },
     },

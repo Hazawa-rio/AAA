@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261122024623" });
 // 角色：伊爾舒
 // 被動「直面心魔」：場上會有一隻只有伊爾舒打得到的心魔（1 血、不會自己動）。
 // 打倒心魔獲得一層陰霾（最多 5 層），然後在地圖上隨機的位置再出現一隻。
@@ -230,7 +230,7 @@
           const cd = u.cd.trial || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
           if (!demonOf(b, u)) return { ready: false, cost: this.ap, label: this.name, note: "沒有心魔", reason: "場上沒有心魔" };
-          return { ready: true, cost: this.ap, label: upg(u).q1 === "reverse" ? "逆行試煉" : upg(u).q1 === "heavy" ? "千鈞試煉" : this.name, aim: { type: "none" } };
+          return { ready: true, cost: this.ap, label: R.upHas(upg(u), "reverse") ? "逆行試煉" : R.upHas(upg(u), "heavy") ? "千鈞試煉" : this.name, aim: { type: "none" } };
         },
         // 路線：mover 從 from 移到 to，撞到 hits；r 是移動物的半徑（畫預覽用）
         path(b, u) {
@@ -277,7 +277,7 @@
         },
         predict(b, u) { return this.path(b, u).hits; },
         origins(b, u) {
-          if (upg(u).q1 === "reverse") return [{ x: u.x, y: u.y }];
+          if (R.upHas(upg(u), "reverse")) return [{ x: u.x, y: u.y }];
           const d = demonOf(b, u); return d ? [{ x: d.x, y: d.y }] : [];
         },
         use(b, u) {
@@ -300,7 +300,7 @@
             if (!e.alive) continue;
             b.damage(u, e, this.base, mult, pa.heavy ? `（千鈞試煉・飛了 ${Math.round(pa.dist)} ×${mult.toFixed(2)}）` : pa.mover === u ? "（被伊爾舒撞上）" : "（被心魔撞上）");
             if (pa.heavy && e.alive && !e.part && b.knockback(e, pa.to.x, pa.to.y, this.heavyKnock)) b.say(`${e.name} 被撞飛了`);
-            if (up.q2 === "burden" && e.alive && !e.npc) {
+            if (R.upHas(up, "burden") && e.alive && !e.npc) {
               const who = e.parent || e;
               who.state.apPenalty = (who.state.apPenalty || 0) + 1;
               b.say(`${who.name} 被沉重的試煉壓住，下次行動點 −1`);
@@ -308,7 +308,7 @@
             }
           }
           // 循環試煉：起點留下殘影
-          if (up.q2 === "cycle") {
+          if (R.upHas(up, "cycle")) {
             b.zones.push({ id: "echo" + Math.random().toString(36).slice(2, 7), type: "echo", owner: u, x: pa.from.x, y: pa.from.y, r: this.echoRadius, turnsLeft: 99 });
             b.say("起點留下了心魔的殘影");
           }
@@ -327,10 +327,10 @@
           const cd = u.cd.karma || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
           if (!demonOf(b, u)) return { ready: false, cost: this.ap, label: this.name, note: "沒有心魔", reason: "場上沒有心魔" };
-          const note = upg(u).e1 === "abyss" && u.state.gloom ? `半徑 ${this.radiusFor(u)}` : "";
+          const note = R.upHas(upg(u), "abyss") && u.state.gloom ? `半徑 ${this.radiusFor(u)}` : "";
           return { ready: true, cost: this.ap, label: this.name, note, aim: { type: "none" } };
         },
-        radiusFor(u) { return this.radius + (upg(u).e1 === "abyss" ? (u.state.gloom || 0) * this.abyssRadius : 0); },
+        radiusFor(u) { return this.radius + (R.upHas(upg(u), "abyss") ? (u.state.gloom || 0) * this.abyssRadius : 0); },
         hits(b, u, d) { const r = this.radiusFor(u); return b.targetsFor(u).filter((e) => !e.demon && R.dist(e.x, e.y, d.x, d.y) <= r + e.r); },
         predict(b, u) { const d = demonOf(b, u); return d ? this.hits(b, u, d) : []; },
         origins(b, u) { const d = demonOf(b, u); return d ? [{ x: d.x, y: d.y }] : []; },
@@ -340,23 +340,23 @@
           const hits = this.hits(b, u, d), radius = this.radiusFor(u);
           b.setCooldown(u, "karma", this.cooldown);
           let mult = 1, note = "";
-          if (up.e1 === "abyss" && u.state.gloom) {
+          if (R.upHas(up, "abyss") && u.state.gloom) {
             mult = 1 + u.state.gloom * this.abyssDmg;
             note = `（深淵業障・${u.state.gloom} 層陰霾 ×${mult.toFixed(2)}）`;
             b.say(`${u.name} 把 ${u.state.gloom} 層陰霾灌進心魔`);
             u.state.gloom = 0;
             b.emit({ type: "gloomSpent", unit: u });
-          } else if (up.e1 === "repay") { mult = this.repayMult; note = `（償還 ×${this.repayMult}）`; }
+          } else if (R.upHas(up, "repay")) { mult = this.repayMult; note = `（償還 ×${this.repayMult}）`; }
           b.say(`${u.name} 引爆了心魔「業障」！`);
           b.bark(u, "karma");
           b.emit({ type: "explode", x: d.x, y: d.y, radius, color: "#5b3fa8" });
           for (const e of hits) {
             if (!e.alive) continue;
             b.damage(u, e, this.base, mult, note);
-            if (up.e2 === "mark" && e.alive) { e.state.karmaMark = b.round + 1; b.emit({ type: "buff", unit: e, text: "業障纏身" }); }
+            if (R.upHas(up, "mark") && e.alive) { e.state.karmaMark = b.round + 1; b.emit({ type: "buff", unit: e, text: "業障纏身" }); }
           }
-          if (up.e2 === "penance" && hits.length) b.heal(u, this.penanceHeal * hits.length, "（懺悔）");
-          if (up.e1 === "repay") d.repaid = true; else d.noGloom = true;
+          if (R.upHas(up, "penance") && hits.length) b.heal(u, this.penanceHeal * hits.length, "（懺悔）");
+          if (R.upHas(up, "repay")) d.repaid = true; else d.noGloom = true;
           d.hp = 0;
           b.onDeath(d);
         },

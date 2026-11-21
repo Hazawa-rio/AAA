@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261122024623" });
 // 角色：巴斯提安（近戰・塔盾）
 // 一座已經陷落的城的守門人，背著比門板還寬的塔盾和一把短矛
 // 被動「不退之門」：面向的正前方（±60°）受到的傷害 ×0.65；擋下來的傷害累積成「壓力」（上限 60）
@@ -127,7 +127,7 @@
     // ===== 不退之門：正面減傷、累積壓力 =====
     front(b, u, src) {
       if (!src || src === u || !Number.isFinite(src.x)) return false;
-      if (braced(b, u) && upg(u).e2 === "allround") return true;
+      if (braced(b, u) && R.upHas(upg(u), "allround")) return true;
       return angDiff(Math.atan2(src.y - u.y, src.x - u.x), u.facing) <= C.passive.half * DEG;
     },
     guard(b, src, dst) {
@@ -143,7 +143,7 @@
       b.emit({ type: "sfx", sound: SND.block });
       b.bark(dst, "guard", 0.2);
       // 盾面倒刺
-      if (braced(b, dst) && upg(dst).e1 === "spikes" && src?.alive && src.team !== dst.team) { b.hitDelay = 0.25; b.damage(dst, src, 6, 1, "（盾面倒刺）"); b.hitDelay = 0; }
+      if (braced(b, dst) && R.upHas(upg(dst), "spikes") && src?.alive && src.team !== dst.team) { b.hitDelay = 0.25; b.damage(dst, src, 6, 1, "（盾面倒刺）"); b.hitDelay = 0; }
     },
     onTurnStart(b, unit) {
       if (unit !== b.player) return;
@@ -242,7 +242,7 @@
         tags: ["melee"],
         ap: 1, cooldown: 2, dist: 240, base: 15, knock: 90,
         desc: "舉盾往指定方向衝，撞到第一個敵人就停下來，把它撞開（Boss 太重撞不動，只會受傷）",
-        rng(u) { return this.dist * (upg(u).q1 === "ram" ? 1.4 : 1); },
+        rng(u) { return this.dist * (R.upHas(upg(u), "ram") ? 1.4 : 1); },
         path(b, u, arg) {
           const d = dirOf(u, arg), L = this.rng(u);
           let hit = null, t = L;
@@ -267,7 +267,7 @@
           b.emit({ type: "sfx", sound: SND.run });
           const e = p.hit;
           // 推土前進：先把敵人推到終點前面
-          if (e && upg(u).q1 === "bulldoze" && !heavy(e)) {
+          if (e && R.upHas(upg(u), "bulldoze") && !heavy(e)) {
             const L = this.rng(u), go = Math.max(0, L - R.dist(u.x, u.y, e.x, e.y) + e.r);
             push(b, e, p.d.ang, go);
             const stop = { x: e.x - p.d.dx * (e.r + u.r + 4), y: e.y - p.d.dy * (e.r + u.r + 4) };
@@ -283,9 +283,9 @@
           b.damage(u, e, this.base);
           b.hitDelay = 0;
           if (heavy(e)) b.say(`${e.name} 太重了，撞不動！`);
-          else if (upg(u).q1 !== "bulldoze") push(b, e, p.d.ang, this.knock);
-          if (upg(u).q2 === "daze" && e.alive) { e.state.defDownUntil = b.round + 1; e.state.defDownMult = 0.6; b.emit({ type: "buff", unit: e, text: "破防", color: "#b0603f" }); }
-          if (upg(u).q2 === "momentum") { u.ap += 1; b.emit({ type: "buff", unit: u, text: "趁勢 +1", color: "#9a6a2a" }); }
+          else if (!R.upHas(upg(u), "bulldoze")) push(b, e, p.d.ang, this.knock);
+          if (R.upHas(upg(u), "daze") && e.alive) { e.state.defDownUntil = b.round + 1; e.state.defDownMult = 0.6; b.emit({ type: "buff", unit: e, text: "破防", color: "#b0603f" }); }
+          if (R.upHas(upg(u), "momentum")) { u.ap += 1; b.emit({ type: "buff", unit: u, text: "趁勢 +1", color: "#9a6a2a" }); }
         },
       },
 
@@ -294,8 +294,10 @@
         name: "立盾", slot: "E", key: "e", sound: SND.plant,
         tags: ["shield"],
         ap: 1, cooldown: 1, dfScale: 2.2,
+        tauntR: 280,                       // 命路「大膽迎戰」：嘲諷前方扇形（半徑；角度同正面格擋）
+        tauntHits(b, u, d) { const sec = { x: u.x, y: u.y, ang: d.ang, half: C.passive.half * DEG, radius: this.tauntR }; return b.targetsFor(u).filter((e) => e.alive && R.geo.inSector(e.x, e.y, sec, e.r)); },
         desc: "把塔盾插在指定的方向（轉身面向那裡），獲得護盾（防禦 × 2.2）；到下一回合之前，正面受到的傷害 ×0.4",
-        amount(u) { return Math.round(u.df * this.dfScale * (upg(u).e1 === "plate" ? 1.5 : 1)); },
+        amount(u) { return Math.round(u.df * this.dfScale * (R.upHas(upg(u), "plate") ? 1.5 : 1)); },
         status(b, u) {
           const cd = u.cd.brace || 0;
           if (cd > 0) return { ready: false, cost: this.ap, label: this.name, note: `CD ${cd}`, reason: `冷卻中（還要 ${cd} 次行動）` };
@@ -303,8 +305,11 @@
         },
         predict() { return []; },
         preview(b, u, arg) {
-          const d = dirOf(u, arg), H = C.passive.half * DEG, all = upg(u).e2 === "allround";
-          return { shapes: [all ? { shape: "circle", x: u.x, y: u.y, radius: 90, color: "#9a6a2a" } : { shape: "sector", x: u.x, y: u.y, ang: d.ang, half: H, radius: 110, color: "#9a6a2a" }], hits: [] };
+          const d = dirOf(u, arg), H = C.passive.half * DEG, all = R.upHas(upg(u), "allround");
+          const bold = R.upHas(upg(u), "bs_bold");
+          const shapes = [all ? { shape: "circle", x: u.x, y: u.y, radius: 90, color: "#9a6a2a" } : { shape: "sector", x: u.x, y: u.y, ang: d.ang, half: H, radius: 110, color: "#9a6a2a" }];
+          if (bold) shapes.push({ shape: "sector", x: u.x, y: u.y, ang: d.ang, half: H, radius: this.tauntR, color: "#c0392b", label: "大膽迎戰：嘲諷" });
+          return { shapes, hits: bold ? this.tauntHits(b, u, d) : [] };
         },
         use(b, u, arg) {
           const d = dirOf(u, arg);
@@ -316,7 +321,13 @@
           b.emit({ type: "sfx", sound: this.sound });
           b.emit({ type: "bsPlant", x: u.x, y: u.y, ang: d.ang });
           b.addShield(u, this.amount(u), "（立盾）");
-          if (upg(u).e2 === "rampart") {
+          // 命路「大膽迎戰」：嘲諷前方扇形範圍的敵人（下一次行動先打巴斯提安）
+          if (R.upHas(upg(u), "bs_bold")) {
+            const ts = this.tauntHits(b, u, d);
+            for (const e of ts) { e.state.provokedBy = u; e.state.provokedUntil = b.round + 1; b.emit({ type: "buff", unit: e, text: "被嘲諷", color: "#c0392b" }); }
+            b.say(ts.length ? `大膽迎戰：${ts.map((e) => e.name).join("、")} 被嘲諷了` : "大膽迎戰：前方沒有敵人");
+          }
+          if (R.upHas(upg(u), "rampart")) {
             const gone = b.cleanse?.(u);
             if (gone) b.emit({ type: "buff", unit: u, text: `解除${gone}`, color: "#3d9a5b" });
             u.state.pressure = Math.min(C.passive.cap, (u.state.pressure || 0) + 8);
@@ -335,11 +346,20 @@
         power(u) { return this.base + (u.state.pressure || 0) * this.perPressure; },
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
-          return { ready: true, cost: this.ap, label: this.name, note: `壓力 ${u.state.pressure || 0}`, aim: { type: "none" } };
+          // 我即城門：用滑鼠決定城門的方向（使用者 11/22）
+          return { ready: true, cost: this.ap, label: this.name, note: `壓力 ${u.state.pressure || 0}`, aim: upg(u).w1 === "gate" ? { type: "direction" } : { type: "none" } };
         },
         predict(b, u) { const r = this.rad(u); return b.targetsFor(u).filter((e) => R.dist(e.x, e.y, u.x, u.y) <= r + e.r); },
-        preview(b, u) { return { shapes: [{ shape: "circle", x: u.x, y: u.y, radius: this.rad(u) }], hits: this.predict(b, u) }; },
-        use(b, u) {
+        preview(b, u, arg) {
+          const shapes = [{ shape: "circle", x: u.x, y: u.y, radius: this.rad(u) }];
+          if (upg(u).w1 === "gate" && arg && Number.isFinite((arg.target || arg).x)) {
+            const d = dirOf(u, arg), gd = u.r + 46, gx = u.x + d.dx * gd, gy = u.y + d.dy * gd, px = -d.dy * this.gateHalf, py = d.dx * this.gateHalf;
+            shapes.push({ shape: "line", x1: gx - px, y1: gy - py, x2: gx + px, y2: gy + py, width: 16, color: "#8a5a2a", label: "城門" });
+          }
+          return { shapes, hits: this.predict(b, u) };
+        },
+        use(b, u, arg) {
+          if (upg(u).w1 === "gate" && arg && Number.isFinite((arg.target || arg).x)) u.facing = dirOf(u, arg).ang;
           const r = this.rad(u), base = this.power(u), pr = u.state.pressure || 0;
           u.charge = 0; u.state.pressure = 0;
           b.say(`${u.name}：「城門崩落」！（釋放壓力 ${pr}）`);
@@ -498,7 +518,7 @@
       }
       ctx.save();
       ctx.globalAlpha = br ? 0.95 : 0.6; ctx.strokeStyle = br ? "#d8a040" : "#9a6a2a"; ctx.lineWidth = br ? 8 : 5;
-      if (br && upg(u).e2 === "allround") { ctx.beginPath(); ctx.arc(p.x, p.y, u.r + 12, 0, Math.PI * 2); ctx.stroke(); }
+      if (br && R.upHas(upg(u), "allround")) { ctx.beginPath(); ctx.arc(p.x, p.y, u.r + 12, 0, Math.PI * 2); ctx.stroke(); }
       else { ctx.beginPath(); ctx.arc(p.x, p.y, u.r + 12, a - half, a + half); ctx.stroke(); }
       const pr = u.state.pressure || 0;
       if (pr > 0) {
