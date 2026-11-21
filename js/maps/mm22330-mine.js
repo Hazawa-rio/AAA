@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330-mine.js": "20261120001638" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/mm22330-mine.js": "20261122024623" });
 // 地圖：#MM22330 或許是魔法森林・礦井（自由探索，不算委託）
 // 礦井通往深處：每一層都是隨機的洞穴（同一趟、同一層換頁也一樣；從地面重新下去就是新的礦洞）
 // 越深越暗、魔物越多越危險；第 5 層是最深處
