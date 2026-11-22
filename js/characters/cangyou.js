@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261122223322" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血
@@ -116,7 +116,7 @@
         skill: "manta",
         tiers: [
           [
-            { id: "parade", name: "靜謐遊行", desc: "蝠鱝夫人放出去以後會一直往前游（留下一串泡泡），方向跟著滑鼠轉。碰到幽靈魚，魚會加入遊行一起游，游的距離也變長；遊行的魚越多，撞到敵人的傷害越高" },
+            { id: "parade", name: "靜謐遊行", desc: "蝠鱝夫人放出去以後會一直往前游（留下一串泡泡），方向跟著滑鼠轉。碰到幽靈魚，魚會加入遊行一起游，游的距離也變長；遊行的魚越多，撞到敵人的傷害越高；可以繞回來連續撞同一個敵人（每 0.5 秒一次）" },
             { id: "shelter", name: "溫柔庇護", desc: "照原本的放法丟出蝠鱝夫人；路上和落點附近的幽靈魚受到庇護，造成的傷害 ×1.5（2 回合）" },
           ],
         ],
@@ -465,6 +465,7 @@
       manta: {
         name: "蝠鱝夫人", slot: "W", key: "w", ultimate: true, sound: SND.bubble,
         tags: ["summon", "projectile", "area"],
+        paradeLen: 640, paradePerFish: 220, paradeGap: 0.5,   // 靜謐遊行：游的距離、每隻魚加多少、同一個敵人隔多久可以再撞一次（使用者 11/22：加長、可以連續撞）
         ap: 2, mp: 35, charge: 5, range: 380, width: 116, base: 12, spray: 12, sprayLen: 160, sprayBase: 3,
         desc: "向前方丟出一隻大蝠鱝（寬 116），撞擊路上的敵人，飛到底時向周圍噴射 12 顆泡泡（打中破裂，沒打中留在場上）",
         path(u, arg) { const d = dirOf(u, arg); return { d, x2: u.x + d.dx * this.range, y2: u.y + d.dy * this.range }; },
@@ -481,7 +482,7 @@
         areaCenter(b, u, arg) { const p = this.path(u, arg); return { x: p.x2, y: p.y2 }; },
         // ----- 靜謐遊行：即時游動，方向跟著滑鼠 -----
         parade(b, u, arg) {
-          const d = dirOf(u, arg), P = { x: u.x, y: u.y, a: d.ang, left: this.range, speed: 360, fish: [], hit: new Set(), trail: [], t0: now() };
+          const d = dirOf(u, arg), P = { x: u.x, y: u.y, a: d.ang, left: this.paradeLen, speed: 360, fish: [], hit: new Map(), hits: 0, trail: [], t0: now() };
           u.charge = 0; u.facing = d.ang;
           b.say(`${u.name}「蝠鱝夫人」——靜謐遊行！（用滑鼠帶路）`);
           b.bark(u, "ult");
@@ -500,12 +501,12 @@
             if (Math.random() < 0.6) P.trail.push({ x: P.x - Math.cos(P.a) * 40 + (Math.random() - 0.5) * 30, y: P.y - Math.sin(P.a) * 40 + (Math.random() - 0.5) * 30, t: tn, r: 4 + Math.random() * 6 });
             P.trail = P.trail.filter((q) => tn - q.t < 1400);
             // 碰到幽靈魚：加入遊行，游得更遠
-            for (const f of fishOf(u)) if (!P.fish.includes(f) && R.dist(f.x, f.y, P.x, P.y) < sk.width / 2 + 24) { P.fish.push(f); P.left += 180; b.emit({ type: "buff", unit: f, text: "加入遊行", color: "#3a7bd5" }); }
+            for (const f of fishOf(u)) if (!P.fish.includes(f) && R.dist(f.x, f.y, P.x, P.y) < sk.width / 2 + 24) { P.fish.push(f); P.left += sk.paradePerFish; b.emit({ type: "buff", unit: f, text: "加入遊行", color: "#3a7bd5" }); }
             // 魚群排成一列跟在後面
             P.fish.forEach((f, i) => { const back = 70 + i * 46; f.x = P.x - Math.cos(P.a) * back; f.y = P.y - Math.sin(P.a) * back; f.face = P.a; });
-            // 撞到敵人（每個敵人撞一次）：魚越多越痛
-            for (const e of b.targetsFor(u)) if (e.alive && !P.hit.has(e.id) && R.dist(e.x, e.y, P.x, P.y) <= sk.width / 2 + e.r) {
-              P.hit.add(e.id);
+            // 撞到敵人：魚越多越痛；同一個敵人可以連續撞（每 paradeGap 秒一次，使用者 11/22）
+            for (const e of b.targetsFor(u)) if (e.alive && tn - (P.hit.get(e.id) ?? -1e9) >= sk.paradeGap * 1000 && R.dist(e.x, e.y, P.x, P.y) <= sk.width / 2 + e.r) {
+              P.hit.set(e.id, tn); P.hits++;
               b.damage(u, e, sk.base * (1 + 0.35 * P.fish.length), 1, `（靜謐遊行・魚群 ${P.fish.length}）`);
               b.emit({ type: "fishRam", x: e.x, y: e.y });
             }
@@ -522,7 +523,7 @@
             for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2 + P.a; list.push({ x: P.x, y: P.y, dx: Math.cos(a), dy: Math.sin(a), len: sk.sprayLen * (0.7 + 0.3 * ((i * 53) % 10) / 10) }); }
             b.emit({ type: "sfx", sound: sk.sound });
             C.shootBubbles(b, u, list, sk.sprayBase, "（蝠鱝噴射的泡泡）", 0);
-            b.say(`遊行結束：${P.fish.length} 隻魚一起游、撞到 ${P.hit.size} 個敵人`);
+            b.say(`遊行結束：${P.fish.length} 隻魚一起游、撞了 ${P.hits} 下（${P.hit.size} 個敵人）`);
             if (R.upHas(upg(u), "cy_patrol")) C.orbit(b, u);          // 海底巡迴：遊行結束，魚群回到蒼幽身邊
             b.checkEnd?.();
             b.emit();

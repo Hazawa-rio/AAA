@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261122223322" });
 // 角色：彌華姬（卡池角色・若色組組長・毒）
 // 三代目若色組組長。男扮女裝隱藏自己是被肅清的初代組長長子的身分；唯一信任的是親手「培養」的人造人最高顧問・渡冥隱子（簡介是使用者寫的）
 // 中毒（這個角色帶進來的狀態）：每層每回合扣「姬的最大生命 × 1.2%」，最多 50 層；被中毒的單位在自己的回合開始時扣血，之後少 1 層

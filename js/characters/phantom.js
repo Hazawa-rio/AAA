@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261122223322" });
 // 角色：魅影（卡池角色・怪盜・近戰突進）
 // 本名不詳，以「魅影」為代號的怪盜。利用穿梭時空的能力來往各個時空盜竊（簡介是使用者寫的）
 // 被動「掠奪本能」：每件寶物（寶物欄）讓造成的傷害 +6%；無法接受任何來自隊友給予的道具（連線時：隊友不能從背包給她東西）
