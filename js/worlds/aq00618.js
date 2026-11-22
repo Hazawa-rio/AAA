@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/aq00618.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/aq00618.js": "20261122223322" });
 // #AQ00618 如此靜謐的蔚藍（A 級）：燈光幽暗、夢一樣安靜的大型水族館
 //   視角互換：站在大廳（＝大洋水缸）時，水缸裡的是魚、大廳裡的是人；走進某個水缸時，那個缸裡的魚變成人，大廳裡的人變成大洋的生物
 //   燈光：大廳很暗，只有水缸和舞台的燈、身邊一小圈看得清楚

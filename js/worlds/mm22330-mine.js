@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330-mine.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/mm22330-mine.js": "20261122223322" });
 // #MM22330 或許是魔法森林・礦井（自由探索，不算委託）
 //   地面（精靈村東南角）：
 //     礦井入口：走進去就下到第 1 層。每次從地面下去都是新的礦洞（隨機結構）

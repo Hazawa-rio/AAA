@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/dg00777.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/dg00777.js": "20261122223322" });
 // #DG00777 致命賭局（A 級・戰役）：大莊家斯賓沃迪的賭場
 //   一到這裡就直接坐上賭桌開戰（委託的第一步是 boss，房間 casino：js/casino.js）
 //   打贏之後拿到「籌碼」（trip.qdata.casino.chips，只在這一趟有效），才能在賭場裡走動、到兌換櫃台消費：
