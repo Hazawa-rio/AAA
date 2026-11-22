@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tavern.js": "20261122223322" });
 // 時空酒館（地圖測試）：玩家是只有名字的方塊，可以在酒館裡走動、和物件互動
 // 互動：酒保桑恩（特調）、懸掛電話（多人房號）、天文望遠鏡（之後抽角色）、時空委託欄（開始戰鬥）、適格者名牌架（選角色）
 (function () {
@@ -942,7 +942,7 @@
     for (const [wid, W] of Object.entries(CM.WORLDS).filter(([wid]) => wid === boardWorld)) {
       const rankOk = CM.rankOk(wid, rank), anyOk = CM.RANKS.indexOf(rank) >= CM.RANKS.indexOf(CM.minRank(wid));
       html += `<div class="world-h${anyOk ? "" : " locked"}" style="--wc:${W.color}"><i class="rk">${W.rank || "C"}</i><b>${W.code}</b> ${esc(W.name)}<span>${esc(W.level)}</span></div>
-        <p class="tv-note" style="margin:0 0 8px">${esc(W.summary)}${rankOk ? "" : anyOk ? `<br><b>大部分委託需要 ${W.rank} 級委託執照；標著 C 級的委託現在就能接</b>` : `<br><b>需要 ${W.rank} 級以上的委託執照</b>`}${W.ready === false ? `<br><b>這個時空還在準備中：目前只有委託單，暫時無法接取</b>` : ""}</p><div class="slips">`;
+        <p class="tv-note" style="margin:0 0 8px">${esc(W.summary)}${rankOk ? "" : anyOk ? `<br><b>大部分委託需要 ${W.rank} 級委託執照；標著 C 級的委託現在就能接</b>` : `<br><b>需要 ${W.rank} 級以上的委託執照</b>`}${W.ready === false ? `<br><b>這個時空還在準備中：目前只有委託單，暫時無法接取</b>` : ""}${wid === "SW00003" ? `<br><button type="button" class="ghost" data-act="letter">✉ 看看推薦信（預覽）</button>` : ""}</p><div class="slips">`;
       for (const c of CM.ofWorld(wid)) {
         const on = t.accepted.includes(c.id), cleared = adv?.done?.includes(c.id), failed = adv?.failed?.includes(c.id);
         const cOk = CM.rankOk(wid, rank, c), cRank = c.rank || W.rank || "C";
@@ -1111,6 +1111,7 @@
       return;
     }
     if (a === "pick") { if (!P.owns(data.id)) return; store.set("rpg.char", data.id); peek = data.id; R.Net?.update(netMe()); renderTop(); return renderPanel(); }
+    if (a === "letter") { R.Recommend?.open(curChar().id, () => renderPanel(), { preview: true }); return; }
     if (a === "peek") { peek = data.id; return renderPanel(); }
     if (a === "calmYY") { store.set("rpg.calmYouyan", calmYY() ? "0" : "1"); return renderPanel(); }
     if (a === "feature") {

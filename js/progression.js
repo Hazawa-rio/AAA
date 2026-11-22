@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/progression.js": "20261122223322" });
 // 成長系統：經驗值 → 等級 → 數值、強化點、行動值、技能強化
 // 目前沒有完整遊戲流程，所以等級可以在「角色成長」介面直接調整；戰鬥勝利也會給一點經驗
 // 每個角色的成長存在瀏覽器（localStorage），換頁、重新整理都會保留
@@ -75,9 +75,11 @@
       }
       stats.ap = base.ap + apBonus;
       // 寶物的數值加成（例如商店賣的普通寶物）
-      for (const id of [...(build.items || []).slice(0, 6), ...(build.sig ? [build.sig] : [])]) {      // 第七格：專武
+      // 特殊命運卡（js/tarot.js，戰役「命運的考驗」）：權杖正位＝寶物增益 ×1.5、逆位＝寶物格少一格
+      const TA = R.Tarot?.mod() || null, slots = R.Items?.SLOTS || 6;
+      for (const id of [...(build.items || []).slice(0, slots), ...(build.sig ? [build.sig] : [])]) {      // 第七格：專武
         const it = R.Items?.LIST[id];
-        for (const [k, v] of Object.entries(it?.stats || {})) if (k in stats) stats[k] += v;
+        for (const [k, v] of Object.entries(it?.stats || {})) if (k in stats) stats[k] += TA?.itemMult ? Math.round(v * TA.itemMult) : v;
       }
       // 技能強化：q1 / q2 / e1 / e2 / w1 = 選到的選項 id
       //   有命路的角色（js/fate.js）：Q／E 的強化改由命路決定，舊的 picks 不用；upg._all＝全部拿到的強化 id（R.upHas 用）
@@ -98,6 +100,16 @@
         stats.spd = Math.max(1, stats.spd); stats.df = Math.max(0, stats.df);
       } else for (const p of build.picks) upg[p.skill + p.tier] = p.choice;
       if (!fateOn && build.w) { upg.w1 = build.w; if (upg._all) upg._all.push(build.w); }
+      // 特殊命運卡的數值：生命上限、速度（倍率）、行動點；造成的傷害、回合開始回血放進 fate（戰鬥用）
+      if (TA) {
+        fate = fate || { skill: {}, cd: {} };
+        if (TA.hpMult) stats.hp = Math.round(stats.hp * TA.hpMult);
+        if (TA.spdMult) stats.spd = Math.max(1, Math.round(stats.spd * TA.spdMult));
+        if (TA.ap) stats.ap += TA.ap;
+        if (TA.dmg) fate.dmg = (fate.dmg || 1) * TA.dmg;
+        if (TA.regen) fate.regen = TA.regen;
+        fate.tarot = R.Tarot.get();
+      }
       // 有些強化直接加數值（例如霍夫曼的重型設施：防禦 +7）
       for (const id of upg._all || Object.values(upg)) for (const [k, v] of Object.entries(ch.upgradeStats?.[id] || {})) if (k in stats) stats[k] += v;
       const xpFloor = this.xpForLevel(level);
@@ -108,7 +120,7 @@
         pointsTotal, pointsUsed, apBonus, eqTotal, eqUsed: build.picks.length,
         wUnlocked: level >= this.W_LEVEL,
         stats, parts, upg, fate, fateOn,
-        items: [...(build.items || []).slice(0, 6), ...(build.sig ? [build.sig] : [])],     // 寶物欄（＋第七格專武）
+        items: [...(build.items || []).slice(0, slots), ...(build.sig ? [build.sig] : [])],     // 寶物欄（＋第七格專武）
         sig: build.sig || null,
       };
     },

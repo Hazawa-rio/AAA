@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/sea-art.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/sea-art.js": "20261122223322" });
 // 水生生物的外型（如此靜謐的蔚藍、原始水域）：照物種畫出本來的樣子
 //   R.SeaArt.draw(ctx, name, x, y, s, face, now, col, k)：name＝物種名、s＝大小（大約是身長的一半）、face＝朝向（弧度）、col＝沒有特定配色時用的顏色
 //   R.SeaArt.has(name)：有沒有這個物種的專屬外型

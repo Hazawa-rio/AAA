@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/items.js": "20261122223322" });
 // 寶物：玩家有 6 格寶物欄，放在欄裡的寶物都會生效
 // 寶物存在角色的成長資料裡（R.Progress），戰鬥開始時帶進場
 (function () {
@@ -421,7 +421,8 @@
   for (const d of Object.values(loadCustom())) { const it = buildCustom(d); if (it) LIST[d.id] = it; }
 
   R.Items = {
-    SLOTS: 6,
+    // 寶物格：6 格；特殊命運卡「權杖」的逆位少一格（js/tarot.js）
+    get SLOTS() { return 6 - (R.Tarot?.mod()?.slotsLost || 0); },
     RARITY,
     LIST, PAINT, FORMS, METALS, GEMS, forgeBase,
     // 做出一個自訂寶物：存起來、註冊進寶物表，回傳寶物
@@ -468,7 +469,7 @@
       for (const sk of Object.values(b.char?.skills || {})) if (sk._baseRange != null) sk.range = sk._baseRange;
       for (const id of u.items || []) LIST[id]?.onStart?.(b, u);
     },
-    dmgMult(b, u, dst) { let m = 1; for (const id of u.items || []) m *= LIST[id]?.dmgMult?.(b, u, dst) || 1; return m; },
+    dmgMult(b, u, dst) { let m = 1; for (const id of u.items || []) m *= LIST[id]?.dmgMult?.(b, u, dst) || 1; const k = u.team === "player" && u.fate?.tarot === "wand" ? 1.5 : 1; return k !== 1 && m !== 1 ? 1 + (m - 1) * k : m; },   // 權杖正位：寶物的增傷部分 ×1.5
     onHurt(b, u, src) { for (const id of u.items || []) LIST[id]?.onHurt?.(b, u, src); },
     onHit(b, u, dst) { for (const id of u.items || []) LIST[id]?.onHit?.(b, u, dst); },
     onSummonHurt(b, s, src) { for (const id of b.player.items || []) LIST[id]?.onSummonHurt?.(b, s, src); },

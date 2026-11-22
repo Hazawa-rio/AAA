@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261122223322" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -448,6 +448,8 @@
         u.mp += n;
         this.emit({ type: "mpRegen", unit: u, amount: n });
       }
+      // 特殊命運卡「聖杯」正位：輪到自己的回合時回復少量生命
+      if (u === this.player && u.fate?.regen && u.alive && u.hp < u.maxHp) this.heal(u, Math.max(1, Math.round(u.maxHp * u.fate.regen)), "（聖杯）");
       this.char.onTurnStart?.(this, u);       // 玩家角色對「任何單位回合開始」的效果（例如循環試煉的殘影爆炸）
       R.EnemyKit?.turnStart(this, u);         // 一般敵人的特有被動（再生、暴怒）
       // 場上單位對「任何單位回合開始」的效果（例如聖牢籠在敵人回合傷害被困住的玩家）
@@ -1069,7 +1071,7 @@
       this.projectiles.push({
         id: "p" + nextId++, owner, x, y, ang,
         vx: Math.cos(ang) * opt.speed, vy: Math.sin(ang) * opt.speed,
-        r: opt.r, base: opt.base, text: opt.text, color: opt.color, bounce: opt.bounce || 0,     // bounce：碰到場地邊緣反彈幾次（例如爆牌的撲克牌）
+        r: opt.r, base: opt.base, text: opt.text, color: opt.color, bounce: opt.bounce || 0, left: opt.range || 0, kind: opt.kind || null,   // range：飛多遠就消失（射程較短的火球）；kind：畫法（例如 fire、rock）     // bounce：碰到場地邊緣反彈幾次（例如爆牌的撲克牌）
       });
       if (!this._projTimer) {
         let last = performance.now();
@@ -1091,6 +1093,7 @@
           if (b.x < 0 || b.x > A.w) { b.vx = -b.vx; b.x = Math.max(0, Math.min(A.w, b.x)); b.bounce--; b.ang = Math.atan2(b.vy, b.vx); }
           else if (b.y < 0 || b.y > A.h) { b.vy = -b.vy; b.y = Math.max(0, Math.min(A.h, b.y)); b.bounce--; b.ang = Math.atan2(b.vy, b.vx); }
         }
+        if (b.left) { b.left -= Math.hypot(b.vx, b.vy) * dt; if (b.left <= 0) { this.emit({ type: "bulletFizzle", x: b.x, y: b.y, bullet: b }); continue; } }
         if (b.x < -30 || b.y < -30 || b.x > A.w + 30 || b.y > A.h + 30) continue;
         if (p.alive && !b.passed && dist(b.x, b.y, p.x, p.y) <= b.r + hitR) {
           this.damage(b.owner, p, b.base);

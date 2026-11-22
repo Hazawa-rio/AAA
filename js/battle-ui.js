@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261122223322" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -1510,7 +1510,7 @@
       circle(c.x, c.y, c.radius * (1 - k), "rgba(198,40,40,.35)", null, 2);
       const o = c.owner;
       line(pos(o).x, pos(o).y, c.x, c.y, "rgba(198,40,40,.35)", 2, [4, 6]);
-      label("壓制・蓄力中", c.x, c.y - c.radius - 14, "#c62828");
+      label(c.label || "壓制・蓄力中", c.x, c.y - c.radius - 14, "#c62828");
     }
   }
 
@@ -1692,6 +1692,7 @@
   // 光彈：紅色膠囊形，沿飛行方向
   function drawProjectiles() {
     for (const b of B.projectiles) {
+      if (b.kind && R.ProjArt?.[b.kind]) { R.ProjArt[b.kind](ctx, b, performance.now()); continue; }     // 自己畫的投射物（例如厄羅德的火球、石塊）
       // 文字彈（例如百年的怨念的「怨恨的文字」）：字本身就是投射物
       if (b.text) {
         ctx.save(); ctx.translate(b.x, b.y);

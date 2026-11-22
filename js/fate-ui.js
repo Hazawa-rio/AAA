@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fate-ui.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fate-ui.js": "20261122223322" });
 // 抉擇命運：命路的 ◆ 節點，到了等級、離開戰鬥之後（下一個頁面打開時）跳出來
 //   從這條命路的命運卡池抽兩張，選一張（js/fate.js 的 R.Fate.draw）；連續升了好幾級就一張一張抉擇
 //   命路：冒險開始、進入第一個時空時選（時空地圖頁、這輪冒險還沒選）

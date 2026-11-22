@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/bestiary.js": "20261122223322" });
 // 魔物圖鑑（酒館桌上的那本書）：以時空分類列出會戰鬥的生物
 // 遇到過＝顯示名字；完成一次戰鬥（打贏）＝顯示技能和數值
 // 同一個物種可以出現在好幾個時空（例如奇儂鎮和科考隊森林邊的魔狼）；遇到、打贏的紀錄是全部時空共用的
@@ -26,6 +26,7 @@
     ER00119: ["stitched", "surgeonBoss"],
     MM22330: ["sporeMole", "hyphaBeast", "sporeKing"],
     DG00777: ["chip1", "chip5", "chip25", "chip100"],
+    FT00021: ["erod"],
     BH03278: ["looter", "instigator"],
     CD02016: ["eraAgent", "eraCaptain"],
     MJ44444: ["grudge", "grudgeSpirit"],
@@ -55,6 +56,7 @@
     stitched: "只是來看個小病，卻被「完美縫合」到停不下來的病人。多出來的手臂針腳整齊得嚇人。他們還記得自己是誰。",
     surgeonBoss: "有點偏執的急診室的首席外科醫師。技術無可挑剔，只是從不停手。每一針都精準到小數點第五位。",
     sporeMole: "被毒蘑菇寄生的鼴鼠。蘑菇借牠的身體在礦道裡四處散播孢子。",
+    erod: "命運的見證者之一，為命運卡帶來考驗，自身也是考驗。四把武器換著拿：烈火權杖、湧泉聖杯、颶風寶劍、黃金戰槌——兜帽上的寶石是什麼顏色，下一招就是什麼。",
     chip1: "大莊家的拉霸機吐出來的白籌碼。面額最小，脾氣最急，一出來就往人身上撞。",
     chip5: "紅籌碼。撞一下就往後滾開，等你追上去再撞一下。",
     chip25: "綠籌碼。會先滾一段助跑，再整片撞過來。",

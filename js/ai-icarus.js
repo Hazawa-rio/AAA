@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-icarus.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-icarus.js": "20261122223322" });
 // Boss：伊卡洛斯號（#SP10101 遞廻齒輪鑲嵌之國・SP10101-03）
 // 一台全機械的蒸氣飛艇：越是飛行，越是往下噴射蒸氣、傾倒廢料、放下制動人偶船員
 //   高度：每輪到它一次就升高 1（最多 maxAlt）。高度越高——

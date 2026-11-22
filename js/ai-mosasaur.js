@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-mosasaur.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-mosasaur.js": "20261122223322" });
 // Boss：滄游・滄龍（#AQ00618 如此靜謐的蔚藍・原始水域；蒼幽成為原始獵手之後）
 // 使用者 11/22 重做：
 //   出場：地圖飄出大量泡沫，背景一道黑影竄出、變成滄龍（樣子照使用者的圖３）
@@ -51,7 +51,9 @@
       const D = u.def.bite, ang = this.face(u, t);
       b.enemySpend(u, D.ap);
       b.say(`${u.name}張開長長的嘴——${D.name}！`);
+      u.pose = { k: "lunge", t0: now(), ang, hit: 0 };
       await b.telegraph(u, { shape: "rect", x: u.x, y: u.y, ang, length: u.r + D.length, width: D.width, reaction: D.reaction }, { base: D.base, sound: D.sound, label: `${u.name}的${D.name}` });
+      if (u.pose) u.pose.hit = now();
     },
     // 噴射水柱：扇形掃過去
     async jet(b, u, t) {
@@ -60,6 +62,8 @@
       u.state.jetCd = D.cooldown + 1;
       b.say(`${u.name}從嘴裡噴出水柱，橫著掃了過來——${D.name}！`);
       const half = (D.half * Math.PI) / 180;
+      u.pose = { k: "jet", t0: now(), ang, half, hit: 0 };
+      setTimeout(() => { if (u.pose?.k === "jet") u.pose.hit = now(); }, D.reaction * 1000 - 250);
       fxOf(b).fx.push({ k: "jet", x: u.x, y: u.y, ang, half, r: D.radius, t0: now() + D.reaction * 1000 - 250, dur: 900, from: u });
       await b.telegraph(u, { shape: "sector", x: u.x, y: u.y, ang, half, radius: D.radius, reaction: D.reaction }, { base: D.base, sound: D.sound, label: `${u.name}的${D.name}` });
     },
@@ -69,6 +73,8 @@
       b.enemySpend(u, D.ap);
       u.state.waveCd = D.cooldown + 1;
       b.say(`${u.name}甩動巨大的尾鰭，掃出 ${n} 道水波！`);
+      u.pose = { k: "tail", t0: now(), hit: 0 };
+      setTimeout(() => { if (u.pose?.k === "tail") u.pose.hit = now(); }, D.reaction * 1000);
       const list = [];
       for (let i = 0; i < n; i++) {
         const a = ang + ((i - (n - 1) / 2) * D.spread * Math.PI) / 180;
@@ -102,6 +108,7 @@
       const from = { x: u.x, y: u.y }, a = Math.atan2(f.y - u.y, f.x - u.x), stop = R.dist(u.x, u.y, f.x, f.y) - u.r - f.r + 10;
       if (stop > 0) { u.x += Math.cos(a) * stop; u.y += Math.sin(a) * stop; }
       u.facing = a;
+      u.pose = { k: "lunge", t0: now() - 450, ang: a, hit: now() + 250 };
       b.emit({ type: "leap", unit: u, from, to: { x: u.x, y: u.y }, duration: 0.35, height: 6 });
       f.hp = 0; f.alive = false;
       b.units = b.units.filter((x) => x !== f);                 // 被吃掉：直接從戰場上消失
@@ -187,11 +194,39 @@
 
   // ===== 畫面 =====
   const A0 = R.EnemyArt || (R.EnemyArt = {});
+  // 滄龍：和霸王龍一樣整隻轉動配合動畫（使用者 11/22）
+  //   身體朝著面向的方向轉（朝左時上下翻過來，不會倒著游）
+  //   啃咬＝先往後縮、再整隻往前撲；噴射水柱＝頭跟著水柱掃過去；尾鰭揮掃＝扭身、整隻甩一下；吃魚＝往前撲
+  const ease = (x) => 1 - (1 - x) * (1 - x);
   A0.mosasaur = (ctx, u, p, now2) => {
-    ctx.globalAlpha = u.alive === false ? 0.3 : 1;
-    R.SeaArt?.draw(ctx, "滄龍・原始", p.x, p.y + Math.sin(now2 / 500) * 3, u.r * 1.05, u.facing ?? Math.PI, u.alive === false ? 0 : now2, null, 0);
-    ctx.globalAlpha = 1;
+    const dead = u.alive === false;
+    let ang = u.facing ?? Math.PI, rot = Math.sin(now2 / 600) * 0.05, dx = 0, dy = 0;
+    const P = dead ? null : u.pose;
+    if (P) {
+      const wind = Math.min(1, (now2 - P.t0) / 450), after = P.hit ? (now2 - P.hit) / 1000 : -1;
+      if (P.k === "lunge") {
+        if (after < 0) { rot = -0.18 * ease(wind) + Math.sin(now2 / 45) * 0.015 * wind; dx = -Math.cos(P.ang) * u.r * 0.3 * wind; dy = -Math.sin(P.ang) * u.r * 0.3 * wind; }
+        else if (after < 0.6) { const a = after < 0.1 ? after / 0.1 : Math.max(0, 1 - (after - 0.1) / 0.5); dx = Math.cos(P.ang) * u.r * 0.8 * a; dy = Math.sin(P.ang) * u.r * 0.8 * a; rot = 0.12 * a; }
+        else u.pose = null;
+      } else if (P.k === "jet") {
+        // 張嘴蓄力 → 水柱噴出時，頭從扇形的一邊掃到另一邊
+        if (after < 0) ang = P.ang - P.half * ease(wind);
+        else if (after < 0.9) ang = P.ang - P.half + P.half * 2 * Math.min(1, after / 0.7);
+        else { ang = P.ang + P.half; u.facing = ang; u.pose = null; }
+      } else if (P.k === "tail") {
+        // 扭身蓄力（頭轉開）→ 整隻甩回來，尾鰭掃出水波
+        if (after < 0) rot = 0.7 * ease(wind) + Math.sin(now2 / 40) * 0.03 * wind;
+        else if (after < 0.6) { const a = ease(Math.min(1, after / 0.35)); rot = 0.7 - 1.3 * a + 0.6 * Math.max(0, (after - 0.35) / 0.25); }
+        else u.pose = null;
+      }
+    }
+    const left = Math.cos(ang) < 0;
+    ctx.save(); ctx.globalAlpha = dead ? 0.3 : 1;
+    ctx.translate(p.x + dx, p.y + dy + Math.sin(now2 / 500) * 3); ctx.rotate(ang + (left ? -rot : rot)); if (left) ctx.scale(1, -1);
+    R.SeaArt?.draw(ctx, "滄龍・原始", 0, 0, u.r * 1.05, 0, dead ? 0 : now2, null, 0);
+    ctx.restore(); ctx.globalAlpha = 1;
   };
+  A0.mosasaur.top = 70;
   A0.mosaFish = (ctx, u, p, now2) => {
     ctx.globalAlpha = u.alive === false ? 0.2 : 1;
     R.SeaArt?.draw(ctx, "幽靈魚", p.x, p.y + Math.sin(now2 / 300 + u.x) * 3, u.r * 0.85, u.facing ?? 0, now2, null, (u.x || 0) / 50);
@@ -204,9 +239,21 @@
     ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.25, 0, Math.PI * 2); ctx.fill();
   }
   const hash = (i) => { const x = Math.sin(i * 127.1) * 43758.5453; return x - Math.floor(x); };
+  // 黑影：先畫一次到小畫布（塗黑）存起來，之後每一幀只貼圖（使用者 11/22：之前每幀用 filter 會卡頓）
+  const SIL_S = 60;
+  let SIL = null;
+  function silhouette() {
+    if (SIL) return SIL;
+    const W = SIL_S * 5.2, H = SIL_S * 3.2, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    R.SeaArt?.draw(g, "滄龍・原始", W * 0.48, H * 0.55, SIL_S, 0, 0, null, 0);
+    g.globalCompositeOperation = "source-in"; g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+    return (SIL = { c, ox: W * 0.48, oy: H * 0.55 });
+  }
   function shadowArt(ctx, x, y, s, face, t, alpha) {
-    ctx.save(); ctx.globalAlpha = alpha; ctx.filter = "brightness(0)";
-    R.SeaArt?.draw(ctx, "滄龍・原始", x, y, s, face, t, null, 0);
+    const S = silhouette(), k = s / SIL_S, f = Math.cos(face || 0) >= 0 ? 1 : -1;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y + Math.sin(t / 400) * 4); ctx.scale(k * f, k);
+    ctx.drawImage(S.c, -S.ox, -S.oy);
     ctx.restore();
   }
   // 出場動畫：泡沫 → 背景竄出黑影 → 變成滄龍
