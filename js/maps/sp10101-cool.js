@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sp10101-cool.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sp10101-cool.js": "20261122223322" });
 // 地圖：#SP10101 遞廻齒輪鑲嵌之國・下層的冷卻工廠
 // 上層所有的機器都靠這裡送上去的冷卻水撐著。西邊是冷卻水槽和主泵，中間是分流閥，北牆是送往上層各區的出水口
 // 東邊是主排氣塔；四周的排氣口連著整座城的蒸氣管（蒸氣幽靈在這些口之間跳來跳去）

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/dg00777.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/dg00777.js": "20261122223322" });
 // 地圖：#DG00777 致命賭局（A 級・戰役）＝大莊家斯賓沃迪的賭場
 // 一到這裡就直接坐上賭桌（js/worlds/dg00777.js 會馬上開戰）；打贏之後才能在賭場裡走動、用籌碼消費
 // 中間：大莊家的賭桌；東：籌碼兌換櫃台（斯賓沃迪在旁邊）；西：一排拉霸機；南：酒館的門

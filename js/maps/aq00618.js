@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/aq00618.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/aq00618.js": "20261122223322" });
 // 地圖：#AQ00618 如此靜謐的蔚藍（A 級）——燈光幽暗的大型水族館，一個所有生命都在互相觀賞的地方
 // 大廳四周是五個大水缸：珊瑚礁、雨林、寒帶（北邊三個）、暖海（西）、深海（東）；中間是表演廳（餵食秀的舞台）；南邊是入口（傳送門）
 // 水缸的玻璃可以直接穿過去，也不會溺水——但水缸裡的魚是人，外面的人變成了魚

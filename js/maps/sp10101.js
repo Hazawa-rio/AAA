@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sp10101.js": "20261122024623" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/sp10101.js": "20261122223322" });
 // 地圖：#SP10101 遞廻齒輪鑲嵌之國（A 級）——霍夫曼原本的時空，上層：齒輪城
 // 整座城是一塊一塊浮在蒸氣深谷上的平台（5 × 4），平台之間只能靠橋過去：
 //   齒輪橋：平台邊上的大齒輪帶著一條長長的橋臂，點齒輪（站在同一塊平台上）就轉 90°。橋臂指向隔壁平台才走得過去
