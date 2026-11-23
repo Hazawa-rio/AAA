@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/guan.js": "20261123215910" });
 // 角色：觀知命（卜卦人）
 // 吉位／兇位是場上的區域（zones 的 lucky / unlucky）。從吉位打兇位的敵人傷害更高
 // 魔力角色：趨吉避凶、陰陽兩和、乾坤挪移花魔力；被動「天明道法」：給護盾時魔力夠就消耗雙倍魔力，護盾 ×1.5
@@ -168,7 +168,7 @@
         status(b, u) { return { ready: true, cost: this.ap, label: this.name, aim: { type: "enemy", range: this.range, free: true } }; },
         path(b, u, arg) {
           const d = dirOf(u, arg);
-          let hit = null, t = this.range;
+          let hit = null, t = b.rayCover(u.x, u.y, d.dx, d.dy, this.range, "shot");      // 符咒＝投射物：撞到掩體就停
           for (const e of [...b.targetsFor(u), ...b.allies()]) {
             const h = R.geo.rayCircle(u.x, u.y, d.dx, d.dy, e.x, e.y, e.r);
             if (h !== null && h < t && h > 0) { hit = e; t = h; }

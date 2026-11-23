@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/youyan.js": "20261123215910" });
 // 角色：悠魘（洋紅色的「悠」，卡池角色）
 // 表面上：來自■■■■的魔法少女，和使魔咕哩咕妞簽了契約，用魔法守護愛與正義
 // 隱藏簡介（酒館名牌架滑鼠移到簡介上才看得到）：鮫島事件時空的少女，人格被那裡的「異常現象」吃掉，成了高危異常現象的容器
@@ -312,7 +312,7 @@
         full(u) { return (u.state.crystals || 0) >= C.skills.crystal.need; },
         starBase(u) { const K = C.skills.crystal, y = yan(u); return 3 * (y ? K.yanBase + u.atk * K.yanScale : K.base + u.atk * K.atkScale) * (R.upHas(upg(u), "sharp") ? 1.3 : 1); },
         starPath(b, u, arg) {
-          const d = dirOf(u, arg), L = this.starRange, pierce = R.upHas(upg(u), "pierceStar");
+          const d = dirOf(u, arg), pierce = R.upHas(upg(u), "pierceStar"), L = b.rayCover(u.x, u.y, d.dx, d.dy, this.starRange, "shot");     // 星星＝投射物：撞到掩體就停
           const on = b.targetsFor(u).filter((e) => e.alive && R.geo.pointSeg(e.x, e.y, u.x, u.y, u.x + d.dx * L, u.y + d.dy * L) <= this.starWidth / 2 + e.r)
             .map((e) => ({ e, s: (e.x - u.x) * d.dx + (e.y - u.y) * d.dy })).filter((o) => o.s > 0).sort((a, c) => a.s - c.s);
           const hits = pierce ? on.map((o) => o.e) : on.slice(0, 1).map((o) => o.e), end = !pierce && on[0] ? on[0].s : L;

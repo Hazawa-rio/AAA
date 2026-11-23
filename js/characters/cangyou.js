@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/cangyou.js": "20261123215910" });
 // 角色：蒼幽（神秘的少年，似乎來自某個水族館，和幽靈一樣的魚兒作伴）
 // 魔力角色。方塊比較小（和霍夫曼相反）：身體的判定也比較小，比較難被打中
 // 被動「安慰劑」：泡泡被魚群吃掉時，自己少量回血
@@ -148,7 +148,7 @@
     shootBubbles(b, u, list, base, note, delay = 0) {
       const out = [];
       for (const s of list) {
-        let hit = null, t = s.len;
+        let hit = null, t = b.rayCover(s.x, s.y, s.dx, s.dy, s.len, "shot");      // 投射物：撞到掩體就停在前面
         for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(s.x, s.y, s.dx, s.dy, e.x, e.y, e.r + 8); if (h !== null && h >= 0 && h < t) { hit = e; t = h; } }
         out.push({ x1: s.x, y1: s.y, x2: s.x + s.dx * t, y2: s.y + s.dy * t, pop: !!hit });
         if (hit) b.damage(u, hit, base, 1, note);
@@ -202,9 +202,8 @@
       const L = R.dist(from.x, from.y, x, y);
       if (L < 1) return;
       f.face = Math.atan2(y - from.y, x - from.x);
-      let to = null;
-      for (let s = L; s > 4; s -= 6) { const px = from.x + ((x - from.x) * s) / L, py = from.y + ((y - from.y) * s) / L; if (!b.blocked(f, px, py)) { to = { x: px, y: py }; break; } }
-      if (!to) return;
+      const to = b.travel(f, from, { x, y }, "dash");          // 直線游過去：碰到掩體停在前面（不會穿過去）
+      if (R.dist(to.x, to.y, from.x, from.y) < 4) return;
       f.x = to.x; f.y = to.y;
       b.emit({ type: "leap", unit: f, from, to, duration: dur, height: 4 });
     },
@@ -233,7 +232,7 @@
       const e = foes.sort((a, c) => R.dist(a.x, a.y, f.x, f.y) - R.dist(c.x, c.y, f.x, f.y))[0];
       const d = R.dist(e.x, e.y, f.x, f.y), near = e.r + 18 * S.size;
       // 墨魚：遠距離噴墨（麻痺），2 點
-      if (S.ink && !f.cd && ap >= 2 && d > 140 && d <= S.ink.range) {
+      if (S.ink && !f.cd && ap >= 2 && d > 140 && d <= S.ink.range && b.seen(f, e, "shot")) {       // 噴墨＝投射物：掩體後面噴不到
         f.cd = S.ink.cd; f.face = Math.atan2(e.y - f.y, e.x - f.x);
         b.say(`${S.name}朝 ${e.name} 噴墨！`);
         b.emit({ type: "ink", x1: f.x, y1: f.y, x2: e.x, y2: e.y });
@@ -248,6 +247,7 @@
         this.swim(b, f, e.x + Math.cos(ang) * near, e.y + Math.sin(ang) * near, 0.3);
         f.face = Math.atan2(e.y - f.y, e.x - f.x);
         this.eat(b, u, f, (q) => R.geo.pointSeg(q.x, q.y, fx0, fy0, f.x, f.y) <= 60);
+        if (R.dist(e.x, e.y, f.x, f.y) > near + 14) { b.say(`${S.name}的衝刺被掩體擋住了`); return 2; }      // 衝刺被掩體擋住：咬不到
         b.say(`${S.name}衝刺啃咬 ${e.name}！`);
         b.emit({ type: "sfx", sound: SND.whale, rate: 1.6 });
         b.emit({ type: "bite", x: e.x, y: e.y, delay: 0.3 });
@@ -391,7 +391,7 @@
           if (!n && !jf.length) b.say("泡泡飄在空中……");
           // 海底巡迴：身邊的每條魚朝同一個方向噴一道水柱（穿過路上的敵人）
           for (const f of jf) {
-            const x2 = f.x + d.dx * (this.range + 40), y2 = f.y + d.dy * (this.range + 40);
+            const cl = b.clipLine(f, { x: f.x + d.dx * (this.range + 40), y: f.y + d.dy * (this.range + 40) }), x2 = cl.x, y2 = cl.y;      // 水柱＝直線：被掩體擋住
             f.face = d.ang;
             b.emit({ type: "waterJet", x1: f.x, y1: f.y, x2, y2, w: this.jetWidth });
             for (const e of b.targetsFor(u)) if (e.alive && R.geo.pointSeg(e.x, e.y, f.x, f.y, x2, y2) <= this.jetWidth / 2 + e.r) b.damage(u, e, this.jetBase, 1, `（${f.name}的水柱）`);
@@ -468,18 +468,18 @@
         paradeLen: 640, paradePerFish: 220, paradeGap: 0.5,   // 靜謐遊行：游的距離、每隻魚加多少、同一個敵人隔多久可以再撞一次（使用者 11/22：加長、可以連續撞）
         ap: 2, mp: 35, charge: 5, range: 380, width: 116, base: 12, spray: 12, sprayLen: 160, sprayBase: 3,
         desc: "向前方丟出一隻大蝠鱝（寬 116），撞擊路上的敵人，飛到底時向周圍噴射 12 顆泡泡（打中破裂，沒打中留在場上）",
-        path(u, arg) { const d = dirOf(u, arg); return { d, x2: u.x + d.dx * this.range, y2: u.y + d.dy * this.range }; },
+        path(u, arg, b) { const d = dirOf(u, arg), z = { x: u.x + d.dx * this.range, y: u.y + d.dy * this.range }, c = b ? b.clipLine(u, z) : z; return { d, x2: c.x, y2: c.y }; },     // 蝠鱝＝直線：碰到掩體就停在前面
         status(b, u) {
           if (u.charge < this.charge) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${u.charge}/${this.charge}`, reason: `還要 ${this.charge - u.charge} 次行動才能使用` };
           if (u.mp < this.mp) return { ready: false, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, reason: "魔力不足" };
           return { ready: true, cost: this.ap, mp: this.mp, label: this.name, note: `${this.mp} MP`, aim: { type: "direction" } };
         },
-        predict(b, u, arg) { const p = this.path(u, arg); return b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, u.x, u.y, p.x2, p.y2) <= this.width / 2 + e.r); },
+        predict(b, u, arg) { const p = this.path(u, arg, b); return b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, u.x, u.y, p.x2, p.y2) <= this.width / 2 + e.r); },
         preview(b, u, arg) {
-          const p = this.path(u, arg);
+          const p = this.path(u, arg, b);
           return { shapes: [{ shape: "line", x1: u.x, y1: u.y, x2: p.x2, y2: p.y2, width: this.width }, { shape: "circle", x: p.x2, y: p.y2, radius: this.sprayLen }], hits: this.predict(b, u, arg) };
         },
-        areaCenter(b, u, arg) { const p = this.path(u, arg); return { x: p.x2, y: p.y2 }; },
+        areaCenter(b, u, arg) { const p = this.path(u, arg, b); return { x: p.x2, y: p.y2 }; },
         // ----- 靜謐遊行：即時游動，方向跟著滑鼠 -----
         parade(b, u, arg) {
           const d = dirOf(u, arg), P = { x: u.x, y: u.y, a: d.ang, left: this.paradeLen, speed: 360, fish: [], hit: new Map(), hits: 0, trail: [], t0: now() };
@@ -496,8 +496,10 @@
             if (b.phase === "over" || b.dead) return end();
             const m = R._bMouse;
             if (m?.in) { const want = Math.atan2(m.y - P.y, m.x - P.x); let da = ((want - P.a + Math.PI * 3) % (Math.PI * 2)) - Math.PI; P.a += Math.max(-3.2 * dt, Math.min(3.2 * dt, da)); }
-            const step = P.speed * dt;
-            P.x += Math.cos(P.a) * step; P.y += Math.sin(P.a) * step; P.left -= step;
+            const step = P.speed * dt, nx = P.x + Math.cos(P.a) * step, ny = P.y + Math.sin(P.a) * step;
+            // 撞到掩體：停在牆前面（只能轉向），距離照樣扣
+            if (!b.coverHit(P, { x: nx, y: ny }, "dash", 20)) { P.x = nx; P.y = ny; }
+            P.left -= step;
             if (Math.random() < 0.6) P.trail.push({ x: P.x - Math.cos(P.a) * 40 + (Math.random() - 0.5) * 30, y: P.y - Math.sin(P.a) * 40 + (Math.random() - 0.5) * 30, t: tn, r: 4 + Math.random() * 6 });
             P.trail = P.trail.filter((q) => tn - q.t < 1400);
             // 碰到幽靈魚：加入遊行，游得更遠
@@ -535,7 +537,7 @@
         shelterFish(b, u, p) { return fishOf(u).filter((f) => R.geo.pointSeg(f.x, f.y, u.x, u.y, p.x2, p.y2) <= this.width / 2 + f.r || R.dist(f.x, f.y, p.x2, p.y2) <= this.sprayLen + f.r); },
         use(b, u, arg) {
           if (upg(u).w1 === "parade") return this.parade(b, u, arg);
-          const p = this.path(u, arg), hits = this.predict(b, u, arg);
+          const p = this.path(u, arg, b), hits = this.predict(b, u, arg);
           if (upg(u).w1 === "shelter") {
             const fs = this.shelterFish(b, u, p);
             for (const f of fs) { f.shelterUntil = b.round + this.shelterTurns; b.emit({ type: "buff", unit: f, text: `庇護：傷害 ×${this.shelterMult}`, color: "#3a7bd5" }); }

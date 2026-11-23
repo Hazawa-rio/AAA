@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/phantom.js": "20261123215910" });
 // 角色：魅影（卡池角色・怪盜・近戰突進）
 // 本名不詳，以「魅影」為代號的怪盜。利用穿梭時空的能力來往各個時空盜竊（簡介是使用者寫的）
 // 被動「掠奪本能」：每件寶物（寶物欄）讓造成的傷害 +6%；無法接受任何來自隊友給予的道具（連線時：隊友不能從背包給她東西）
@@ -176,7 +176,7 @@
           const t = arg.target;
           if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
           const s = this.shape(u, arg);
-          return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, s, e.r));
+          return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, s, e.r) && b.seen(u, e));      // 突刺＝直線：掩體後面刺不到
         },
         preview(b, u, arg) { return { shapes: [this.shape(u, arg)], hits: this.predict(b, u, arg) }; },
         use(b, u, arg) {
@@ -296,9 +296,8 @@
         desc: "射出一張犯罪預告信，打中的第一個單位——敵人：被預告 1 回合（受到的所有攻擊傷害 ×1.25）；隊友：被預告而防備魅影，移動範圍 ×1.35",
         get projectileSpeed() { return this.speed; },
         first(b, u, d, from, skip) {
-          let hit = null, t = this.range;
+          let hit = null, t = b.rayCover(from.x, from.y, d.dx, d.dy, this.range, "shot");      // 預告信＝投射物：撞到掩體（高、矮）就停
           for (const e of [...b.targetsFor(u), ...alliesOf(b, u)]) { if (e === skip) continue; const h = R.geo.rayCircle(from.x, from.y, d.dx, d.dy, e.x, e.y, e.r + 6); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
-          for (let s = 8; s <= t; s += 8) { if (b.obstacleAt({ r: 2, def: { fly: true } }, from.x + d.dx * s, from.y + d.dy * s)) { hit = null; t = s; break; } }
           return { hit, t };
         },
         status(b, u) {
@@ -391,7 +390,7 @@
           const d = dirOf(u, arg), dur = this.waveDur(u), n = Math.max(1, Math.round(dur * this.waveRate)), H = this.coinHalf * DEG, out = [];
           for (let i = 0; i < n; i++) {
             const a = d.ang + H * Math.sin(i * 1.13), dx = Math.cos(a), dy = Math.sin(a);
-            let hit = null, t = this.coinRange;
+            let hit = null, t = b.rayCover(u.x, u.y, dx, dy, this.coinRange, "shot");      // 財寶＝投射物
             for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(u.x, u.y, dx, dy, e.x, e.y, e.r + 10); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
             out.push({ a, hit, t, at: (i / n) * dur, kind: LOOT[i % LOOT.length] });
           }

@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/bastian.js": "20261123215910" });
 // 角色：巴斯提安（近戰・塔盾）
 // 一座已經陷落的城的守門人，背著比門板還寬的塔盾和一把短矛
 // 被動「不退之門」：面向的正前方（±60°）受到的傷害 ×0.65；擋下來的傷害累積成「壓力」（上限 60）
@@ -35,9 +35,8 @@
   function push(b, e, ang, d) {
     if (!e.alive || heavy(e) || d <= 0) return false;
     const from = { x: e.x, y: e.y };
-    let to = null;
-    for (let s = 8; s <= d; s += 8) { const x = from.x + Math.cos(ang) * s, y = from.y + Math.sin(ang) * s; if (b.blocked(e, x, y) || b.onObstacle(e, x, y)) break; to = { x, y }; }
-    if (!to) return false;
+    const to = b.travel(e, from, { x: from.x + Math.cos(ang) * d, y: from.y + Math.sin(ang) * d }, "dash");      // 直線位移：碰到掩體就停
+    if (R.dist(to.x, to.y, from.x, from.y) < 4) return false;
     const A = b.cfg.arena, m = e.r + 4;
     to.x = Math.min(Math.max(to.x, m), A.w - m); to.y = Math.min(Math.max(to.y, m), A.h - m);
     e.x = to.x; e.y = to.y;
@@ -221,7 +220,7 @@
           const t = arg.target;
           if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
           const s = this.shape(u, arg);
-          return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, s, e.r));
+          return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, s, e.r) && b.seen(u, e));      // 直線攻擊：掩體後面打不到
         },
         preview(b, u, arg) { return { shapes: [this.shape(u, arg)], hits: this.predict(b, u, arg) }; },
         use(b, u, arg) {
@@ -244,12 +243,12 @@
         desc: "舉盾往指定方向衝，撞到第一個敵人就停下來，把它撞開（Boss 太重撞不動，只會受傷）",
         rng(u) { return this.dist * (R.upHas(upg(u), "ram") ? 1.4 : 1); },
         path(b, u, arg) {
-          const d = dirOf(u, arg), L = this.rng(u);
-          let hit = null, t = L;
+          const d = dirOf(u, arg), L = this.rng(u), wall = b.rayCover(u.x, u.y, d.dx, d.dy, L, "dash", u.r * 0.85);     // 衝鋒＝直線位移：碰到掩體就停
+          let hit = null, t = wall;
           for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(u.x, u.y, d.dx, d.dy, e.x, e.y, e.r + u.r); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
           // 停的位置：撞到的敵人前面，或是路上第一個站不下的地方
           let stop = { x: u.x, y: u.y };
-          const end = hit ? Math.max(0, t - 4) : L;
+          const end = hit ? Math.max(0, t - 4) : wall;
           for (let s = 8; s <= end; s += 8) { const x = u.x + d.dx * s, y = u.y + d.dy * s; if (b.onObstacle(u, x, y) || b.blocked(u, x, y)) break; stop = { x, y }; }
           return { d, hit, stop };
         },

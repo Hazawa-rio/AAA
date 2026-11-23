@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/vivilla.js": "20261123215910" });
 // 角色：薇薇拉（輔助，第一個使用魔力的角色）
 // 技能格式同 firsler.js：status / predict / use；status 可以回傳 mp（魔力消耗，由 battle 扣）
 // 蘑菇丟出去之後要過一下才爆炸（飛行＋引信），所以爆炸是非同步結算
@@ -235,7 +235,8 @@
           const t = arg.target ? { x: arg.target.x, y: arg.target.y } : arg;
           if (!t || !Number.isFinite(t.x)) err("請點選地面或敵人");
           if (R.dist(u.x, u.y, t.x, t.y) > this.range + (arg.target ? arg.target.r : 0) + 0.5) err("距離太遠");
-          return { x: t.x, y: t.y };
+          const l = b.throwLand(u, t);          // 蘑菇＝投擲物：越得過矮掩體，被高掩體擋住就落在前面
+          return { x: l.x, y: l.y };
         },
         // 這一次會丟出哪些蘑菇
         drops(b, u, arg) {
@@ -327,6 +328,7 @@
           const d = R.dist(u.x, u.y, p.x, p.y) || 1, ux = (u.x - p.x) / d, uy = (u.y - p.y) / d;
           const A = b.cfg.arena, cage = b.cageOf?.(u);
           let len = this.dash * (R.upHas(upg(u), "sprint") ? 2 : 1);
+          len = Math.max(0, b.rayCover(u.x, u.y, ux, uy, len, "dash", u.r * 0.85) - 1);     // 往後跑＝直線位移：碰到掩體就停
           const at = (s) => ({ x: Math.min(Math.max(u.x + ux * s, u.r), A.w - u.r), y: Math.min(Math.max(u.y + uy * s, u.r), A.h - u.r) });
           while (len > 0) {
             const q = at(len);

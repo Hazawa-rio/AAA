@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/firsler.js": "20261123215910" });
 // 角色：弗爾斯勒
 // 每個技能提供：
 //   status(battle, unit) → { ready, cost, label, note, reason, aim }
@@ -26,8 +26,9 @@
     return { enter: Math.max(0, t0), exit: t1 };
   }
   // 從 (ox,oy) 沿方向前進，maxT 內最先碰到的敵人
+  //   箭＝投射物：撞到掩體（高、矮）就停在前面
   function firstHit(b, ox, oy, dx, dy, maxT) {
-    let hit = null, hitT = maxT;
+    let hit = null, hitT = b.rayCover(ox, oy, dx, dy, maxT, "shot");
     for (const e of b.enemies()) {
       const t = R.geo.rayCircle(ox, oy, dx, dy, e.x, e.y, e.r);
       if (t !== null && t < hitT) { hit = e; hitT = t; }
@@ -36,7 +37,7 @@
   }
   // 線段（有寬度）會碰到的所有敵人
   const alongSeg = (b, ax, ay, bx, by, width) =>
-    b.enemies().filter((e) => R.geo.pointSeg(e.x, e.y, ax, ay, bx, by) <= e.r + width / 2);
+    b.enemies().filter((e) => R.geo.pointSeg(e.x, e.y, ax, ay, bx, by) <= e.r + width / 2 && b.seen({ x: ax, y: ay }, e));
 
   const C = {
     id: "firsler",
@@ -204,7 +205,7 @@
           const ang = Math.atan2(t.y - u.y, t.x - u.x);
           return { shape: "rect", x: u.x + Math.cos(ang) * (u.r - 6), y: u.y + Math.sin(ang) * (u.r - 6), ang, length: this.size, width: this.size };
         },
-        hits(b, u, box) { return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, box, e.r * 0.8)); },
+        hits(b, u, box) { return b.targetsFor(u).filter((e) => R.geo.inRect(e.x, e.y, box, e.r * 0.8) && b.seen(u, e)); },
         predict(b, u, arg) {
           const t = arg.target;
           if (t && (!t.alive || t.team === u.team)) err("請點選一個敵人");
@@ -289,13 +290,14 @@
               });
             }
           } else if (q1 === "pierce" && passedBeforeHit) {
-            // 穿雲之箭：進入煙霧後穿透，射程內路線上的敵人全部命中
+            // 穿雲之箭：進入煙霧後穿透，射程內路線上的敵人全部命中（掩體還是擋得住）
+            const wall = b.rayCover(u.x, u.y, dx, dy, range, "shot");
             const hits = b.enemies()
               .map((e) => ({ e, t: R.geo.rayCircle(u.x, u.y, dx, dy, e.x, e.y, e.r) }))
-              .filter((o) => o.t !== null && o.t <= range)
+              .filter((o) => o.t !== null && o.t <= wall)
               .sort((a, c) => a.t - c.t)
               .map((o) => ({ unit: o.e, mult: this.pierceMult, note: `（穿雲之箭 ×${this.pierceMult}）` }));
-            arrows.push({ from, to: at(range), boosted: true, pierce: true, hits });
+            arrows.push({ from, to: at(wall), boosted: true, pierce: true, hits });
           } else {
             // 一般的箭：命中第一個敵人，路線穿過煙霧 ×1.5
             const to = at(h.t);

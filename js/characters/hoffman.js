@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/hoffman.js": "20261123215910" });
 // 角色：霍夫曼（怪鼠機關屋的主人）
 // 被動「時間壓縮」：回合結束時消耗所有剩下的行動點存起來（最多 5）；滿了也照樣消耗
 // 大招「壓縮加速機」：把存起來的行動點換回來，展開齒輪領域，普攻變成在領域裡直線來回撞擊
@@ -19,14 +19,10 @@
   const upg = (u) => u.upg || {};
   const domainOf = (b, u) => b.zones.find((z) => z.type === "gearField" && z.owner === u) || null;
   // 沿著 from→to 找最後一個能站的位置（可以穿過其他單位）
-  function landing(b, u, from, to) {
-    const A = b.cfg.arena, D = R.dist(from.x, from.y, to.x, to.y);
-    for (let s = D; s >= 0; s -= 6) {
-      const k = D ? s / D : 0;
-      const x = Math.min(Math.max(from.x + (to.x - from.x) * k, u.r), A.w - u.r), y = Math.min(Math.max(from.y + (to.y - from.y) * k, u.r), A.h - u.r);
-      if (!b.blocked(u, x, y)) return { x, y };
-    }
-    return { x: u.x, y: u.y };
+  // 位移的落點（掩體規則在 battle.js 的 travel）：kind＝dash 直線位移（高、矮掩體都擋）／leap 跳躍（越得過矮掩體）
+  function landing(b, u, from, to, kind = "dash") {
+    const p = b.travel(u, from, to, kind);
+    return { x: p.x, y: p.y };
   }
 
   const C = {
@@ -198,7 +194,9 @@
           const t = -bq + Math.sqrt(Math.max(0, bq * bq - c));
           if (!(t > 20)) err("已經在領域邊緣了，往領域裡面撞");
           const to = landing(b, u, { x: u.x, y: u.y }, { x: u.x + d.dx * t, y: u.y + d.dy * t });
-          const hits = b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, u.x, u.y, u.x + d.dx * t, u.y + d.dy * t) <= e.r + this.dashWidth / 2);
+          // 亞光速撞擊＝位移攻擊：被掩體擋住就停下，掩體後面的敵人撞不到
+          const wall = b.rayCover(u.x, u.y, d.dx, d.dy, t, "dash", u.r * 0.85);
+          const hits = b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, u.x, u.y, u.x + d.dx * wall, u.y + d.dy * wall) <= e.r + this.dashWidth / 2);
           return { d, to, end: { x: u.x + d.dx * t, y: u.y + d.dy * t }, hits };
         },
         predict(b, u, arg) {
@@ -267,7 +265,7 @@
           if (!Number.isFinite(arg.x)) err("請點選地面");
           const D = R.dist(u.x, u.y, arg.x, arg.y);
           const L = this.len(u), k = D > L ? L / D : 1;
-          const p = landing(b, u, { x: u.x, y: u.y }, { x: u.x + (arg.x - u.x) * k, y: u.y + (arg.y - u.y) * k });
+          const p = landing(b, u, { x: u.x, y: u.y }, { x: u.x + (arg.x - u.x) * k, y: u.y + (arg.y - u.y) * k }, "leap");      // 噴氣＝跳躍：越得過矮掩體，高的越不過
           if (R.dist(p.x, p.y, u.x, u.y) < 5) err("那裡沒辦法落地");
           const cage = b.cageOf?.(u);
           if (cage && !this.pumped(u) && !b.inCage(cage, p.x, p.y, b.cfg.body * 0.6)) err("被聖牢籠困住了（時間泵動可以跳出去）");
@@ -316,6 +314,7 @@
           let t = this.rng(u);
           // 撞到場地邊緣就停
           while (t > 20 && (u.x + d.dx * t < 10 || u.y + d.dy * t < 10 || u.x + d.dx * t > A.w - 10 || u.y + d.dy * t > A.h - 10)) t -= 10;
+          t = Math.max(10, b.rayCover(u.x, u.y, d.dx, d.dy, t, "shot", 12));          // 飛盤＝投射物：撞到掩體就停在前面
           return { d, x: u.x + d.dx * t, y: u.y + d.dy * t };
         },
         lineHits(b, u, a, c) { return b.targetsFor(u).filter((e) => R.geo.pointSeg(e.x, e.y, a.x, a.y, c.x, c.y) <= e.r + this.wid(u) / 2); },
@@ -434,7 +433,7 @@
         async suppress(b, u, z, spend) {
           const r = z.r, pulls = this.pulls(b, u).map((e) => {
             const d = R.dist(e.x, e.y, z.x, z.y) || 1;
-            return { e, from: { x: e.x, y: e.y }, to: { x: z.x + ((e.x - z.x) / d) * (r - e.r - 8), y: z.y + ((e.y - z.y) / d) * (r - e.r - 8) } };
+            return { e, from: { x: e.x, y: e.y }, to: landing(b, e, { x: e.x, y: e.y }, { x: z.x + ((e.x - z.x) / d) * (r - e.r - 8), y: z.y + ((e.y - z.y) / d) * (r - e.r - 8) }) };     // 拉進來＝直線位移：被掩體擋住
           });
           const ok = () => !b.dead && b.phase !== "over";
           b.say(`${u.name} 在齒輪領域裡高速移動！`);

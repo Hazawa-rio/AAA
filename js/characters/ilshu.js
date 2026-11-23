@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/ilshu.js": "20261123215910" });
 // 角色：伊爾舒
 // 被動「直面心魔」：場上會有一隻只有伊爾舒打得到的心魔（1 血、不會自己動）。
 // 打倒心魔獲得一層陰霾（最多 5 層），然後在地圖上隨機的位置再出現一隻。
@@ -241,6 +241,7 @@
             // 逆行試煉：伊爾舒衝向心魔
             const L = R.dist(u.x, u.y, d.x, d.y), ux = (d.x - u.x) / L, uy = (d.y - u.y) / L;
             let len = Math.max(0, Math.min(this.dashMax, L - (u.r + d.r + 4)));
+            len = Math.max(0, b.rayCover(u.x, u.y, ux, uy, len, "dash", u.r * 0.85) - 1);     // 衝刺＝直線位移：碰到掩體就停
             const A = b.cfg.arena;
             // 被聖牢籠困住時，衝刺會撞上牢籠停下來（只能衝到框邊）
             const cage = b.cageOf?.(u);
@@ -258,6 +259,7 @@
           if (q1 === "heavy") {
             // 千鈞試煉：撞到第一個敵人就停
             let len = Math.max(0, Math.min(this.heavyPull, L - (u.r + d.r + 4)));
+            len = Math.max(0, b.rayCover(d.x, d.y, ux, uy, len, "dash", d.r * 0.85) - 1);     // 心魔被拉過來＝直線位移：碰到掩體就停
             let first = null, firstT = len;
             for (const e of b.targetsFor(u)) {
               if (e.demon) continue;
@@ -270,6 +272,7 @@
             return { d, mover: d, from: { x: d.x, y: d.y }, to, hits: first ? [first] : [], r: d.r, dist: len, heavy: true };
           }
           let len = Math.max(0, Math.min(this.pull, L - (u.r + d.r + 4)));
+          len = Math.max(0, b.rayCover(d.x, d.y, ux, uy, len, "dash", d.r * 0.85) - 1);
           while (len > 0 && !ok(len)) len -= 4;
           const to = { x: d.x + ux * len, y: d.y + uy * len };
           const hits = b.targetsFor(u).filter((e) => !e.demon && R.geo.pointSeg(e.x, e.y, d.x, d.y, to.x, to.y) <= e.r + d.r);

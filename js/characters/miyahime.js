@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/miyahime.js": "20261123215910" });
 // 角色：彌華姬（卡池角色・若色組組長・毒）
 // 三代目若色組組長。男扮女裝隱藏自己是被肅清的初代組長長子的身分；唯一信任的是親手「培養」的人造人最高顧問・渡冥隱子（簡介是使用者寫的）
 // 中毒（這個角色帶進來的狀態）：每層每回合扣「姬的最大生命 × 1.2%」，最多 50 層；被中毒的單位在自己的回合開始時扣血，之後少 1 層
@@ -11,7 +11,7 @@
 //   強化 1：駛向黃泉（姬揮扇子把毒霧搧到遠處）／護衛組長（毒霧擊退敵人）
 //   強化 2：無禮懲戒（中毒層數 +1）／效忠之心（使用時回復一點生命）
 // W「彌生艷華」：瞄準大範圍裡所有中毒的敵人，蓄力一回合（下一次輪到自己時）連續揮扇射出淬毒苦無，最多 5 發
-//   強化（二選一）：啼哭之雀（從扇子裡抽出太刀蓄力，蓄力完瞄準最近的中毒敵人揮出大型刀光：清除命中敵人的中毒，結算剩下中毒傷害的 1.2 倍）
+//   強化（二選一）：啼哭之雀（從扇子裡抽出太刀蓄力，蓄力完以最近的中毒敵人為方向揮出大範圍的新月形劍氣：範圍裡都會被砍，中毒的敵人清除中毒並結算剩下中毒傷害的 1.2 倍）
 //                    黑冥散華（蓄力完顧問出現在身後，放出和苦無一樣多的毒霧，讓姬一起搧出去）
 // 樣子（使用者的設計圖）：姬＝黃色方塊「彌」；顧問＝灰色方塊「冥」；毒霧＝淡紫色的雲；姬搧扇子＝紅色的弧線
 // 數值都是暫定；個性台詞之後由使用者提供；音效暫用現有的
@@ -79,8 +79,9 @@
 
   // ===== 路徑 =====
   // 從 (x,y) 朝 (dx,dy) 飛 L：第一個碰到的敵人（skip 不算）、或第一面牆；回傳停下的距離
+  //   飛出去的東西＝投射物：撞到掩體（高、矮）就停在前面（battle.js 的掩體規則）
   function ray(b, u, x, y, dx, dy, L, pad = 4, skip) {
-    let hit = null, t = L;
+    let hit = null, t = b.rayCover(x, y, dx, dy, L, "shot");
     for (const e of b.targetsFor(u)) { if (e === skip || !e.alive) continue; const h = R.geo.rayCircle(x, y, dx, dy, e.x, e.y, e.r + pad); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
     const A = b.cfg.arena;
     for (let s = 8; s <= t; s += 6) {
@@ -169,7 +170,7 @@
         skill: "yayoi",
         tiers: [
           [
-            { id: "sparrow", name: "啼哭之雀", desc: "瞄準的回合從扇子中抽出一把太刀蓄力；蓄力完瞄準最近的中毒敵人揮出一道大型刀光（前方扇形＋往前拉長的長條）：清除命中敵人的中毒，並一口氣結算剩下中毒傷害的 1.2 倍" },
+            { id: "sparrow", name: "啼哭之雀", desc: "瞄準的回合從扇子中抽出一把太刀蓄力；蓄力完以最近的中毒敵人為方向，揮出一道大範圍的新月形劍氣：範圍裡的敵人都會被砍，中毒的敵人會被清除中毒，並一口氣結算剩下中毒傷害的 1.2 倍" },
             { id: "dark", name: "黑冥散華", desc: "蓄力完畢時顧問出現在姬的身後，放出和苦無一樣多的毒霧，讓姬跟著苦無一起搧出去（每團毒霧：範圍內＋2 層中毒）" },
           ],
         ],
@@ -407,7 +408,7 @@
           b.emit({ type: "sfx", sound: m === "sparrow" ? SND.draw : SND.fan });
           if (m === "sparrow") b.say(`${u.name}：「彌生艷華・啼哭之雀」——從扇子裡抽出一把太刀，開始蓄力（瞄準 ${list.length} 個中毒的敵人）`);
           else b.say(`${u.name}：「彌生艷華」——鐵扇半開，瞄準 ${list.length} 個中毒的敵人，開始蓄力（下一次輪到自己時發動）`);
-          b.emit({ type: "mhAim", x: u.x, y: u.y, r: this.range, dur: 0.9 });
+          b.emit({ type: "mhAim", x: u.x, y: u.y, r: this.range, dur: 0.9, unit: u, sparrow: m === "sparrow" });
           for (const e of list) b.emit({ type: "buff", unit: e, text: "被瞄準", color: FAN_RED });
         },
         // 蓄力完畢（下一次輪到姬時）
@@ -448,35 +449,38 @@
           }
           b.lockUntil = now() + (last + 0.6) * 1000;
         },
-        // 啼哭之雀（使用者 11/22）：瞄準最近的中毒目標，揮出一道大型刀光（使用者的圖２：幾道新月形的刀弧＋一條往前拉長的刀光）
-        //   命中：前方的扇形＋沿著方向的長條；清除中毒並一口氣結算
-        bladeHalf: 42, bladeLen: 620, bladeWidth: 70,
+        // 啼哭之雀（使用者 11/23 修正）：以「最近的中毒目標」當方向，揮出一道大範圍的新月形斬擊（不是只砍那一個）
+        //   新月裡的敵人都會被砍（基礎傷害）；只有中毒的敵人才會一口氣結算剩下的中毒（高傷害）
+        //   形狀照使用者的圖１：斜斜的一彎新月，靠近姬的一端在身邊、另一端甩到遠方；劍氣是毒骷髏的浮世繪（圖３）
+        //   劍氣算揮砍，不受掩體影響（和扇形一樣）
+        crR: 330, crThick: 130, crNear: 290, crTilt: -0.5,
         bladeHits(b, u, ang) {
-          const sec = { x: u.x, y: u.y, ang, half: this.bladeHalf * DEG, radius: this.slashR }, x2 = u.x + Math.cos(ang) * this.bladeLen, y2 = u.y + Math.sin(ang) * this.bladeLen;
-          return b.targetsFor(u).filter((e) => e.alive && (R.geo.inSector(e.x, e.y, sec, e.r) || R.geo.pointSeg(e.x, e.y, u.x, u.y, x2, y2) <= this.bladeWidth / 2 + e.r));
+          const G = crescent(u.x, u.y, ang, this);
+          return b.targetsFor(u).filter((e) => e.alive && inCrescent(G, e));
         },
         sparrow(b, u) {
           const foes = b.targetsFor(u).filter((e) => e.alive), byD = (a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y);
           const tgt = foes.filter((e) => e.state.poison > 0).sort(byD)[0] || foes.sort(byD)[0];
-          const ang = tgt ? Math.atan2(tgt.y - u.y, tgt.x - u.x) : (u.facing || 0), T0 = 0.25;
+          const ang = tgt ? Math.atan2(tgt.y - u.y, tgt.x - u.x) : (u.facing || 0), T0 = 0.3, SWEEP = 0.34;
           u.facing = ang;
-          const list = this.bladeHits(b, u, ang);
-          b.say(`${u.name}：「啼哭之雀」——蓄力完畢，太刀朝${tgt ? ` ${tgt.name} ` : "前方"}揮出一道巨大的刀光！`);
+          const G = crescent(u.x, u.y, ang, this), list = this.bladeHits(b, u, ang);
+          b.say(`${u.name}：「啼哭之雀」——蓄力完畢，太刀朝${tgt ? ` ${tgt.name} ` : "前方"}的方向揮出一道巨大的劍氣！`);
           b.emit({ type: "sfx", sound: SND.wave, delay: T0 });
-          b.emit({ type: "mhBlade", x: u.x, y: u.y, ang, r: this.slashR, len: this.bladeLen, w: this.bladeWidth, delay: T0 });
+          b.emit({ type: "mhBlade", x: u.x, y: u.y, ang, G, delay: T0, sweep: SWEEP, unit: u, hits: list.length, poisoned: list.filter((e) => e.state.poison > 0).map((e) => ({ x: e.x, y: e.y })) });
           for (const e of list) {
-            const at = T0 + 0.12 + (R.dist(e.x, e.y, u.x, u.y) / this.bladeLen) * 0.3;
+            const at = T0 + 0.06 + crescentT(G, e) * SWEEP;          // 劍氣掃到它的時候才算命中
             b.hitDelay = at;
-            b.damage(u, e, this.slash, 1, "（刀光）");
+            b.damage(u, e, this.slash, 1, "（劍氣）");
             b.hitDelay = 0;
             if (!e.alive || !(e.state.poison > 0)) continue;
             const n = e.state.poison, raw = remaining(b, e) * this.settle * (low(e) ? 1 + C.passive.bonus : 1), amt = Math.max(1, Math.round(raw));
             e.state.poison = 0;
             b.emit({ type: "mhBubble", x: e.x, y: e.y, r: e.r + 10, big: true, delay: at + 0.1 });
-            poisonHurt(b, e, amt, `${e.name} 的 ${n} 層中毒被刀光一口氣結算：${amt} 點傷害`, at + 0.2);
+            b.emit({ type: "mhSkullBite", x: e.x, y: e.y, delay: at + 0.05 });
+            poisonHurt(b, e, amt, `${e.name} 的 ${n} 層中毒被劍氣一口氣結算：${amt} 點傷害`, at + 0.2);
           }
-          if (!list.length) b.say("……刀光沒有砍到敵人");
-          b.lockUntil = now() + (T0 + 1.1) * 1000;
+          if (!list.length) b.say("……劍氣沒有砍到敵人");
+          b.lockUntil = now() + (T0 + SWEEP + 1) * 1000;
         },
       },
     },
@@ -565,19 +569,70 @@
           break;
         }
         case "mhBlade": {
-          // 啼哭之雀的刀光：起點一叢新月形的刀弧，接著一道往前拉長、尾端尖細的刀光
-          const p = Math.min(1, k * 2.2), fade = 1 - Math.max(0, k - 0.45) / 0.55;
-          ctx.save(); ctx.translate(ev.x, ev.y); ctx.rotate(ev.ang); ctx.globalAlpha = fade; ctx.lineJoin = "round";
-          ctx.fillStyle = "rgba(160,72,168,.85)"; ctx.strokeStyle = "#a01870"; ctx.lineWidth = 4;
-          const Rr = ev.r * 0.42;
-          for (let i = 0; i < 3; i++) {
-            const rr = Rr * (0.75 + i * 0.22), sp = 0.9 + i * 0.15, off = -i * 16;
-            ctx.beginPath(); ctx.arc(off, 0, rr, -sp * p, sp * p); ctx.arc(off - 18, 0, rr - 10, sp * p, -sp * p, true); ctx.closePath(); ctx.fill(); ctx.stroke();
+          // 啼哭之雀的劍氣（使用者 11/23）：毒骷髏的浮世繪——深紫色的新月本體、往後捲的火焰般觸鬚、正中一道洋紅色的刀痕，
+          //   淡紫色的骷髏領頭沿著新月從近的一端掃到遠的一端；太刀在姬手上跟著揮過去
+          const t = performance.now(), G = ev.G, E = R.Juice?.E, sf = Math.min(0.9, (ev.sweep * 1000) / 900);
+          const p = E ? E.outCubic(Math.min(1, k / sf)) : Math.min(1, k / sf);
+          const fade = k < sf ? 1 : 1 - (E ? E.inCubic((k - sf) / (1 - sf)) : (k - sf) / (1 - sf));
+          const qh = G.from + (G.to - G.from) * p, dir = Math.sign(G.to - G.from), N = 36;
+          ctx.save(); ctx.globalAlpha = Math.max(0, fade); ctx.lineJoin = "round"; ctx.lineCap = "round";
+          // 觸鬚（先畫，在本體後面）
+          for (let i = 0; i < 9; i++) {
+            const q = G.from + (G.to - G.from) * (0.08 + i * 0.105);
+            if ((q - qh) * dir > 0) continue;
+            const ed = crescentEdge(G, q), tx = -ed.uy * dir, ty = ed.ux * dir;          // 往掃過的反方向捲
+            const L = 46 + (i % 3) * 22, w = 10 + (i % 2) * 5, wob = Math.sin(t / 140 + i * 1.7) * 10;
+            const x0 = ed.ox - ed.ux * 6, y0 = ed.oy - ed.uy * 6;
+            const cx = x0 + ed.ux * L * 0.6 - tx * L * 0.5 + wob, cy = y0 + ed.uy * L * 0.6 - ty * L * 0.5 - wob;
+            const ex = x0 + ed.ux * L * 0.4 - tx * L * 1.05, ey = y0 + ed.uy * L * 0.4 - ty * L * 1.05;
+            ctx.fillStyle = "#6c14a8"; ctx.strokeStyle = "#3a0878"; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(x0 + tx * w, y0 + ty * w); ctx.quadraticCurveTo(cx, cy, ex, ey); ctx.quadraticCurveTo(cx - tx * w * 0.8, cy - ty * w * 0.8, x0 - tx * w, y0 - ty * w); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(ex, ey, 4 + (i % 2) * 2, 0, Math.PI * 2); ctx.stroke();      // 浮世繪的捲尾
           }
-          const L = ev.len * p;
-          ctx.beginPath(); ctx.moveTo(Rr * 0.4, -ev.w * 0.32); ctx.quadraticCurveTo(L * 0.5, -ev.w * 0.2, L, -2); ctx.lineTo(L * 0.62, 4); ctx.quadraticCurveTo(L * 0.4, ev.w * 0.25, Rr * 0.4, ev.w * 0.3);
-          ctx.quadraticCurveTo(Rr * 0.9, ev.w * 0.55, Rr * 0.6, ev.w * 0.1); ctx.closePath(); ctx.fill(); ctx.stroke();
-          ctx.strokeStyle = "rgba(255,255,255,.8)"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Rr * 0.6, 0); ctx.lineTo(L * 0.9, 0); ctx.stroke();
+          // 本體：新月掃過的那一段
+          const pts = []; for (let i = 0; i <= N; i++) pts.push(crescentEdge(G, G.from + (qh - G.from) * (i / N)));
+          // 打得到的範圍：淡淡的紫色
+          ctx.save(); ctx.globalAlpha *= 0.22; ctx.fillStyle = "#6c14a8";
+          ctx.beginPath(); pts.forEach((e, i) => (i ? ctx.lineTo(e.ox, e.oy) : ctx.moveTo(e.ox, e.oy))); for (let i = N; i >= 0; i--) ctx.lineTo(pts[i].ix, pts[i].iy); ctx.closePath(); ctx.fill(); ctx.restore();
+          // 幾條像火焰一樣流動的紫色緞帶（圖３），兩端細、中間粗，邊緣起伏
+          const at = (e, f) => [e.ix + (e.ox - e.ix) * f, e.iy + (e.oy - e.iy) * f];
+          for (const [f0, wMax, ph] of [[0.22, 0.2, 0], [0.55, 0.3, 2.1], [0.86, 0.16, 4.2]]) {
+            const up = [], dn = [];
+            pts.forEach((e, i) => {
+              const u0 = i / N, th = Math.hypot(e.ox - e.ix, e.oy - e.iy), w = Math.sin(Math.PI * Math.min(1, u0 * 1.15)) * wMax * 0.5 + 0.02;
+              const wave = Math.sin(u0 * 9 + ph + t / 160) * 0.07;
+              up.push(at(e, Math.min(1, f0 + wave + w))); dn.push(at(e, Math.max(0, f0 + wave - w)));
+              void th;
+            });
+            ctx.fillStyle = "#6c14a8"; ctx.strokeStyle = "#3a0878"; ctx.lineWidth = 3;
+            ctx.beginPath(); up.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); for (let i = dn.length - 1; i >= 0; i--) ctx.lineTo(dn[i][0], dn[i][1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+          }
+          // 洋紅色的刀痕（正中間）＋白色的刃光
+          const mid = (e) => [(e.ix + e.ox) / 2, (e.iy + e.oy) / 2];
+          for (const [w, c] of [[6, "#b0109a"], [1.8, "rgba(255,255,255,.75)"]]) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); pts.forEach((e, i) => { const [x, y] = mid(e); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); }
+          // 領頭的毒骷髏
+          if (k < sf + 0.18) {
+            const h = pts[N], hb = pts[Math.max(0, N - 3)], [hx, hy] = mid(h), [bx, by] = mid(hb);
+            ctx.save(); ctx.globalAlpha = Math.max(0, fade) * (k < sf ? 1 : 1 - (k - sf) / 0.18);
+            ctx.translate(hx, hy); ctx.rotate(Math.atan2(hy - by, hx - bx)); if (dir < 0) ctx.scale(1, -1);
+            drawSkull(ctx, 1.7, 0.4 + 0.5 * Math.abs(Math.sin(t / 70)));
+            ctx.restore();
+          }
+          ctx.restore();
+          // 姬手上的太刀跟著揮過去
+          if (k < 0.55) {
+            const sw = E ? E.outExpo(Math.min(1, k / 0.25)) : Math.min(1, k / 0.25), a = ev.ang - 1.5 * dir + 3 * dir * sw;
+            ctx.save(); ctx.globalAlpha = k < 0.4 ? 1 : 1 - (k - 0.4) / 0.15; ctx.translate(ev.x + Math.cos(a) * 16, ev.y + Math.sin(a) * 16); ctx.rotate(a);
+            drawTachi(ctx, 1.05);
+            ctx.restore();
+          }
+          break;
+        }
+        case "mhSkullBite": {
+          // 中毒被結算：小骷髏一口咬下去
+          const E = R.Juice?.E, pop = E ? E.outBack(Math.min(1, k / 0.35)) : Math.min(1, k / 0.35);
+          ctx.save(); ctx.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4; ctx.translate(ev.x, ev.y - 34 - k * 10);
+          drawSkull(ctx, 0.95 * pop, k < 0.35 ? 0.9 : Math.max(0, 0.9 - (k - 0.35) * 4));
           ctx.restore();
           break;
         }
@@ -636,10 +691,9 @@
       ctx.beginPath(); ctx.arc(p.x, p.y, u.r + 14, 0, Math.PI * 2); ctx.stroke();
       if (S.mode === "sparrow") {
         // 太刀：從扇子裡抽出來、閃著光
-        ctx.globalAlpha = 1; ctx.translate(p.x + u.r * 0.6, p.y - u.r * 0.3); ctx.rotate(-0.9);
-        ctx.fillStyle = "#e8eef4"; ctx.strokeStyle = "#5a6070"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(0, -3); ctx.quadraticCurveTo(30, -7, 56, -2); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#2a2430"; ctx.fillRect(-14, -2.5, 14, 5); ctx.fillStyle = COL; ctx.fillRect(-2, -5, 3, 10);
+        ctx.globalAlpha = 1; ctx.translate(p.x + u.r * 0.7, p.y - u.r * 0.2); ctx.rotate(-0.95 + Math.sin(t / 160) * 0.04);
+        drawTachi(ctx, 0.8);
+        ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t / 120); ctx.strokeStyle = "#c060c8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(4, 0); ctx.quadraticCurveTo(32, -4, 58, -1); ctx.stroke(); ctx.globalCompositeOperation = "source-over";
       }
       ctx.restore();
     },
@@ -647,11 +701,129 @@
   const OWN_FX = {
     mhSwing: () => 320, mhNeedle: (ev) => ev.dur * 1000 + 150, mhFan: (ev) => (ev.dur + ev.spin) * 1000 + 200, mhRing: () => 520,
     mhMist: (ev) => ev.dur * 1000, mhDrift: (ev) => ev.dur * 1000, mhCone: (ev) => ev.dur * 1000, mhAdvisor: (ev) => ev.dur * 1000,
-    mhKunai: (ev) => ev.dur * 1000 + 150, mhWave: () => 700, mhBlade: () => 900, mhAim: (ev) => ev.dur * 1000, mhBubble: (ev) => (ev.big ? 900 : 700),
+    mhKunai: (ev) => ev.dur * 1000 + 150, mhWave: () => 700, mhBlade: (ev) => (juiceBlade(ev), 900), mhSkullBite: () => 560, mhAim: (ev) => (juiceAim(ev), ev.dur * 1000), mhBubble: (ev) => (ev.big ? 900 : 700),
   };
+  // ===== 動畫手感（R.Juice，js/juice.js）：啼哭之雀是使用者指定的樣板 =====
+  //   抽刀蓄力：畫面壓暗、毒紫色的火花往姬身上聚、姬縮一下
+  //   揮刀：先往後縮再往前撲、身體被拉長、白光一閃、畫面重震；刀光碰到敵人的那一刻命中停頓；沿著刀光噴出碎片、紅色的羽毛（雀）飄落
+  function juiceAim(ev) {
+    const J = R.Juice; if (!J || !ev.sparrow) return;
+    J.dim(0.32, 700, 500);
+    J.burst(ev.x, ev.y, { n: 26, toward: true, radius: 120, color: ["#c060c8", "#e8262c", "#fff"], speed: 240, life: 520, size: 3 });
+    J.squash(ev.unit, 0.86, 1.14, 420);
+    J.shake(0.12);
+  }
+  function juiceBlade(ev) {
+    const J = R.Juice; if (!J) return;
+    const G = ev.G, T = ev.delay || 0, dir = Math.sign(G.to - G.from);
+    J.nudge(ev.unit, ev.ang, 22, { back: 12, pre: 70, delay: Math.max(0, T * 1000 - 70) });
+    J.at(T, () => { J.squash(ev.unit, 1.28, 0.8, 380); J.flashScreen("#fff", 120, 0.3); J.shake(0.45); });
+    // 劍氣掃過：沿著新月外緣噴出紫色的煙、內緣噴出碎片；掃到中毒的敵人時命中停頓
+    for (let i = 0; i <= 6; i++) {
+      const q = G.from + (G.to - G.from) * (i / 6), ed = crescentEdge(G, q);
+      J.at(T + (ev.sweep || 0.34) * (i / 6), () => {
+        J.burst(ed.ox, ed.oy, { n: 3, shape: "wisp", color: ["rgba(108,20,168,.7)", "rgba(58,8,120,.65)"], ang: Math.atan2(ed.uy, ed.ux), spread: 1.2, speed: 160, life: 620, size: 7, drag: 3 });
+        J.burst(ed.ix, ed.iy, { n: 3, shape: "shard", color: ["#fff", "#e0a8f0", "#b0109a"], ang: Math.atan2(-ed.ux * dir, ed.uy * dir), spread: 1.3, speed: 300, life: 420, size: 4 });
+      });
+    }
+    if (ev.poisoned?.length) J.at(T + 0.12, () => { J.hitstop(100); J.shake(0.4); });
+    J.at(T + 0.1, () => J.burst(ev.x + Math.cos(ev.ang) * 60, ev.y + Math.sin(ev.ang) * 60, { n: 14, shape: "feather", color: ["#e8262c", "#fff", "#b8102a"], ang: ev.ang, spread: 1.8, speed: 300, life: 1200, gravity: 130, drag: 2.2, size: 5 }));
+  }
   C.fxEvents = OWN_FX;
+  C._art = { drawSkull: (...a) => drawSkull(...a), drawTachi: (...a) => drawTachi(...a) };     // 除錯、預覽用
   // 中毒的數值掛在角色上，測試數值面板才調得到
   for (const [k, f] of [["poisonPer", "per"], ["poisonMax", "max"], ["poisonDecay", "decay"]]) Object.defineProperty(C, k, { get: () => PZ[f], set: (v) => { PZ[f] = +v; }, enumerable: true });
+
+  // ===== 啼哭之雀的新月：兩個一樣大的圓，前面那個扣掉後面那個（凸的一側朝外），整個斜一個角度 =====
+  //   M＝內緣正中間（瞄準方向上 near 的地方）；a2＝新月的朝向（瞄準方向再轉 tilt）
+  function crescent(x, y, ang, P) {
+    const a2 = ang + P.crTilt, dx = Math.cos(a2), dy = Math.sin(a2), Rr = P.crR, th = P.crThick;
+    const M = { x: x + Math.cos(ang) * P.crNear, y: y + Math.sin(ang) * P.crNear };
+    const B = { x: M.x - dx * Rr, y: M.y - dy * Rr }, A = { x: B.x + dx * th, y: B.y + dy * th };
+    const phi = Math.acos(Math.min(1, th / (2 * Rr)));
+    // 從靠近姬的那一端掃到遠的那一端
+    const tipAt = (q) => ({ x: B.x + Math.cos(a2 + q) * Rr, y: B.y + Math.sin(a2 + q) * Rr });
+    const t1 = tipAt(-phi), t2 = tipAt(phi), d1 = R.dist(t1.x, t1.y, x, y), d2 = R.dist(t2.x, t2.y, x, y);
+    const from = d1 <= d2 ? -phi : phi;
+    return { x, y, ang, a2, A, B, R: Rr, th, phi, from, to: -from };
+  }
+  function inCrescent(G, e) {
+    const pad = e.r * 0.6, fwd = (e.x - G.x) * Math.cos(G.ang) + (e.y - G.y) * Math.sin(G.ang);
+    return fwd > -30 && R.dist(e.x, e.y, G.A.x, G.A.y) <= G.R + pad && R.dist(e.x, e.y, G.B.x, G.B.y) >= G.R - pad;
+  }
+  // 這個點在新月掃過的第幾成（0＝起點那端、1＝終點那端）
+  function crescentT(G, e) {
+    let q = Math.atan2(e.y - G.B.y, e.x - G.B.x) - G.a2;
+    q = Math.atan2(Math.sin(q), Math.cos(q));
+    return Math.max(0, Math.min(1, (q - G.from) / (G.to - G.from)));
+  }
+  // 從 B 往 q 方向的射線：內緣（B 的圓上）和外緣（A 的圓上）
+  function crescentEdge(G, q) {
+    const ux = Math.cos(G.a2 + q), uy = Math.sin(G.a2 + q), c = Math.cos(q) * G.th;
+    const sOut = c + Math.sqrt(Math.max(0, c * c - G.th * G.th + G.R * G.R));
+    return { ix: G.B.x + ux * G.R, iy: G.B.y + uy * G.R, ox: G.B.x + ux * Math.max(G.R, sOut), oy: G.B.y + uy * Math.max(G.R, sOut), ux, uy };
+  }
+  // 太刀（使用者的圖２）：紅色的柄和護手、黑色的刀身、金色的紋和圈；刀尖朝 +x
+  function drawTachi(ctx, s = 1) {
+    ctx.save(); ctx.scale(s, s); ctx.lineJoin = "round";
+    ctx.fillStyle = "#111014"; ctx.beginPath(); ctx.moveTo(0, -4.5); ctx.quadraticCurveTo(40, -6, 74, -1.5); ctx.quadraticCurveTo(60, 3.5, 0, 4.5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#f2c020"; ctx.lineWidth = 1.4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(21, 0.6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(30, 1.2); ctx.lineTo(48, 1.8); ctx.stroke();
+    ctx.fillStyle = "#f2c020"; ctx.beginPath(); ctx.arc(25.5, 1, 0.9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5.5, -0.2, 2.6, 0, Math.PI * 2); ctx.lineWidth = 1.3; ctx.stroke();
+    ctx.fillStyle = "#e8202a"; ctx.fillRect(-3.5, -8, 5, 16);                                   // 護手
+    ctx.fillStyle = "#e8202a"; ctx.fillRect(-21, -5, 18, 10);                                    // 柄
+    ctx.fillStyle = "#8a0012"; ctx.fillRect(-17, -2.5, 12, 5);
+    ctx.fillStyle = "#e8202a"; ctx.fillRect(-25, -7, 5, 14);                                     // 柄頭
+    ctx.restore();
+  }
+  // 毒骷髏（使用者的圖３）：浮世繪式的頭骨——淡紫色、下半部陰影、頭頂的骨縫、深紫的大眼窩流下毒淚、鼻孔、顴骨、一排上牙、
+  //   會開合的下顎（也有牙）、紫色的粗輪廓；臉朝 +x
+  function drawSkull(ctx, s, open = 0.5) {
+    ctx.save(); ctx.scale(s, s); ctx.lineJoin = "round"; ctx.lineCap = "round";
+    const OUT = "#8a48a8", BONE = "#d6cef0", SHADE = "#a898d0", DARK = "#4e0a80";
+    // 嘴巴裡（張開時看得到的深色）
+    const ja = open * 0.55, jx = (px, py) => [-2 + px * Math.cos(ja) - py * Math.sin(ja), 8 + px * Math.sin(ja) + py * Math.cos(ja)];
+    ctx.fillStyle = "#2a0848"; ctx.beginPath(); ctx.moveTo(-2, 8); ctx.lineTo(21, 11); ctx.lineTo(...jx(21, 4)); ctx.lineTo(...jx(4, 4)); ctx.closePath(); ctx.fill();
+    // 下顎（先畫，在頭骨後面）：以耳朵下方為軸張開；有下顎角、往前的下巴
+    ctx.save(); ctx.translate(-2, 8); ctx.rotate(ja);
+    ctx.fillStyle = BONE; ctx.strokeStyle = OUT; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(-3, -2); ctx.lineTo(-1, 10); ctx.quadraticCurveTo(3, 14, 10, 14); ctx.lineTo(18, 13.5); ctx.quadraticCurveTo(22.5, 12.5, 21.5, 7); ctx.lineTo(20.5, 3.5); ctx.lineTo(5, 3.5); ctx.lineTo(2.5, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = SHADE; ctx.beginPath(); ctx.moveTo(-1, 10); ctx.quadraticCurveTo(3, 14, 10, 14); ctx.lineTo(18, 13.5); ctx.quadraticCurveTo(22.5, 12.5, 21.8, 9); ctx.quadraticCurveTo(12, 11.5, 0, 7.5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = OUT; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(1, 2); ctx.quadraticCurveTo(2, 7, 6, 9); ctx.stroke();      // 下顎的骨線
+    ctx.fillStyle = "#f4f0ff"; ctx.strokeStyle = OUT; ctx.lineWidth = 0.9;
+    for (let x = 8; x < 20; x += 2.6) { ctx.beginPath(); ctx.rect(x, 1.2, 2.2, 3); ctx.fill(); ctx.stroke(); }          // 下排牙
+    ctx.restore();
+    // 頭骨
+    ctx.fillStyle = BONE; ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+    const skull = () => { ctx.beginPath(); ctx.moveTo(19, -6); ctx.bezierCurveTo(20, -20, 5, -28, -10, -25); ctx.bezierCurveTo(-25, -22, -29, -6, -22, 6); ctx.bezierCurveTo(-19, 12, -12, 13, -8, 12); ctx.lineTo(-3, 8); ctx.lineTo(7, 8); ctx.lineTo(9, 12); ctx.lineTo(21, 12); ctx.lineTo(22, 6); ctx.quadraticCurveTo(23, 1, 19, -6); ctx.closePath(); };
+    skull(); ctx.fill();
+    ctx.save(); skull(); ctx.clip(); ctx.fillStyle = SHADE; ctx.beginPath(); ctx.moveTo(-30, 2); ctx.bezierCurveTo(-10, -2, 6, 6, 30, 0); ctx.lineTo(30, 20); ctx.lineTo(-30, 20); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.ellipse(-12, -17, 8, 3.2, -0.35, 0, Math.PI * 2); ctx.fill(); ctx.restore();          // 頭頂的反光
+    skull(); ctx.stroke();
+    // 頭頂的骨縫（鋸齒）、太陽穴的弧線
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.moveTo(-16, -22); for (let i = 1; i <= 6; i++) ctx.lineTo(-16 + i * 3.2, -24 + (i % 2 ? 2.2 : -0.4) + i * 0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6, -13); ctx.quadraticCurveTo(-14, -6, -10, 4); ctx.stroke();
+    // 眼窩：大大的深紫色，邊緣淡一圈；流下一道毒淚
+    ctx.fillStyle = "#7a30b0"; ctx.beginPath(); ctx.ellipse(8.5, -7, 7.4, 8.2, 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = DARK; ctx.beginPath(); ctx.ellipse(8.8, -6.4, 5.8, 6.8, 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6.5, -1); ctx.quadraticCurveTo(5, 6, 7.5, 11); ctx.quadraticCurveTo(10, 6, 10.5, -1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#e070d8"; ctx.beginPath(); ctx.arc(10.5, -9.5, 1.6, 0, Math.PI * 2); ctx.fill();                  // 眼窩裡的一點光
+    // 眉骨（眼窩上緣的陰影線）、耳洞、顴弓、從骨縫裂下來的一道裂痕
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(8.8, -6.5, 9.2, -2.6, -0.5); ctx.stroke();
+    ctx.fillStyle = DARK; ctx.beginPath(); ctx.ellipse(-7, 3.5, 2, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 1.1; ctx.beginPath(); ctx.moveTo(-4.5, 4); ctx.quadraticCurveTo(2, 1.5, 6, 2.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-3, -22.5); ctx.lineTo(-1.5, -18); ctx.lineTo(-4, -15); ctx.lineTo(-2, -11); ctx.stroke();
+    // 鼻孔、顴骨
+    ctx.fillStyle = DARK; ctx.beginPath(); ctx.moveTo(18, 0); ctx.quadraticCurveTo(21, 3, 19.5, 5.5); ctx.quadraticCurveTo(17.5, 4, 18, 0); ctx.fill();
+    ctx.strokeStyle = OUT; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-1, 3); ctx.quadraticCurveTo(5, 6, 13, 4.5); ctx.stroke();
+    // 上排牙
+    ctx.fillStyle = "#f4f0ff"; ctx.lineWidth = 0.9;
+    for (let x = 9; x < 21; x += 2.6) { ctx.beginPath(); ctx.rect(x, 9, 2.2, 3.4); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
+
 
   // ===== 畫法 =====
   function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }

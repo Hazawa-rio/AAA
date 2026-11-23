@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/characters/marika.js": "20261123215910" });
 // 角色：瑪莉卡（索德綜合學院埃里托德分校的優秀畢業生，用蛇腹劍）
 // 魔力角色：只有在「燃火狀態」下，普攻和所有技能才會花魔力
 // 被動「烈火之舞」：燃火狀態下，所有攻擊都會在攻擊範圍留下火焰；敵人在火焰裡移動、或回合開始時站在火焰裡，就會被燒傷（傷害隨攻擊力提高）
@@ -219,7 +219,7 @@
         rng(u) { return this.range * (R.upHas(upg(u), "longChain") ? 1.35 : 1); },
         path(b, u, arg) {
           const d = dirOf(u, arg), L = this.rng(u);
-          let hit = null, t = L;
+          let hit = null, t = b.rayCover(u.x, u.y, d.dx, d.dy, L, "line");      // 蛇腹劍伸出去＝直線：被掩體擋住
           for (const e of b.targetsFor(u)) { const h = R.geo.rayCircle(u.x, u.y, d.dx, d.dy, e.x, e.y, e.r + this.width / 2); if (h !== null && h > 0 && h < t) { hit = e; t = h; } }
           return { d, hit, to: { x: u.x + d.dx * t, y: u.y + d.dy * t } };
         },
