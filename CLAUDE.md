@@ -20,6 +20,7 @@
 - 純前端，不用打包工具：`index.html`、`tavern.html`（酒館）、`world.html`（時空地圖）、`battle.html`（戰鬥）。新的 js 檔要在**每個用到它的 html** 加 `<script>`。
 - `js/characters/<id>.js`：一個適格者一個檔，註冊到 `RPG.CHARACTERS`。常用掛鉤：`outgoingMult`、`onTurnStart`、`onUnitDeath`、`intercept`、`onEnemyAction`、`onAction`、`chargeNeed`／`onCharge`、`hideUnit`、`drawBattle`、`fxEvents`／`drawFx`、`tune`（測試數值面板）。最新的角色檔（`phantom.js`、`bastian.js`、`youyan.js`）是好範本。
   - 新角色也要加進 `js/kn-stg.js` 的駕駛員技能。
+  - **掩體規則**（README「共用規則」的表）：新的位移、直線攻擊、射擊技能都要走 `js/battle.js` 的 `travel`／`rayCover`／`seen`／`clipLine`／`throwLand`，並且標清楚是哪一種（dash 直線位移、leap 跳躍、shot 投射物、line 直線、throw 投擲物）。不要自己從終點往回找落點（會穿牆）。
 - `js/maps/<代號>.js`（地圖資料）＋ `js/worlds/<代號>.js`（時空的互動、事件，`MAP.wpScene` 這類掛鉤）。
 - `js/battle.js`（戰鬥規則）、`js/battle-ui.js`（畫面）、`js/ai.js`、`js/config.js`（敵人、房間）、`js/enemy-kit.js`（一般敵人的攻擊方式、特有被動；新敵人要在 `ASSIGN` 給一組）、`js/bestiary.js`、`js/items.js`、`js/commissions.js`、`js/bag.js`。
 - 連線：`js/net.js`（PeerJS，房主說了算；`?net=local` 用同一個瀏覽器的分頁測試）、`js/watergun.js`、`js/uno.js`。
