@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/aq00618-wild.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/aq00618-wild.js": "20261123215910" });
 // 地圖：#AQ00618 如此靜謐的蔚藍・水族館的外面＝未文明化的原始水域（場景 "wild"）
 // 看起來一樣是一座大型水族館（大水缸的玻璃、名牌），可是這裡沒有觀眾，只有食物鏈
 // 照使用者的草圖：上＝深海、左＝寒帶、中＝大洋、右＝沼澤，下面是從水族館走出來的玻璃迴廊（安全）

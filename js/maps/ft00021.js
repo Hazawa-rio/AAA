@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ft00021.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/maps/ft00021.js": "20261123215910" });
 // 地圖：#FT00021 命運的考驗（S 級・戰役）＝鐵與骨的大教堂
 // 一到這裡就直接開戰（js/worlds/ft00021.js）；打贏之後選一張特殊命運卡（js/tarot.js），再找厄羅德回報
 // 北：祭壇（命運的見證者・厄羅德）；中間：紅地毯；南：酒館的門
