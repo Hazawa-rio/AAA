@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sp10101.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sp10101.js": "20261123215910" });
 // #SP10101 遞廻齒輪鑲嵌之國（A 級）——上層：齒輪城
 //   齒輪橋：點齒輪（要站在同一塊平台上）→ 橋臂轉 90°。指向隔壁平台才走得過去；兩條橋臂撞在一起就卡住（冒火花，兩條都不能走）
 //   蒸氣閥：轉一下，連著的噴嘴全部反過來（關掉一個、別的地方就開始噴）；鐵橋上的噴嘴在噴，就過不去

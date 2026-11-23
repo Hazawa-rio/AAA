@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/wp00716.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/wp00716.js": "20261123215910" });
 // #WP00716 多利島主題公園：停車場（傳送門）→ 入園廣場／員工通道／海灘步道 → 水上樂園
 // 進水上樂園要有手環（這一趟有效）：售票口買、失物招領送、員工通道的置物櫃拿、或從海灘游過去時救生員給
 //   入園廣場：閘門（沒有手環過不去）、售票口、失物招領（找防水手機袋）、紀念品店、度假村服務台（加購住宿、outlet）

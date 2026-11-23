@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/aq00618-wild.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/aq00618-wild.js": "20261123215910" });
 // #AQ00618 如此靜謐的蔚藍・水族館外的原始水域（場景 "wild"；自由探索，不是委託）
 //   食物鏈等級（trip.qdata.aq.chain，戰鬥時 js/config.js 的 R.Chain 會讀）：
 //     0 小魚 →（吃掉 4 群小魚）→ 1 捕食者 →（吃掉 4 群捕食者）→ 2 掠食者

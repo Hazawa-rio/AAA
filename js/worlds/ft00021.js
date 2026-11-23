@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ft00021.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/ft00021.js": "20261123215910" });
 // #FT00021 命運的考驗（S 級・戰役）：命運的見證者・厄羅德
 //   一到大教堂就直接開戰（委託的第一步是 boss，房間 erod：js/erod.js）
 //   打贏之後（trip.qdata.erod.pending）跳出四張特殊命運卡選一張（js/tarot.js）；先等命路的「抉擇命運」選完，不會疊在一起

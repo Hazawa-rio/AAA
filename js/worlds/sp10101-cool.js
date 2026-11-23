@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sp10101-cool.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/worlds/sp10101-cool.js": "20261123215910" });
 // #SP10101 遞廻齒輪鑲嵌之國・下層的冷卻工廠（場景 "cool"）
 //   主泵：點一下開始搖，站在旁邊 3 秒就轉起來（離開就要重搖）
 //   分流閥：點一下換一邊；冷卻水照地上的管子流到出水口。SP10101-03：主泵轉著、水流到「博覽會會場」就完成（spCoolant）
