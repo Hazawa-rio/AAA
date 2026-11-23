@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle.js": "20261123215910" });
 // 戰鬥規則（不碰畫面）。畫面透過 battle.on(fn) 收到事件後重畫。
 // 角色技能寫在 js/characters/，敵人 AI 寫在 js/ai.js，這裡只提供共用的規則。
 (function () {
@@ -268,22 +268,68 @@
       return null;
     }
     onObstacle(u, x, y) { return !!this.obstacleAt(u, x, y); }
-    // 掩體：兩點之間的直線有沒有被障礙物擋住
-    coverBetween(a, b) {
-      const O = this.room.obstacles;
-      if (!O) return false;
-      const d = dist(a.x, a.y, b.x, b.y), n = Math.ceil(d / 8);
-      for (let i = 1; i < n; i++) { const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n; if (O.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) return true; }
-      return false;
+    // ===== 掩體（定案，使用者 11/22）=====
+    //   高掩體＝room.obstacles（貨架、柱子…）；矮掩體＝room.lowWalls（矮牆、厄羅德隆起的地面…）
+    //   kind：shot 投射物、line 直線攻擊、dash 直線位移（衝刺、撲擊、擊退、拉扯）→ 高、矮都擋
+    //         leap 特定位移（跳躍）、throw 投擲物（拋物線）→ 只有高掩體擋（矮的越得過去，但不能落在上面）
+    //   從天上落下的圓形範圍、扇形揮砍、一般移動（點了直接到）不受影響
+    //   雙方都適用：敵人的攻擊和玩家的攻擊一樣會被擋
+    coverRects(kind = "line") {
+      const hi = this.room.obstacles || [], lo = this.room.lowWalls || [];
+      return kind === "leap" || kind === "throw" ? hi : lo.length ? hi.concat(lo) : hi;
     }
-    // 矮牆（小掩體）：擋住地上走的（玩家、守衛機關），投擲物飛得過去；擋得住敵人的射擊（巡弋機關的子彈）
-    lowCoverBetween(a, b) {
-      const O = this.room.lowWalls;
-      if (!O?.length) return false;
-      const d = dist(a.x, a.y, b.x, b.y), n = Math.ceil(d / 8);
-      for (let i = 1; i < n; i++) { const x = a.x + ((b.x - a.x) * i) / n, y = a.y + ((b.y - a.y) * i) / n; if (O.some((o) => x > o.x && x < o.x + o.w && y > o.y && y < o.y + o.h)) return true; }
-      return false;
+    // a→b 的線段第一個碰到的掩體（r＝把掩體往外擴，例如身體半徑）；起點本來就在某個掩體裡的話，那一個不算
+    coverHit(a, b, kind = "line", r = 0) {
+      const dx = b.x - a.x, dy = b.y - a.y, lo = this.room.lowWalls || [];
+      let best = null;
+      for (const o of this.coverRects(kind)) {
+        const x0 = o.x - r, x1 = o.x + o.w + r, y0 = o.y - r, y1 = o.y + o.h + r;
+        if (a.x > x0 && a.x < x1 && a.y > y0 && a.y < y1) continue;
+        let t0 = 0, t1 = 1, ok = true;
+        for (const [p, d, lo0, hi0] of [[a.x, dx, x0, x1], [a.y, dy, y0, y1]]) {
+          if (Math.abs(d) < 1e-9) { if (p <= lo0 || p >= hi0) { ok = false; break; } continue; }
+          let u0 = (lo0 - p) / d, u1 = (hi0 - p) / d;
+          if (u0 > u1) [u0, u1] = [u1, u0];
+          t0 = Math.max(t0, u0); t1 = Math.min(t1, u1);
+          if (t0 >= t1) { ok = false; break; }
+        }
+        if (ok && t0 <= 1 && (!best || t0 < best.t)) best = { t: t0, x: a.x + dx * t0, y: a.y + dy * t0, o, low: lo.includes(o) };
+      }
+      return best;
     }
+    // 這個單位從 from 看得到（沒被掩體擋住）：玩家、敵人的直線攻擊、射擊都用這個
+    seen(from, e, kind = "line") { return !this.coverHit(from, e, kind); }
+    // 射線（單位方向 dx,dy）碰到掩體的距離（沒碰到＝len）
+    rayCover(x, y, dx, dy, len, kind = "line", r = 0) {
+      const h = this.coverHit({ x, y }, { x: x + dx * len, y: y + dy * len }, kind, r);
+      return h ? h.t * len : len;
+    }
+    // 直線（a→z）被掩體切短之後的終點
+    clipLine(a, z, kind = "line") { const h = this.coverHit(a, z, kind); return h ? { x: h.x, y: h.y, cut: true, cover: h } : { x: z.x, y: z.y, cut: false }; }
+    coverName(h) { return h?.o?.name || (h?.low ? "矮牆" : this.room.terrain === "ruins" ? "柱子" : "貨架"); }
+    // 位移：從 from 往 to 走，碰到掩體就停在前面；落點不能在掩體上、不能和別的單位重疊（往回退到能站的地方）
+    //   kind：dash（直線位移）或 leap（跳躍：越得過矮掩體）
+    travel(u, from, to, kind = "dash") {
+      const A = this.cfg.arena, r = (u.r || this.cfg.body);
+      to = { x: Math.min(Math.max(to.x, r), A.w - r), y: Math.min(Math.max(to.y, r), A.h - r) };
+      const L = dist(from.x, from.y, to.x, to.y);
+      if (L < 0.5) return { x: from.x, y: from.y, cut: false };
+      const h = this.coverHit(from, to, kind, r * 0.85);
+      let d = h ? Math.max(0, h.t * L - 1) : L;
+      const ux = (to.x - from.x) / L, uy = (to.y - from.y) / L;
+      for (; d > 0; d -= 4) { const x = from.x + ux * d, y = from.y + uy * d; if (!this.blocked(u, x, y)) return { x, y, cut: !!h, cover: h }; }
+      return { x: from.x, y: from.y, cut: !!h, cover: h };
+    }
+    // 投擲物的落點：被高掩體擋住就落在掩體前面
+    throwLand(from, to) {
+      const h = this.coverHit(from, to, "throw");
+      if (!h) return { x: to.x, y: to.y };
+      const L = dist(from.x, from.y, to.x, to.y) || 1;
+      return { x: h.x - ((to.x - from.x) / L) * 6, y: h.y - ((to.y - from.y) / L) * 6, cut: true };
+    }
+    // 舊的名字（其他檔案還在用）
+    coverBetween(a, b) { return !!this.coverHit(a, b, "leap"); }
+    lowCoverBetween(a, b) { const h = this.coverHit(a, b, "line"); return !!h && h.low; }
     // 古代遺跡的機關（回合開始時）：地刺偶數回合刺出來、雷射一直開著
     spikesOut() { return !!this.room.spikes?.length && this.round % 2 === 0; }
     laserPaths() {
@@ -806,7 +852,7 @@
       this.say(`${dst.name} 受到 ${amount} 點傷害${note}`);
       // 生命歸零時角色可以撐住（例如魘：變回一半生命的悠）
       if (dst === this.player && dst.hp <= 0) this.char.onLethal?.(this, dst);
-      this.emit({ type: "damage", unit: dst, amount, boosted: mult * k > 1, delay: this.hitDelay || 0 });   // hitDelay：連擊時每一下的傷害數字錯開出現
+      this.emit({ type: "damage", unit: dst, amount, src, boosted: mult * k > 1, delay: this.hitDelay || 0 });   // hitDelay：連擊時每一下的傷害數字錯開出現
       if (dst === this.player && dst.alive) this.bark(dst, "hurt");          // 受傷台詞（角色有設定才會跳）
       if (dst.def.ai && dst.alive) R.AI[dst.def.ai]?.onHurt?.(this, dst);
       if (src && R.EnemyKit) R.EnemyKit.afterHit(this, src, dst, amount);          // 吸血、反刺
@@ -871,15 +917,12 @@
     knockback(u, ox, oy, distance) {
       const A = this.cfg.arena;
       const ang = Math.atan2(u.y - oy, u.x - ox);
-      for (let d = distance; d >= 5; d -= 5) {
-        const x = Math.min(Math.max(u.x + Math.cos(ang) * d, u.r), A.w - u.r);
-        const y = Math.min(Math.max(u.y + Math.sin(ang) * d, u.r), A.h - u.r);
-        if (this.blocked(u, x, y)) continue;
-        u.x = x; u.y = y;
-        this.emit({ type: "knockback", unit: u });
-        return true;
-      }
-      return false;
+      // 擊退＝直線位移：撞到掩體就停在前面（不會穿過去）
+      const to = this.travel(u, u, { x: u.x + Math.cos(ang) * distance, y: u.y + Math.sin(ang) * distance }, "dash");
+      if (dist(to.x, to.y, u.x, u.y) < 5) return false;
+      u.x = to.x; u.y = to.y;
+      this.emit({ type: "knockback", unit: u });
+      return true;
     }
 
     // 隨機找一個空位（離其他單位、牆邊都有一點距離）
@@ -988,10 +1031,9 @@
       this.emit({ type: "strike", ...t, sound });
       const p = this.player;
       let result = "miss";
-      // 躲在貨架後面：直線的攻擊（長方形）被擋住
-      const covered = t.shape === "rect" && this.coverBetween(owner, p) && this.coverBetween({ x: t.x, y: t.y }, p);
-      const lowCovered = t.shape === "rect" && t.shot && this.lowCoverBetween(owner, p);           // 矮牆擋射擊
-      if ((covered || lowCovered) && p.alive && this.hitTest(t, p)) { this.say(`${p.name} 躲在${lowCovered && !covered ? "矮牆" : this.room.terrain === "ruins" ? "柱子" : "貨架"}後面，${label || "攻擊"}被擋住了！`); this.emit({ type: "miss", x: p.x, y: p.y, text: "掩護" }); }
+      // 躲在掩體後面：直線的攻擊（長方形）被擋住（高、矮都擋；t.throw＝投擲物，只有高掩體擋）
+      const cov = t.shape === "rect" && !t.noCover ? this.coverHit({ x: t.x, y: t.y }, p, t.throw ? "throw" : "line") : null;
+      if (cov && p.alive && this.hitTest(t, p)) { this.say(`${p.name} 躲在${this.coverName(cov)}後面，${label || "攻擊"}被擋住了！`); this.emit({ type: "miss", x: p.x, y: p.y, text: "掩護" }); }
       else if (p.alive && this.hitTest(t, p)) {
         if (noDamage) { result = "hit"; this.emit({ type: "miss", x: p.x, y: p.y, text: hitText || "被打中了" }); onHit?.(p); }
         else {
@@ -1071,7 +1113,7 @@
       this.projectiles.push({
         id: "p" + nextId++, owner, x, y, ang,
         vx: Math.cos(ang) * opt.speed, vy: Math.sin(ang) * opt.speed,
-        r: opt.r, base: opt.base, text: opt.text, color: opt.color, bounce: opt.bounce || 0, left: opt.range || 0, kind: opt.kind || null,   // range：飛多遠就消失（射程較短的火球）；kind：畫法（例如 fire、rock）     // bounce：碰到場地邊緣反彈幾次（例如爆牌的撲克牌）
+        r: opt.r, base: opt.base, text: opt.text, color: opt.color, bounce: opt.bounce || 0, left: opt.range || 0, kind: opt.kind || null, lob: !!opt.lob,   // range：飛多遠就消失（射程較短的火球）；kind：畫法（例如 fire、rock）     // bounce：碰到場地邊緣反彈幾次（例如爆牌的撲克牌）
       });
       if (!this._projTimer) {
         let last = performance.now();
@@ -1086,6 +1128,7 @@
     stepProjectiles(dt) {
       if (this.dead || this.phase === "over") this.projectiles = [];
       const A = this.cfg.arena, p = this.player, hitR = p.r * 0.7;
+      const cov = this.coverRects("shot"), covLob = this.coverRects("throw");
       const keep = [];
       for (const b of this.projectiles) {
         b.x += b.vx * dt; b.y += b.vy * dt;
@@ -1095,6 +1138,8 @@
         }
         if (b.left) { b.left -= Math.hypot(b.vx, b.vy) * dt; if (b.left <= 0) { this.emit({ type: "bulletFizzle", x: b.x, y: b.y, bullet: b }); continue; } }
         if (b.x < -30 || b.y < -30 || b.x > A.w + 30 || b.y > A.h + 30) continue;
+        // 投射物撞到掩體（高、矮都擋）就消失；b.lob＝拋物線的投擲物，只有高掩體擋
+        if (cov.length || covLob.length) { const rr = b.r * 0.5; if ((b.lob ? covLob : cov).some((o) => b.x + rr > o.x && b.x - rr < o.x + o.w && b.y + rr > o.y && b.y - rr < o.y + o.h)) { this.emit({ type: "bulletFizzle", x: b.x, y: b.y, bullet: b, cover: true }); continue; } }
         if (p.alive && !b.passed && dist(b.x, b.y, p.x, p.y) <= b.r + hitR) {
           this.damage(b.owner, p, b.base);
           if (this.lastEvade) { b.passed = true; keep.push(b); continue; }   // 打空：光彈穿過去
@@ -1155,11 +1200,9 @@
       if (u.pose) u.pose.hit = performance.now();
       if (dash && res !== false && u.alive && !this.dead && this.phase !== "over") {
         const A = this.cfg.arena, from = { x: u.x, y: u.y };
-        let to = null;
-        for (let d = spec.length - B; d > 20; d -= 12) {
-          const x = Math.min(Math.max(t.x + Math.cos(ang) * d, u.r), A.w - u.r), y = Math.min(Math.max(t.y + Math.sin(ang) * d, u.r), A.h - u.r);
-          if (!this.blocked(u, x, y)) { to = { x, y }; break; }
-        }
+        // 衝到終點＝直線位移：碰到掩體停在前面
+        let to = this.travel(u, from, { x: t.x + Math.cos(ang) * (spec.length - B), y: t.y + Math.sin(ang) * (spec.length - B) }, "dash");
+        if (dist(to.x, to.y, from.x, from.y) < 20) to = null;
         if (to) {
           this.emit({ type: "leap", unit: u, from, to, duration: 0.22 });
           await this.wait(0.22);
@@ -1246,7 +1289,12 @@
     }
 
     // 落點優先是中心；被佔住時往史萊姆原本的方向退到最近的空位
+    // 跳過去的落點（特定位移）：越得過矮掩體，被高掩體擋住就落在前面
     landingSpot(u, cx, cy, from) {
+      const t = this.travel(u, from, { x: cx, y: cy }, "leap");
+      return { x: t.x, y: t.y };
+    }
+    landingSpotOld(u, cx, cy, from) {
       if (!this.blocked(u, cx, cy)) return { x: cx, y: cy };
       const d = dist(cx, cy, from.x, from.y) || 1;
       const ux = (from.x - cx) / d, uy = (from.y - cy) / d;

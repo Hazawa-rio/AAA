@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/battle-ui.js": "20261123215910" });
 // 戰鬥畫面與操作
 (function () {
   const R = window.RPG, C = R.CONFIG;
@@ -384,6 +384,7 @@
     if (ev?.type && CH.fxEvents?.[ev.type]) { const d = CH.fxEvents[ev.type](ev); if (d) fx.push({ k: "char", ev, t: t + (ev.delay || 0) * 1000, dur: d }); }
     switch (ev.type) {
       case "damage":
+        if (R.Juice && !ev.unit.cage && !ev.unit.demon) { const u0 = ev.unit, src0 = ev.src, amt = ev.amount; R.Juice.at(ev.delay || 0, () => R.Juice.onDamage(u0, amt, src0)); }   // 動畫手感：壓扁、閃白、火花、震動
         fx.push({ k: "num", x: ev.unit.x + (ev.delay ? (Math.round(ev.delay * 10) % 2 ? 14 : -14) : 0), y: ev.unit.y - (ev.unit.def.bigBar ? 110 : 30), text: ev.text || (SCARE ? `+${ev.amount} 驚嚇` : `-${ev.amount}`), color: SCARE ? PURPLE : ev.unit.cage ? "#b8860b" : ev.boosted ? "#c2477a" : "#e53935", t: t + (ev.delay || 0) * 1000 });
         break;
       case "bushCut": for (const g of ev.bushes) for (let i = 0; i < 14; i++) { const a = Math.random() * Math.PI * 2; fx.push({ k: "leaf", x: g.x, y: g.y, vx: Math.cos(a) * (60 + Math.random() * 120), vy: Math.sin(a) * (60 + Math.random() * 120) - 60, rot: Math.random() * 6, t, dur: 800 }); } break;
@@ -392,10 +393,11 @@
         const delay = [0, 240, 520][ev.n || 0];
         const dur = ev.style === "thrust" ? 420 : ev.style === "strong" ? 700 : 520;
         fx.push({ k: "slash", ...ev, t: t + delay, dur });
-        if (ev.style === "strong") shakeUntil = t + delay + 260;      // 第三斬：畫面震一下
+        if (R.Juice) juiceSlash(ev, delay / 1000);
+        else if (ev.style === "strong") shakeUntil = t + delay + 260;      // 第三斬：畫面震一下
         break;
       }
-      case "explode": fx.push({ k: "explode", ...ev, t, dur: 600 }); break;
+      case "explode": fx.push({ k: "explode", ...ev, t, dur: 600 }); if (R.Juice) { R.Juice.burst(ev.x, ev.y, { n: 22, shape: "wisp", color: ["rgba(58,45,112,.7)", "rgba(20,14,30,.75)", "rgba(150,40,90,.6)"], speed: 300, life: 650, size: 7, drag: 4 }); R.Juice.shake(0.35); } break;
       case "demonPull": fx.push({ k: "trail", from: ev.from, to: ev.to, t, dur: 500 }); break;
       case "demonSpawn": fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 34, color: "#5b3fa8", t, dur: 600 }); break;
       case "demonDeath": fx.push({ k: "ring", x: ev.unit.x, y: ev.unit.y, r: 40, color: "#3a2d70", t, dur: 500 }); break;
@@ -3129,9 +3131,36 @@
     }
   }
 
+  // ===== 動畫手感：伊爾舒的突刺、斬擊（使用者指定的樣板；R.Juice，js/juice.js） =====
+  //   突刺：先往後縮、往前一撲、劍尖噴火花；斬擊：身體跟著揮動被拉長、刀弧外噴出紫黑色的陰霾；
+  //   第三斬（strong）：刀光掃到一半命中停頓、暗紫色閃一下、畫面重震
+  function juiceSlash(ev, d) {
+    const J = R.Juice, u = ev.unit, o = ev.origin || (u ? { x: u.x, y: u.y } : null);
+    if (!o) return;
+    const own = !ev.origin && u;            // 心魔的黑色斬擊不推伊爾舒本人
+    if (ev.style === "thrust") {
+      if (own) J.nudge(u, ev.ang, 16, { back: 8, pre: 60, delay: d * 1000 });
+      const L = ev.radius * 0.95, tx = o.x + Math.cos(ev.ang) * L, ty = o.y + Math.sin(ev.ang) * L;
+      J.at(d + 0.14, () => { J.burst(tx, ty, { n: 9, color: ["#fff", "#b8a8ff", "#4b3f8f"], ang: ev.ang, spread: 0.7, speed: 420, life: 300, size: 3 }); J.shake(0.1); });
+      return;
+    }
+    const strong = ev.style === "strong", sweep = ev.n === 1 ? -1 : 1;
+    if (own) J.at(d, () => { J.squash(u, strong ? 1.3 : 1.15, strong ? 0.78 : 0.9, strong ? 420 : 300); J.nudge(u, ev.ang, strong ? 14 : 8, { back: 4, pre: 40 }); });
+    J.at(d + 0.1, () => {
+      const n = strong ? 14 : 7, cols = ev.dark ? ["rgba(10,8,14,.8)", "rgba(150,40,90,.6)"] : ["rgba(58,45,112,.65)", "rgba(20,14,30,.6)", "#fff"];
+      for (let i = 0; i < n; i++) { const a = ev.ang - ev.half * sweep + (2 * ev.half * sweep * i) / (n - 1), r = ev.radius * 0.85; J.burst(o.x + Math.cos(a) * r, o.y + Math.sin(a) * r, { n: 2, shape: i % 3 ? "wisp" : "spark", color: cols, ang: a, spread: 0.6, speed: strong ? 260 : 170, life: 460, size: strong ? 5 : 3.5 }); }
+      J.shake(strong ? 0.25 : 0.12);
+    });
+    if (strong) J.at(d + 0.2, () => { J.hitstop(110); J.flashScreen(ev.dark ? "#000" : "#2a1a4a", 220, 0.38); J.shake(0.65); });
+  }
+
   function frame(now) {
+    // 命中停頓：畫面停在上一幀（規則照常跑）
+    if (R.Juice?.frozen(now)) { requestAnimationFrame(frame); return; }
+    const jdt = R.Juice ? R.Juice.update(now) : 0.016;
     ctx.save();
-    if (now < shakeUntil) ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+    const so = R.Juice ? R.Juice.offset(now, shakeUntil) : now < shakeUntil ? { x: (Math.random() - 0.5) * 8, y: (Math.random() - 0.5) * 8, rot: 0 } : null;
+    if (so) { const A = B?.cfg.arena || { w: 1280, h: 720 }; ctx.translate(so.x + A.w / 2, so.y + A.h / 2); ctx.rotate(so.rot); ctx.translate(-A.w / 2, -A.h / 2); }
     drawGrid();
     if (B) {
       for (const u of B.units) {
@@ -3149,7 +3178,16 @@
       drawCharges(now);
       drawPlanning();
       drawThreat(now);
-      [...B.units].sort((a, b) => a.alive - b.alive).forEach((u) => drawUnit(u, now));
+      [...B.units].sort((a, b) => a.alive - b.alive).forEach((u) => {
+        // 動畫手感：壓扁回彈、撲一下、受擊閃白（R.Juice）
+        const J = R.Juice?.unit(u);
+        if (!J) return drawUnit(u, now);
+        const p = pos(u);
+        const fy = p.y + (u.r || 22); ctx.save(); ctx.translate(p.x + J.ox, fy + J.oy); ctx.scale(J.sx, J.sy); ctx.translate(-p.x, -fy);      // 以腳底為支點
+        drawUnit(u, now);
+        if (J.flash > 0.02 && u.alive && !u.def.bigBar) { const r = (u.r || 22) * 1.05; ctx.globalAlpha = J.flash * 0.75; ctx.fillStyle = "#fff"; roundRect(p.x - r, p.y - r, r * 2, r * 2, 6); ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.restore();
+      });
       // 死神的收割目標：紅色的瞄準圈
       for (const e of B.units) {
         const m = e.alive && e.state?.mark;
@@ -3175,6 +3213,7 @@
       if (CH.drawBattle) { ctx.save(); CH.drawBattle(ctx, now, B, { circle, line, label, pos }); ctx.restore(); }
       if (B.room.drawRoom) { ctx.save(); B.room.drawRoom(ctx, now, B, { circle, line, label, pos }); ctx.restore(); }     // 房間自己畫的東西（例如酒神的酒杯）
       drawFx(now);
+      if (R.Juice) { R.Juice.drawParticles(ctx, now, jdt); R.Juice.drawScreen(ctx, B.cfg.arena.w, B.cfg.arena.h); }
       drawThreatLabel(now);
       const key = `${mode}|${mouse.in}|${B.phase}|${B.player.ap}|${mouse.in && unitAt(mouse)?.id}`;
       drawBubbles(now);

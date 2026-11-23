@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai.js": "20261123215910" });
 // 敵人 AI。每種敵人一個 takeTurn(battle, unit)。
 (function () {
   const R = window.RPG;
@@ -1059,7 +1059,7 @@
       await b.telegraph(u, { shape: "rect", x: u.x, y: u.y, ang, length: len + u.r, width: Dd.width, reaction: Dd.reaction }, { base: Dd.base, sound: Dd.sound, label: `${u.name} 的${Dd.name}`, onAny: this.flaw(b, u) });
       if (!u.alive || b.dead) return;
       u.state.busy = true;
-      const go = async (k) => { const from = { x: u.x, y: u.y }, to = { x: u.x + dx * len * k, y: u.y + dy * len * k }; b.emit({ type: "leap", unit: u, from, to, duration: 0.18 }); await b.wait(0.18); u.x = to.x; u.y = to.y; b.emit({ type: "move", unit: u }); };
+      const go = async (k) => { const from = { x: u.x, y: u.y }, to = b.travel(u, from, { x: u.x + dx * len * k, y: u.y + dy * len * k }, "dash"); /* 直線位移：碰到掩體停下 */ b.emit({ type: "leap", unit: u, from, to, duration: 0.18 }); await b.wait(0.18); u.x = to.x; u.y = to.y; b.emit({ type: "move", unit: u }); };
       const mid = Math.random();
       if (len > 260 && mid < 0.55) {
         await go(0.5); len *= 0.5;

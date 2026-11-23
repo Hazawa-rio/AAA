@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-kit.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/enemy-kit.js": "20261123215910" });
 // 一般敵人的「攻擊方式」和「特有被動」（Boss 有自己的 AI，不在這裡）
 // 攻擊方式（style）：wolf／gunner 這兩種 AI 讀 def.style，沒設定就是原本的打法
 //   近戰（wolf）：charge 衝撞・hitRun 打帶跑・sweep 揮掃・frenzy 連咬

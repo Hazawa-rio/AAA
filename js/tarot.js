@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tarot.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/tarot.js": "20261123215910" });
 // 特殊命運卡（塔羅）：戰役「命運的考驗」打倒命運的見證者・厄羅德之後，從四張裡選一張（使用者 11/22）
 //   每張都有正位（效果）和逆位（考驗）：選了就兩個一起承受（和命路的命運卡「效果＋考驗」一樣；這是 Claude 的假設）
 //   「所有玩家」：目前是單人，只套用在自己身上；存在這輪冒險（adventure.flags.tarot），冒險結束就沒了

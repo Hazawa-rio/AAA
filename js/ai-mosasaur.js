@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-mosasaur.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/ai-mosasaur.js": "20261123215910" });
 // Boss：滄游・滄龍（#AQ00618 如此靜謐的蔚藍・原始水域；蒼幽成為原始獵手之後）
 // 使用者 11/22 重做：
 //   出場：地圖飄出大量泡沫，背景一道黑影竄出、變成滄龍（樣子照使用者的圖３）
@@ -106,7 +106,7 @@
       const f = fish.sort((a, c) => R.dist(a.x, a.y, u.x, u.y) - R.dist(c.x, c.y, u.x, u.y))[0];
       b.enemySpend(u, u.def.eat.ap);
       const from = { x: u.x, y: u.y }, a = Math.atan2(f.y - u.y, f.x - u.x), stop = R.dist(u.x, u.y, f.x, f.y) - u.r - f.r + 10;
-      if (stop > 0) { u.x += Math.cos(a) * stop; u.y += Math.sin(a) * stop; }
+      if (stop > 0) { const to = b.travel(u, from, { x: u.x + Math.cos(a) * stop, y: u.y + Math.sin(a) * stop }, "dash"); u.x = to.x; u.y = to.y; }
       u.facing = a;
       u.pose = { k: "lunge", t0: now() - 450, ang: a, hit: now() + 250 };
       b.emit({ type: "leap", unit: u, from, to: { x: u.x, y: u.y }, duration: 0.35, height: 6 });

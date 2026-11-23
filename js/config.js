@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/config.js": "20261123215910" });
 // 共用數值。角色自己的數值在 js/characters/ 裡。
 // 標「暫定」的都只是讓測試能跑的值。
 window.RPG = window.RPG || {};
@@ -1332,7 +1332,7 @@ RPG.CONFIG = {
         if (W.drunk >= 2) {
           const a = Math.random() * Math.PI * 2, d = Math.random() * W.drunk * 9;
           const x = u.x + Math.cos(a) * d, y = u.y + Math.sin(a) * d;
-          if (!b.blocked(u, x, y) && !b.onObstacle(u, x, y) && x > 30 && y > 30 && x < b.cfg.arena.w - 30 && y < b.cfg.arena.h - 30) {
+          if (!b.blocked(u, x, y) && !b.onObstacle(u, x, y) && !b.coverHit(u, { x, y }, "dash", u.r * 0.85) && x > 30 && y > 30 && x < b.cfg.arena.w - 30 && y < b.cfg.arena.h - 30) {
             const from = { x: u.x, y: u.y }; u.x = x; u.y = y;
             b.emit({ type: "leap", unit: u, from, to: { x, y }, duration: 0.25 });
             if (d > 12) b.emit({ type: "buff", unit: u, text: "腳步一晃", color: "#7a3a8a" });

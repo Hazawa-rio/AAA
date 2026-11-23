@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/casino.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/casino.js": "20261123215910" });
 // 戰役 #DG00777 致命賭局（A 級）：大莊家斯賓沃迪的賭桌
 // 斯賓沃迪是 Boss 兼委託人，但他不參戰：像主持人一樣站在賭桌後面，用對話框說話（打不到、不會倒）
 // 勝利條件：累積獎金到 100 萬（b.jackpot）→ 他會問要不要「加注」：

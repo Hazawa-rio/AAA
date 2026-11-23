@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fate.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/fate.js": "20261123215910" });
 // 命路：取代原本 Q／E 各自二選一的技能強化；大招強化也屬於命路（每條路固定一個，Lv 20 拿到）
 //   每個角色兩條命路（各有自己的名字）。冒險開始、進入第一個時空時選一條（js/fate-ui.js）；選了就沿著那條路往下走：
 //     Lv 10 ○ 特化一：這條路的小技能特化（固定）

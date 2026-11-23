@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/recommend.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/recommend.js": "20261123215910" });
 // 索德綜合學院的推薦信（S 級時空 #SW00003）
 //   進入前要先填一封「特殊交換學生」的推薦信：目前角色的全名＋選一間分校
 //   分校決定：出生點、可接的委託、可玩的玩法（各校的特色技巧）、陣營

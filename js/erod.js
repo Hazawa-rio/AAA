@@ -1,4 +1,4 @@
-/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/erod.js": "20261122223322" });
+/* build */ (window.RPG = window.RPG || {}).files = Object.assign(window.RPG.files || {}, { "js/erod.js": "20261123215910" });
 // 戰役「命運的考驗」（S 級）：命運的見證者・厄羅德（使用者 11/22 的設計）
 //   為命運卡帶來考驗的見證者之一，自身也是考驗。方塊人形＋A 字形的兜帽（使用者的圖１），眼睛和兜帽上的寶石照型態變色
 //   行動點非常多（8 點）、動作頻繁；四把武器＝四個型態，自己判斷切換（圖２）：
@@ -149,8 +149,9 @@
       for (let r = 16; r < 400; r += 16) for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (ok(px, py)) return { x: px, y: py }; }
       return { x: u.x, y: u.y };
     },
+    // 衝刺＝直線位移：碰到掩體（高、矮）就停在前面
     async dash(b, u, x, y, dur = 0.18) {
-      const to = this.place(b, u, x, y), from = { x: u.x, y: u.y };
+      const from = { x: u.x, y: u.y }, to = b.travel(u, from, { x, y }, "dash");
       if (dist(to.x, to.y, from.x, from.y) < 4) return;
       u.facing = Math.atan2(to.y - from.y, to.x - from.x);
       b.emit({ type: "leap", unit: u, from, to, duration: dur, height: 4 });
@@ -272,7 +273,7 @@
       let from = { x: u.x, y: u.y - u.r * 1.4 };
       for (let i = 0; i < D.hops && !this.over(b, u); i++) {
         const p = b.player, a = Math.atan2(p.y - from.y, p.x - from.x), dd = Math.min(dist(from.x, from.y, p.x, p.y), 300);
-        const to = { x: from.x + Math.cos(a) * dd, y: from.y + Math.sin(a) * dd };
+        const to = b.throwLand(from, { x: from.x + Math.cos(a) * dd, y: from.y + Math.sin(a) * dd });      // 投擲物：越得過矮掩體，高的擋住就落在前面
         fx(b, { k: "bomb", x: from.x, y: from.y, x2: to.x, y2: to.y, dur: D.reaction * 1000 });
         fx(b, { k: "splash", x: to.x, y: to.y, r: D.radius, t0: now() + D.reaction * 1000, dur: 500 });
         await b.telegraph(u, { shape: "circle", x: to.x, y: to.y, radius: D.radius, reaction: D.reaction }, { base: D.base, sound: "sounds/cangyou-bubbles.mp3", label: `${u.name}的水彈`, quiet: true });
@@ -352,13 +353,13 @@
         fx(b, { k: "pierce", x: u.x, y: u.y, ang, len: D.length, t0: now() + D.reaction[i] * 1000 - 60, dur: 260 });
         await b.telegraph(u, { shape: "rect", x: u.x, y: u.y, ang, length: D.length, width: D.width, reaction: D.reaction[i] }, { base: D.base, sound: "sounds/ilshu-thrust.mp3", label: `${u.name}的突刺`, quiet: i > 0, onHit: this.push(b, u, D.push) });
         // 每一刺往前踏一步
-        if (u.alive) { const to = this.place(b, u, u.x + Math.cos(ang) * 40, u.y + Math.sin(ang) * 40); u.x = to.x; u.y = to.y; b.emit({ type: "move", unit: u }); }
+        if (u.alive) { const to = b.travel(u, u, { x: u.x + Math.cos(ang) * 40, y: u.y + Math.sin(ang) * 40 }, "dash"); u.x = to.x; u.y = to.y; b.emit({ type: "move", unit: u }); }
       }
     },
 
     // ---------- 大地型態 ----------
     async earth(b, u, t) {
-      const D = S.earth, d = dist(u.x, u.y, t.x, t.y), mine = (b.room.obstacles || []).filter((o) => o.erod).length;
+      const D = S.earth, d = dist(u.x, u.y, t.x, t.y), mine = (b.room.lowWalls || []).filter((o) => o.erod).length;
       const opts = [];
       if (this.once(u, "raise") && mine < D.raise.max) opts.push("raise");
       if (this.once(u, "smash") && u.ap >= D.smash.ap && d <= D.smash.radius) opts.push("smash", "smash");
@@ -371,7 +372,7 @@
       await this["e_" + k](b, u, t);
       return true;
     },
-    // 用把柄震動大地：隆起變成掩體（不會隆起在單位身上）
+    // 用把柄震動大地：隆起變成掩體（矮掩體：擋直線攻擊、射擊、衝刺；跳躍、投擲物越得過去。不會隆起在單位身上）
     async e_raise(b, u, t) {
       const D = S.earth.raise, A = b.cfg.arena;
       this.spend(b, u, D.ap);
@@ -379,14 +380,14 @@
       this.pose(u, "tap");
       b.emit({ type: "sfx", sound: "sounds/slime-slam.mp3" });
       await b.wait(0.4);
-      const O = (b.room.obstacles = b.room.obstacles || []);
+      const O = (b.room.lowWalls = b.room.lowWalls || []);
       let made = 0;
       for (let i = 0; i < 40 && made < D.n; i++) {
         const a = Math.random() * Math.PI * 2, r = 130 + Math.random() * 200, x = t.x + Math.cos(a) * r, y = t.y + Math.sin(a) * r, h = D.size / 2;
         if (x < 60 || y < 60 || x > A.w - 60 || y > A.h - 60) continue;
         const o = { x: x - h, y: y - h, w: D.size, h: D.size, erod: true, t0: now() };
         if (b.units.some((q) => q.alive && !q.part && dist(q.x, q.y, x, y) < q.r + D.size * 0.8)) continue;
-        if (O.some((p) => Math.abs(p.x - o.x) < D.size + 8 && Math.abs(p.y - o.y) < D.size + 8)) continue;
+        if ([...O, ...(b.room.obstacles || [])].some((p) => o.x < p.x + p.w + 8 && o.x + o.w + 8 > p.x && o.y < p.y + p.h + 8 && o.y + o.h + 8 > p.y)) continue;
         O.push(o); made++;
         fx(b, { k: "dust", x, y, r: D.size, dur: 600 });
       }
@@ -403,9 +404,9 @@
       const res = await b.telegraph(u, { shape: "sector", x: u.x, y: u.y, ang, half, radius: D.radius, reaction: D.reaction }, { base: D.base, sound: "sounds/bastian-impact-2.mp3", label: `${u.name}的震波` });
       if (res === false) return;
       // 震波結算之後：範圍裡的隆起被炸碎，石塊往外噴
-      const O = b.room.obstacles || [], broken = O.filter((o) => o.erod && b.hitTest({ shape: "sector", x: u.x, y: u.y, ang, half, radius: D.radius }, { x: o.x + o.w / 2, y: o.y + o.h / 2, r: o.w / 2 }));
+      const O = b.room.lowWalls || [], broken = O.filter((o) => o.erod && b.hitTest({ shape: "sector", x: u.x, y: u.y, ang, half, radius: D.radius }, { x: o.x + o.w / 2, y: o.y + o.h / 2, r: o.w / 2 }));
       if (!broken.length) return;
-      b.room.obstacles = O.filter((o) => !broken.includes(o));
+      b.room.lowWalls = O.filter((o) => !broken.includes(o));
       b.emit({ type: "sfx", sound: "sounds/explosion.mp3" });
       b.say(`隆起的地面被震碎，石塊四處飛散！`);
       for (const o of broken) {
@@ -529,10 +530,11 @@
       b.say(`${u.name}高高躍起——！`);
       fx(b, { k: "quake", x: c.x, y: c.y, ang: 0, half: Math.PI, r: D.radius, t0: now() + D.reaction * 1000, dur: 700 });
       const from = { x: u.x, y: u.y };
-      setTimeout(() => b.emit({ type: "leap", unit: u, from, to: this.place(b, u, c.x, c.y), duration: 0.45, height: 120 }), D.reaction * 1000 - 450);
+      const land0 = b.landingSpot(u, c.x, c.y, from);          // 跳躍：越得過矮掩體
+      setTimeout(() => b.emit({ type: "leap", unit: u, from, to: land0, duration: 0.45, height: 120 }), D.reaction * 1000 - 450);
       const res = await b.telegraph(u, { shape: "circle", x: c.x, y: c.y, radius: D.radius, reaction: D.reaction }, { base: D.base, sound: "sounds/bastian-impact-2.mp3", label: `${u.name}的猛擊` });
       if (this.over(b, u)) return;
-      const land = this.place(b, u, c.x, c.y); u.x = land.x; u.y = land.y; b.emit({ type: "move", unit: u });
+      const land = b.landingSpot(u, c.x, c.y, from); u.x = land.x; u.y = land.y; b.emit({ type: "move", unit: u });
       if (res === false) return;
       // 一圈地刺
       const pts = [];
@@ -540,7 +542,7 @@
       for (const p of pts) fx(b, { k: "spike", x: p.x, y: p.y, r: D.spikeR, t0: now() + D.spikeReaction * 1000, dur: 900 });
       await Promise.all(pts.map((p, i) => b.telegraph(u, { shape: "circle", x: p.x, y: p.y, radius: D.spikeR, reaction: D.spikeReaction }, { base: D.spikeBase, sound: i ? null : "sounds/slime-slam.mp3", label: `隆起的地刺`, quiet: true })));
       // 留下幾根變成隆起的地面
-      const O = (b.room.obstacles = b.room.obstacles || []), sz = S.earth.raise.size;
+      const O = (b.room.lowWalls = b.room.lowWalls || []), sz = S.earth.raise.size;
       for (const p of pts.sort(() => Math.random() - 0.5).slice(0, Math.max(0, Math.min(D.keep, 12 - O.filter((o) => o.erod).length)))) {
         if (b.units.some((q) => q.alive && !q.part && dist(q.x, q.y, p.x, p.y) < q.r + sz * 0.8)) continue;
         O.push({ x: p.x - sz / 2, y: p.y - sz / 2, w: sz, h: sz, erod: true, t0: now() });
@@ -817,7 +819,7 @@
   }
   // 隆起的地面（掩體）
   function drawRaised(ctx, b, t) {
-    for (const o of b.room.obstacles || []) {
+    for (const o of b.room.lowWalls || []) {
       if (!o.erod) continue;
       const q = Math.min(1, (t - (o.t0 || 0)) / 300), cx = o.x + o.w / 2, cy = o.y + o.h / 2, h = o.h * q;
       ctx.save();
@@ -886,7 +888,7 @@
       b.emit({ type: "sfx", sound: "sounds/guan-chime.mp3" });
       setTimeout(() => { b.say("命運的見證者・厄羅德：「" + pick(LINES.open) + "」"); res(); }, INTRO - 300);
     }),
-    onStart(b) { fxOf(b); b.room.obstacles = []; },
+    onStart(b) { fxOf(b); b.room.obstacles = []; b.room.lowWalls = []; },
     drawRoom(ctx, t, b, H) {
       const M = fxOf(b);
       drawRaised(ctx, b, t);
